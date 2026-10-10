@@ -76,17 +76,18 @@ Every point where the two lanes must connect. Tick each item and note the commit
 | I4 | **One graph in memory:** `dispatch.py` and `routing.py` must share one loaded graph + flood dict (36 MB graphml ≈ several hundred MB in RAM; two copies may not fit a 2 GB Replit VM). Agree on one loader, e.g. `routing.load_state()` that `dispatch` imports, or the reverse. | Both | ✅ routing.py imports dispatch.graph_state() / flood_state() (one copy) |
 | I5 | **Same blocking rule:** `t_uncertain <= depart_h + ROUTE_BUFFER_H` in both `/route` and `/dispatch`. Reuse one helper (`dispatch.blocked_weight()` or Priyanshu's equivalent). | Both | ✅ /route uses dispatch.blocked_weight() |
 | I6 | **Active cycle:** both honor env `NOAH_CYCLE`, else C6 `demo_cycle`. | Both | ✅ both use dispatch.active_cycle() |
-| I7 | **Static pages:** `web/index.html` (009, P) and `web/dispatch.html` (014, M) are served from the same origin (FastAPI `StaticFiles` on Replit) or GitHub Pages with `?api=`. Link the two pages to each other. | Both | ☐ |
+| I7 | **Static pages:** `web/index.html` (009, P) and `web/dispatch.html` (014, M) are served from the same origin (FastAPI `StaticFiles` on Replit) or GitHub Pages with `?api=`. Link the two pages to each other. | Both | ✅ `app.py` serves `web/` via StaticFiles; link index.html ↔ dispatch.html still to do |
 | I8 | **Dependencies:** M added `fastapi`, `uvicorn` (and the pipeline deps) to `pyproject.toml`/`uv.lock`. P: `uv sync` after pulling. If you add deps, commit the lock file. | Both | ☐ |
 | I9 | **Contract confirmations:** P to confirm CC1, CC2, CC5; **M to confirm CC6** (table below). | P + M | ☐ |
 | I10 | **Replit (J6/BL-9):** run command + data loading (I1) + secrets; Margulan does the account/import/billing steps in the browser (Claude can't). | M (browser), P (config) | ☐ |
+| I12 | **Same visual language on both maps:** creeks in blue, plain-language caption over the time slider ("Roads forecast underwater by …"), numbered pins matching the list, routes drawn with a ✕ where they get cut. Built first in `dispatch.html` (Fri 23:30); reuse in `index.html` (009). | P (009) | ☐ |
+| I13 | **C7 for HUC8 coverage:** `routing.coverage()` reads features with a `huc8` property from `web/data/aoi.geojson`. Margulan's HUC8 expansion writes them (CC6). | M | ☐ |
 | I11 | **Wording:** agent replies, map labels and dispatch badges all use the §5 vocabulary; run the banned-word check over everything user-facing. | Both | ☐ |
 
 ## Contract change proposals
 | # | Opened | Proposer | Change | Agreed by both? |
 |---|---|---|---|---|
 | CC5 | Fri 22:58 | M | Additive: C13 `POST /dispatch` + `GET /barricades` (spec 014) as a FastAPI `router` in `noah/api/dispatch.py`, mounted by one line in Priyanshu's `app.py`; §5 rows for dispatch states. No existing contract changed. | M ☑ · P ☐ |
-| CC6 | Fri 22:30 | P | **Coverage = all of Georgia, checked only where the user is or is going:** cameras are checked **on demand** (no background capture): `/status` and `/route` gain a `cameras` field, and the separate `/cameras` endpoints are removed. fixed `ALERT_RADIUS_KM = 5` around the user (`/status` returns every segment in it, plus `distance_m`) and `CORRIDOR_BUFFER_M = 1000` along a searched route (`/route` gains `corridor`). No map pan-to-load. Live layers follow the same rule. Also: **511GA removed**; cameras = Windy (C12 `cam_id` = Windy id, `frame_path` null since frames aren't stored, §5 camera credit = "Webcams provided by Windy.com"). C7 becomes the Georgia polygon + processed `hucs`. C1/C2/C4 cover the processed HUC8s. §5 `out_of_coverage` means outside Georgia. **New state `no_road_forecast`** for Georgia locations without HAND yet (they still get statewide alerts). Config `AOI_HUC10` → `COVERAGE` + `VALIDATION_HUC10`, `HUC8` → `HUC8S`. Already written into `02-ARCHITECTURE.md`. | P ☑ · M ☐ |
 | CC2 | Fri 22:00 | M | C1/C5 lead hours extend from 1–18 to **0–18**: hour 0 = NWM `analysis_assim` (estimated now). Consumers: the slider already starts at 0 (009); routing/status treat 0 like any hour. No renames. | M ☑ · P ☐ |
 | CC1 | Fri 21:05 | M | Additive: C6 `events` + `cycles[].event`; C9 `NOAH_CYCLE`, `beyond_forecast_window` state, `/cameras` endpoints; new C11 (low spots), C12 (camera assessments); §5 rows for low spot, camera water, beyond window. Already written into `02-ARCHITECTURE.md`. Nothing existing was renamed or removed. | M ☑ · P ☐ (Priyanshu: confirm or object before building 006/009) |
 
@@ -102,6 +103,7 @@ Every point where the two lanes must connect. Tick each item and note the commit
 ## Resolved
 | # | Resolved | How |
 |---|---|---|
+| CC6 | Fri 23:25 | **Margulan accepted Claude's narrowed version:** (1) road-level timing = all of HUC8 03130001 (Margulan builds it, spec 003/004 rerun), not all of Georgia; statewide = official warnings + `no_road_forecast`, Priyanshu's, after E2E; all-Georgia = roadmap; (2) 5 km radius + 1 km route corridor ✅; (3) 511GA dropped, cameras = Windy ✅ (BL-7/BL-10 closed); (4) no user photos ✅. |
 | J5 | Fri 22:58 | Option A: Margulan builds the dispatch board + barricade list now (spec 014), new files only, mounted by Priyanshu later (I3). 012 low spots stays P3 / roadmap. |
 | CC4 | Fri 22:38 | Residential streets covered: Noah computes thresholds from FIM HAND for roads NOAA's list omits (motorway–tertiary only), across branch 0 + 4 level paths; `source` column added to C3. Result: all reported Buckhead streets flagged (Woodward Way, Hanover W, Bohler, Peachtree Battle, Sagamore). `--noaa-only` fallback kept. C5 unchanged, so Priyanshu is not affected. |
 | R2 | Fri 22:38 | Level-path branches used for residential thresholds (min across branches = FIM max-extent composite). |
