@@ -215,9 +215,15 @@ def run_pass(client, key: str, aoi, last_alert: dict, force_card: bool = False) 
     ).to_crs(5070)
     streams = gpd.read_file(config.WEB_DATA / "streams.geojson").to_crs(5070)
     w = watch_list(cg, c5[["seg_id", "name", "t_flood", "t_uncertain", "geometry"]], streams)
-    if ROUTES.exists():  # spec 017: route-watch cameras are always watched
-        rc = {c["id"] for r in json.loads(ROUTES.read_text())["routes"] for c in r["cams"]}
-        w = pd.concat([w, cg[cg.id.isin(rc) & ~cg.id.isin(w.id)]])
+    keep = set()  # always watched, whatever the newest forecast says
+    if ROUTES.exists():  # spec 017: route-watch cameras
+        keep |= {c["id"] for r in json.loads(ROUTES.read_text())["routes"] for c in r["cams"]}
+    if (
+        CHECKS.exists()
+    ):  # any camera whose first look ever saw water: confirm or rule it out over time
+        rows = map(json.loads, CHECKS.read_text().splitlines())
+        keep |= {r["cam_id"] for r in rows if r.get("verified") is not None}
+    w = pd.concat([w, cg[cg.id.isin(keep) & ~cg.id.isin(w.id)]])
     if force_card:
         w = cg.head(1).assign(road_m=None, name=None, t_flood=None, t_uncertain=None)
     imgs = fresh_images(client, key, list(w["id"]))
