@@ -225,6 +225,7 @@ def record_trip_family(
                 nxt = [cur[i] for i in [*order, *rest]]
                 if tuple((s["lat"], s["lon"]) for s in nxt) not in seen_orders and nxt not in queue:
                     queue.append(nxt)
+        rec.get("/past/route", {"from": ll(origin), "to": ll(dest), "cycle": CYCLE})  # the page's past tab: start to end
         if cur:
             for a, b in leg_pairs(origin, cur, dest):
                 for h in range(NOW_MIN // 60, config.MAX_LEAD_H + 1):
