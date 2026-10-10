@@ -24,11 +24,63 @@ AOI_HUC10S = [
     "0313000109",  # Suwanee Creek-Chattahoochee River (Johns Creek, Duluth)
 ]
 HUC8 = "03130001"  # Upper Chattahoochee
-WBD_HUC10_URL = (
-    "https://hydro.nationalmap.gov/arcgis/rest/services/wbd/MapServer/5/query"
-    "?where=huc10%20IN%20(" + "%2C".join(f"%27{h}%27" for h in AOI_HUC10S) + ")"
-    "&outFields=huc10,name,areasqkm&returnGeometry=true&outSR=4326&f=geojson"
-)
+
+
+def wbd_huc10_url(huc10s: list[str]) -> str:
+    return (
+        "https://hydro.nationalmap.gov/arcgis/rest/services/wbd/MapServer/5/query"
+        "?where=huc10%20IN%20(" + "%2C".join(f"%27{h}%27" for h in huc10s) + ")"
+        "&outFields=huc10,name,areasqkm&returnGeometry=true&outSR=4326&f=geojson"
+    )
+
+
+WBD_HUC10_URL = wbd_huc10_url(AOI_HUC10S)
+
+# Spec 016 (approved Sat Oct 10): the first ring of sub-basins around metro on every side.
+# Each basin is built on its own (HAND of its HUC8, its own graph + thresholds in data/interim/basins/<name>/)
+# so metro's files and numbers stay untouched; the live loop merges every basin into one C5 per cycle.
+# HUC8/HUC10 codes verified against the USGS WBD service, Sat 02:40.
+BASINS = {
+    "north": {"huc8": "03130001", "huc10s": ["0313000108"], "label": "Lake Lanier, Hall, Forsyth"},
+    "etowah": {
+        "huc8": "03150104",
+        "huc10s": ["0315010408", "0315010403", "0315010406"],
+        "label": "Cherokee, north Cobb (Etowah, Little River)",
+    },
+    "west": {
+        "huc8": "03130002",
+        "huc10s": ["0313000201", "0313000202"],
+        "label": "Douglas, Paulding, southwest Atlanta (Sweetwater, Utoy)",
+    },
+    "flint": {
+        "huc8": "03130005",
+        "huc10s": ["0313000501", "0313000502"],
+        "label": "Clayton, Fayette, south Fulton (Upper Flint, Line Creek)",
+    },
+    "ocmulgee": {
+        "huc8": "03070103",
+        "huc10s": ["0307010301", "0307010303", "0307010304", "0307010302", "0307010306"],
+        "label": "East DeKalb, Gwinnett, Rockdale, Henry (Yellow and South rivers)",
+    },
+    "oconee": {
+        "huc8": "03070101",
+        "huc10s": ["0307010102"],
+        "label": "Northeast Gwinnett, Barrow (Mulberry River)",
+    },
+}
+BASINS_DIR = DATA_INTERIM / "basins"
+BASINS_GEOJSON = (
+    WEB_DATA / "basins.geojson"
+)  # C7-shaped, one feature per basin HUC10 (+ basin, huc8)
+
+
+def basin_dir(name: str) -> Path:
+    return BASINS_DIR / name
+
+
+def fim_base(huc8: str) -> str:
+    return f"https://ciroh-owp-hand-fim.s3.amazonaws.com/hand_fim_4_9_9_0/{huc8}"
+
 
 # Gauge: Peachtree Creek at Atlanta
 GAUGE_USGS = "02336300"

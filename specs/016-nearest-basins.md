@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | Owner | Margulan (pipeline, parts A–B) · Priyanshu (API + map, part C) |
-| Status | **Draft** (Priyanshu, Sat Oct 10 02:30 ET; needs Margulan's approval before any pipeline code) |
+| Status | **Approved** (Margulan, Sat Oct 10 ~02:40 ET, relayed by Priyanshu). **A + C done Sat 02:45** on Priyanshu's machine: 6 basins built (`north, ocmulgee, flint, west, etowah, oconee`, defined as HUC10 lists in `config.BASINS`), live loop merges them, per-basin routing. Margulan reviews the pipeline diff. **B (on demand) not started.** |
 | Time box | A: 1 h plumbing + overnight compute · B: 30 min · C: 2 h (stop at 1.5×, log in 06) |
 | Depends on | 002, 003, 004, 015 (all done for HUC8 03130001); R18 in `06-CURRENT_ISSUES.md` |
 | Produces | C5 `flood_<cycle>.geojson` and C7 `aoi.geojson` covering several HUC8s; C4 graphs per HUC8; no contract changes |

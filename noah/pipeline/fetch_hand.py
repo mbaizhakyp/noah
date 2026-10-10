@@ -24,12 +24,33 @@ from noah import config
 log = logging.getLogger("fetch_hand")
 RAW = config.DATA_RAW / "hand" / config.HUC8
 DOWNLOAD = ["hand", "catchments", "hydroid_prefix", "hydrotable_huc", "fimpact", "streams"]
+# Metro (default) keeps every path it always had. `--basin NAME` (spec 016) points everything at that
+# basin's HUC8 in the bucket and at data/interim/basins/<name>/ for its outputs.
+FIM_BASE = config.FIM_BASE
+AOI_PATH = config.DATA_INTERIM / "aoi.geojson"
+RATING_PATH = config.DATA_INTERIM / "rating.parquet"
+WBD_URL = config.WBD_HUC10_URL
+HUC8, HUC10S = config.HUC8, config.AOI_HUC10S
+BASIN: str | None = None
+MAX_EXTRA_BRANCHES = 6  # level-path branches a basin may add for residential thresholds (CC4)
+
+
+def use_basin(name: str) -> None:
+    global RAW, FIM_BASE, AOI_PATH, RATING_PATH, WBD_URL, HUC8, HUC10S, BASIN
+    b = config.BASINS[name]
+    BASIN, HUC8, HUC10S = name, b["huc8"], b["huc10s"]
+    RAW = config.DATA_RAW / "hand" / HUC8
+    FIM_BASE = config.fim_base(HUC8)
+    d = config.basin_dir(name)
+    d.mkdir(parents=True, exist_ok=True)
+    AOI_PATH, RATING_PATH = d / "aoi.geojson", d / "rating.parquet"
+    WBD_URL = config.wbd_huc10_url(HUC10S)
 
 
 def download(name: str, client: httpx.Client) -> None:
     rel = config.FIM_FILES.get(name, name)
     dest = RAW / rel
-    url = f"{config.FIM_BASE}/{rel}"
+    url = f"{FIM_BASE}/{rel}"
     size = int(client.head(url).raise_for_status().headers["content-length"])
     if dest.exists() and dest.stat().st_size == size:
         log.info("have %s (%.1f MB)", rel, size / 1e6)
@@ -42,20 +63,28 @@ def download(name: str, client: httpx.Client) -> None:
 
 
 def aoi_geometry(client: httpx.Client) -> dict:
-    out = config.DATA_INTERIM / "aoi.geojson"
+    out = AOI_PATH
     if not out.exists():
         out.parent.mkdir(parents=True, exist_ok=True)
-        gj = client.get(config.WBD_HUC10_URL).raise_for_status().json()
+        gj = client.get(WBD_URL).raise_for_status().json()
         for f in gj["features"]:
-            f["properties"]["huc8"] = (
-                config.HUC8
-            )  # routing.coverage() reads features with huc8 (I13)
-        if len(gj["features"]) != len(config.AOI_HUC10S):
-            raise SystemExit(
-                f"WBD returned {len(gj['features'])} HUC10s, expected {len(config.AOI_HUC10S)}"
-            )
+            f["properties"]["huc8"] = HUC8  # routing.coverage() reads features with huc8 (I13)
+            if BASIN:
+                f["properties"]["basin"] = BASIN
+        if len(gj["features"]) != len(HUC10S):
+            raise SystemExit(f"WBD returned {len(gj['features'])} HUC10s, expected {len(HUC10S)}")
         out.write_text(json.dumps(gj))
     return mapping(config.aoi_union(out.read_text()))
+
+
+def discover_branches(ids: np.ndarray) -> list[str]:
+    """Level-path branches that carry this AOI's roads in NOAA's osm_roads_fimpact.csv (what CC4 did by hand for metro)."""
+    fp = pd.read_csv(RAW / config.FIM_FILES["fimpact"], usecols=["HydroID", "branch"])
+    fp = fp[pd.to_numeric(fp.HydroID, errors="coerce").isin(ids)]
+    counts = fp.branch.astype(str).value_counts()
+    extra = [b for b in counts.index if b != "0"][:MAX_EXTRA_BRANCHES]
+    log.info("branches carrying AOI roads: %s (keeping %s)", dict(counts.head(10)), extra)
+    return ["0", *extra]
 
 
 def hydroid_prefix() -> int:
@@ -105,14 +134,26 @@ def clean_rating(ht: pd.DataFrame, hydro_ids: np.ndarray | None = None) -> pd.Da
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
     p = argparse.ArgumentParser(description=__doc__)
-    p.parse_args()
+    p.add_argument(
+        "--basin",
+        choices=sorted(config.BASINS),
+        help="spec 016: a neighbouring basin instead of metro",
+    )
+    a = p.parse_args()
+    if a.basin:
+        use_basin(a.basin)
     with httpx.Client(timeout=300, follow_redirects=True) as client:
         for name in DOWNLOAD:
             download(name, client)
-        for b in config.FIM_BRANCHES[1:]:  # level-path branches for residential thresholds (CC4)
+        aoi = aoi_geometry(client)
+        if BASIN:  # a basin finds its own level-path branches; metro's are listed in config (CC4)
+            branches = discover_branches(aoi_hydro_ids(aoi))
+            (config.basin_dir(BASIN) / "branches.json").write_text(json.dumps(branches))
+        else:
+            branches = config.FIM_BRANCHES
+        for b in branches[1:]:  # level-path branches for residential thresholds (CC4)
             for rel in config.fim_branch_files(b).values():
                 download(rel, client)
-        aoi = aoi_geometry(client)
 
     for name in ("hand", "catchments"):
         with rasterio.open(RAW / config.FIM_FILES[name]) as src:
@@ -128,7 +169,7 @@ def main() -> None:
     ids = aoi_hydro_ids(aoi)
     ht = pd.read_parquet(RAW / config.FIM_FILES["hydrotable_huc"])
     rating = clean_rating(ht, ids)
-    out = config.DATA_INTERIM / "rating.parquet"
+    out = RATING_PATH
     rating.to_parquet(out, index=False)
     missing = sorted(set(ids) - set(rating.hydro_id))
     log.info(
@@ -148,6 +189,8 @@ def main() -> None:
             [(round(s, 1), round(q)) for s, q in zip(pts.stage_m, pts.q_cms)],
         )
 
+    if BASIN:
+        return
     fp = pd.read_csv(RAW / config.FIM_FILES["fimpact"], nrows=5)
     log.info("osm_roads_fimpact.csv columns: %s", list(fp.columns))
     print(fp.to_string())

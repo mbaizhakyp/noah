@@ -913,13 +913,22 @@ async function findRoute(full = true) {
     $("directions").hidden = true;
     if (r.state === "error") { routeEmpty(); banner(r.message, "danger"); return; }
     if (r.state === "no_road_forecast") {
-      // inside Georgia, outside the routing basin: no Noah route, but the live checks still cover the trip and the hand-off still works
-      routeEmpty(); banner(MSG[r.state], "info"); fit([[origin.lon, origin.lat], [dest.lon, dest.lat]]);
+      // inside Georgia, outside the processed basins: no Noah detour, but we still draw a road route (OSRM, OpenStreetMap)
+      // and run the live checks along it; Google/Apple hand-off follows that route
+      routeEmpty(); banner(MSG[r.state] + " Below is a plain road route; Noah hasn't checked these roads one by one.", "info");
       $("results").replaceChildren(Object.assign(document.createElement("div"), { className: "none", textContent: "Road-by-road timing and detours aren't available in this part of Georgia yet. The live checks and cameras below cover your trip." }));
-      setDirections([]);
+      const osrm = await plainRoute(origin, dest);
+      if (osrm) {
+        map.getSource("route").setData({ type: "Feature", geometry: osrm.geometry, properties: {} });
+        map.setPaintProperty("route", "line-color", "#6b7280"); map.setPaintProperty("route", "line-dasharray", [2, 1.5]);
+        fit(osrm.geometry.coordinates);
+        $("minutes").textContent = Math.round(osrm.minutes); $("via").textContent = "Plain road route (OpenStreetMap). Not checked road by road for flooding."; $("routeSum").hidden = false;
+        setDirections(osrm.geometry.coordinates);
+      } else { fit([[origin.lon, origin.lat], [dest.lon, dest.lat]]); setDirections([]); }
       if (full) { showTabs(true); selectTab("live"); runAssess("route"); }
       return;
     }
+    map.setPaintProperty("route", "line-color", BLUE); map.setPaintProperty("route", "line-dasharray", null);
     if (MSG[r.state]) { routeEmpty(); banner(MSG[r.state], "info"); fit([[origin.lon, origin.lat], [dest.lon, dest.lat]]); return; }
     if (r.state === "no_route") {
       routeEmpty();
@@ -947,6 +956,16 @@ async function findRoute(full = true) {
     if (full) { runAssess("route"); runPast("route"); } // departure-time changes only re-route; the full live check runs on a new search
   } catch (e) { banner("I can't confirm conditions right now, so treat low roads near creeks as impassable. In an emergency call 911.", "danger"); }
   finally { busy(false); }
+}
+// Outside the processed basins Noah can't compute a detour, so the route geometry comes from OSRM's public
+// OpenStreetMap router (no key). It is drawn grey and dashed and never called a flood-checked route.
+async function plainRoute(o, d) {
+  try {
+    const u = `https://router.project-osrm.org/route/v1/driving/${o.lon},${o.lat};${d.lon},${d.lat}?overview=full&geometries=geojson`;
+    const r = await fetch(u).then((x) => x.json());
+    const rt = r.routes?.[0]; if (!rt) return null;
+    return { geometry: rt.geometry, minutes: rt.duration / 60 };
+  } catch (e) { return null; }
 }
 function routeEmpty() { assessToken++; $("live").hidden = true; $("risk").hidden = true; clearCams(); map.getSource("route").setData(empty); setHazard([]); $("results").replaceChildren(); $("summary").textContent = ""; routeSummary(null); showTabs(false); }
 
@@ -1050,7 +1069,7 @@ async function loadCycle(id) {
   $("issued").textContent = `Updated ${fmt.format(issue)}`;
   const gj = await fetch(`data/flood_${cyc.cycle}.geojson`).then((r) => r.json());
   flood = new Map(gj.features.map((f) => [f.properties.seg_id, f]));
-  $("footer").textContent = "Road-level timing covers metro Atlanta (Upper Chattahoochee). River and creek flooding only. Not a safety guarantee. Never drive into water. Emergency: 911.";
+  $("footer").textContent = "Road-by-road timing covers metro Atlanta and the ring of river basins around it (Lanier, Etowah, Sweetwater, Flint, Yellow and South rivers, Mulberry). River and creek flooding only. Not a safety guarantee. Never drive into water. Emergency: 911.";
   setTimeUI(+$("hour").value, "");
   applyHour();
   if (mode === "area") checkArea(); else if (mode === "route") findRoute();

@@ -141,14 +141,96 @@ class FloodIndex:
     tree: shapely.STRtree
 
 
-@lru_cache(maxsize=1)
+def _basins_mtime() -> float:
+    p = config.BASINS_GEOJSON
+    return p.stat().st_mtime if p.exists() else 0.0
+
+
 def coverage():
-    """(Georgia polygon, processed-area polygon). Processed area = C7 (HUC8 outlines once CC6 lands)."""
+    return _coverage(
+        _basins_mtime()
+    )  # re-read when a basin finishes building (spec 016), no restart
+
+
+@lru_cache(maxsize=1)
+def _coverage(_mtime: float):
+    """(Georgia polygon, processed-area polygon). Processed area = C7 (metro) + every spec-016 basin."""
     ga = shape(json.loads(config.GEORGIA_GEOJSON.read_text())["features"][0]["geometry"])
     c7 = json.loads((config.WEB_DATA / "aoi.geojson").read_text())["features"]
     hucs = [shape(f["geometry"]) for f in c7 if "huc8" in f["properties"]]
     processed = shapely.union_all(hucs or [shape(f["geometry"]) for f in c7])  # all basins in C7
+    extra = [poly for _, poly in basins()]
+    if extra:
+        processed = shapely.union_all([processed, *extra])
     return ga, processed
+
+
+# ---------- spec 016: neighbouring basins, each with its own graph, loaded when a trip touches it ----------
+
+
+def basins() -> list[tuple[str, shapely.Geometry]]:
+    return _basins(_basins_mtime())
+
+
+@lru_cache(maxsize=1)
+def _basins(_mtime: float) -> list[tuple[str, shapely.Geometry]]:
+    """[(basin name, polygon)] from web/data/basins.geojson (written by build_segments --basin)."""
+    p = config.BASINS_GEOJSON
+    if not p.exists():
+        return []
+    by = {}
+    for f in json.loads(p.read_text())["features"]:
+        by.setdefault(f["properties"].get("basin"), []).append(shape(f["geometry"]))
+    return [(name, shapely.union_all(polys)) for name, polys in by.items() if name]
+
+
+def basin_of(pt: Point) -> str | None:
+    """Basin name containing pt, or None for metro (C7)."""
+    for name, poly in basins():
+        if poly.contains(pt):
+            return name
+    return None
+
+
+@lru_cache(maxsize=2)
+def basin_graph(name: str):
+    import osmnx as ox
+
+    G = ox.load_graphml(config.basin_dir(name) / "graph.graphml")
+    ids = np.array(list(G.nodes))
+    xy = np.array([(G.nodes[n]["x"], G.nodes[n]["y"]) for n in ids])
+    log.info("basin graph %s loaded: %d nodes, %d edges", name, len(G), G.number_of_edges())
+    return G, ids, xy
+
+
+@lru_cache(maxsize=1)
+def composed_graph(names: frozenset):
+    """Areas joined for a trip that crosses between them (their 2 km buffers overlap where they touch)."""
+    parts = [basin_graph(n) if n else graph_state()[:3] for n in sorted(names, key=str)]
+    G = nx.compose_all([p[0] for p in parts])
+    ids = np.array(list(G.nodes))
+    xy = np.array([(G.nodes[n]["x"], G.nodes[n]["y"]) for n in ids])
+    return G, ids, xy
+
+
+def graph_for(a: tuple, b: tuple):
+    """(G, ids, xy) covering the trip: metro alone, one basin alone, or every area the trip's box
+    touches composed together (areas only connect where their 2 km buffers overlap, so a trip from
+    one ring basin to another may need metro and a neighbour in between)."""
+    ends = {basin_of(Point(*a)), basin_of(Point(*b))}
+    if ends == {None}:
+        return graph_state()[:3]
+    if len(ends) == 1:
+        return basin_graph(next(iter(ends)))
+    margin = config.TRIP_BOX_MARGIN_KM / 110.54
+    box = shapely.box(
+        min(a[0], b[0]) - margin,
+        min(a[1], b[1]) - margin,
+        max(a[0], b[0]) + margin,
+        max(a[1], b[1]) + margin,
+    )
+    names = {name for name, poly in basins() if poly.intersects(box)} | ends | {None}
+    return composed_graph(frozenset(names))
 
 
 @lru_cache(maxsize=8)
@@ -158,6 +240,20 @@ def flood_index(cycle: str) -> FloodIndex:
     return FloodIndex(
         cycle, fl.issue_time, [f["properties"] for f in fl.features], geoms, shapely.STRtree(geoms)
     )
+
+
+_c5_mtimes: dict[str, float] = {}
+
+
+def fresh(cycle: str) -> None:
+    """Drop the cached C5 for a cycle whose file was rewritten (live --refresh after a basin is built)."""
+    p = config.WEB_DATA / f"flood_{cycle}.geojson"
+    m = p.stat().st_mtime if p.exists() else 0.0
+    if _c5_mtimes.get(cycle) not in (None, m):
+        flood_state.cache_clear()
+        flood_index.cache_clear()
+        log.info("C5 %s changed on disk, caches cleared", cycle)
+    _c5_mtimes[cycle] = m
 
 
 def iso(t: pd.Timestamp) -> str:
@@ -183,6 +279,7 @@ def status(lat: float, lon: float, hours: int, cycle: str | None = None) -> dict
     reason = coverage_state(pt, *coverage())
     if reason:
         return {"state": reason, "segments": [], "cycle": cycle}
+    fresh(cycle)
     fi = flood_index(cycle)
     hours = max(0, min(int(hours), config.MAX_LEAD_H))
     pm = transform(_to_metric, pt)
@@ -227,7 +324,8 @@ def route(
         if reason:
             return {"state": reason, **empty, "map_url": None}
 
-    G, ids, xy, *_ = graph_state()
+    G, ids, xy = graph_for(a, b)
+    fresh(cycle)
     fl = flood_state(cycle)
     limit = depart_h + config.ROUTE_BUFFER_H
     tu = {**fl.t_uncertain, **dict.fromkeys(extra_blocked, -1)}  # live hazards: blocked from now

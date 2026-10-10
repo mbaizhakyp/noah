@@ -24,7 +24,49 @@ from noah import config
 log = logging.getLogger("build_segments")
 GRAPH = config.DATA_INTERIM / "graph.graphml"
 SEG_THRESHOLDS = config.DATA_INTERIM / "seg_thresholds.parquet"
+# Metro (default) keeps its paths; `--basin NAME` (spec 016) builds a neighbouring basin into
+# data/interim/basins/<name>/ from its own HUC8's HAND files, and registers it in web/data/basins.geojson.
+AOI_PATH = config.DATA_INTERIM / "aoi.geojson"
+RAW_DIR = config.DATA_RAW / "hand" / config.HUC8
+BRANCHES = list(config.FIM_BRANCHES)
+BASIN: str | None = None
 FIXTURE_MAX_MB = 20
+
+
+def use_basin(name: str) -> None:
+    global GRAPH, SEG_THRESHOLDS, AOI_PATH, RAW_DIR, BRANCHES, BASIN
+    import json
+
+    BASIN = name
+    d = config.basin_dir(name)
+    GRAPH, SEG_THRESHOLDS, AOI_PATH = (
+        d / "graph.graphml",
+        d / "seg_thresholds.parquet",
+        d / "aoi.geojson",
+    )
+    RAW_DIR = config.DATA_RAW / "hand" / config.BASINS[name]["huc8"]
+    bj = d / "branches.json"
+    BRANCHES = json.loads(bj.read_text()) if bj.exists() else ["0"]
+
+
+def register_basin() -> None:
+    """Add/replace this basin's HUC10 features in web/data/basins.geojson (C7-shaped; read by routing.coverage)."""
+    import json
+
+    mine = json.loads(AOI_PATH.read_text())["features"]
+    for f in mine:
+        f["properties"]["basin"] = BASIN
+    path = config.BASINS_GEOJSON
+    gj = (
+        json.loads(path.read_text())
+        if path.exists()
+        else {"type": "FeatureCollection", "features": []}
+    )
+    gj["features"] = [f for f in gj["features"] if f["properties"].get("basin") != BASIN] + mine
+    path.write_text(json.dumps(gj))
+    log.info("registered basin %s (%d HUC10s) in %s", BASIN, len(mine), path)
+
+
 HAND_SCALE = (
     0.001  # FIM 4.9 HAND rasters are int16 millimetres (checked against NOAA threshold_hand)
 )
@@ -32,7 +74,7 @@ MAX_HAND_M = 25.0  # NOAA's own cutoff for road thresholds
 
 
 def aoi_polygon():
-    src = config.DATA_INTERIM / "aoi.geojson"
+    src = AOI_PATH
     if not src.exists():
         raise SystemExit(f"{src} missing: run fetch_hand (spec 002) first, it fetches the HUC10")
     return config.aoi_union(src.read_text())
@@ -48,7 +90,10 @@ def truthy_tag(v) -> bool:
 def step1_graph() -> None:
     aoi = aoi_polygon()
     config.WEB_DATA.mkdir(parents=True, exist_ok=True)
-    shutil.copy(config.DATA_INTERIM / "aoi.geojson", config.WEB_DATA / "aoi.geojson")
+    if BASIN:
+        register_basin()
+    else:
+        shutil.copy(config.DATA_INTERIM / "aoi.geojson", config.WEB_DATA / "aoi.geojson")
     buffered = gpd.GeoSeries([aoi], crs=4326).to_crs(5070).buffer(2000).to_crs(4326).iloc[0]
     log.info("downloading OSM drive network for AOI + 2 km (Overpass, can take a few minutes)")
     G = ox.graph_from_polygon(buffered, network_type="drive", retain_all=False)
@@ -60,7 +105,7 @@ def step1_graph() -> None:
     ox.save_graphml(G, GRAPH)
     mb = GRAPH.stat().st_size / 1e6
     log.info("graph: %d nodes, %d edges, %.1f MB -> %s", len(G), G.number_of_edges(), mb, GRAPH)
-    if mb < FIXTURE_MAX_MB:
+    if mb < FIXTURE_MAX_MB and not BASIN:
         dest = config.ROOT / "fixtures" / "graph.graphml"
         dest.parent.mkdir(exist_ok=True)
         shutil.copy(GRAPH, dest)
@@ -118,7 +163,7 @@ def noah_thresholds(
     edges_4326: gpd.GeoDataFrame, curves: dict, fid_of: dict, branch: str = config.FIM_BRANCH
 ) -> pd.DataFrame:
     """CC4: Noah-computed thresholds for edges NOAA doesn't list, from one FIM branch's HAND + catchments."""
-    raw = config.DATA_RAW / "hand" / config.HUC8
+    raw = RAW_DIR
     files = config.fim_branch_files(branch)
     prefix = int((raw / files["hydroid_prefix"]).read_text().strip()) * 10000
     with (
@@ -167,9 +212,7 @@ def noah_thresholds(
 
 
 def rating_curves() -> tuple[dict, dict]:
-    ht = pd.read_parquet(
-        config.DATA_RAW / "hand" / config.HUC8 / config.FIM_FILES["hydrotable_huc"]
-    ).reset_index()
+    ht = pd.read_parquet(RAW_DIR / config.FIM_FILES["hydrotable_huc"]).reset_index()
     ht = ht.assign(
         hid=pd.to_numeric(ht.HydroID).astype("int64"),
         br=pd.to_numeric(ht.branch_id),
@@ -188,7 +231,7 @@ def step2_thresholds(noaa_only: bool = False) -> None:
     n_bridge = int(
         sum(in_aoi[t].map(truthy_tag).sum() for t in ("bridge", "tunnel") if t in in_aoi)
     )
-    fimpact = pd.read_csv(config.DATA_RAW / "hand" / config.HUC8 / config.FIM_FILES["fimpact"])
+    fimpact = pd.read_csv(RAW_DIR / config.FIM_FILES["fimpact"])
     raw = edge_thresholds(in_aoi, fimpact, min_hand_m=0.0)
     out = edge_thresholds(in_aoi, fimpact, config.MIN_ROAD_HAND_M).assign(source="noaa")
     n_noaa_rows, n_noaa_segs = len(out), out.seg_id.nunique()
@@ -200,7 +243,7 @@ def step2_thresholds(noaa_only: bool = False) -> None:
                 bridge |= in_aoi[tag].map(truthy_tag)
         eligible_edges = in_aoi[~bridge]
         ours = pd.concat(
-            [noah_thresholds(eligible_edges, curves, fid_of, b) for b in config.FIM_BRANCHES],
+            [noah_thresholds(eligible_edges, curves, fid_of, b) for b in BRANCHES],
             ignore_index=True,
         )
         # consistency check on roads NOAA also covers: same method + data should give similar HAND
@@ -260,12 +303,19 @@ def main() -> None:
     p.add_argument(
         "--noaa-only", action="store_true", help="fallback: skip Noah residential thresholds (CC4)"
     )
+    p.add_argument(
+        "--basin",
+        choices=sorted(config.BASINS),
+        help="spec 016: a neighbouring basin instead of metro",
+    )
     a = p.parse_args()
+    if a.basin:
+        use_basin(a.basin)
     if a.step in ("1", "all"):
         step1_graph()
     if a.step in ("2", "all"):
         step2_thresholds(a.noaa_only)
-    if a.step in ("streams", "all"):
+    if a.step in ("streams", "all") and not a.basin:  # C14 streams stay metro-only (dispatch map)
         write_streams()
 
 
