@@ -220,23 +220,101 @@ def composed_graph(names: frozenset):
 
 
 def graph_for(a: tuple, b: tuple):
-    """(G, ids, xy) covering the trip: metro alone, one basin alone, or every area the trip's box
+    return graph_for_points([a, b])
+
+
+def graph_for_points(pts: list[tuple]):
+    """(G, ids, xy) covering every point: metro alone, one basin alone, or every area the points' box
     touches composed together (areas only connect where their 2 km buffers overlap, so a trip from
     one ring basin to another may need metro and a neighbour in between)."""
-    ends = {basin_of(Point(*a)), basin_of(Point(*b))}
+    ends = {basin_of(Point(*p)) for p in pts}
     if ends == {None}:
         return graph_state()[:3]
     if len(ends) == 1:
         return basin_graph(next(iter(ends)))
     margin = config.TRIP_BOX_MARGIN_KM / 110.54
-    box = shapely.box(
-        min(a[0], b[0]) - margin,
-        min(a[1], b[1]) - margin,
-        max(a[0], b[0]) + margin,
-        max(a[1], b[1]) + margin,
-    )
+    xs, ys = [p[0] for p in pts], [p[1] for p in pts]
+    box = shapely.box(min(xs) - margin, min(ys) - margin, max(xs) + margin, max(ys) + margin)
     names = {name for name, poly in basins() if poly.intersects(box)} | ends | {None}
     return composed_graph(frozenset(names))
+
+
+def box_nodes(ids: np.ndarray, xy: np.ndarray, pts: list[tuple], margin_km: float):
+    """Graph nodes inside the bbox of all points expanded by margin_km (trip_nodes for N points)."""
+    xs, ys = [p[0] for p in pts], [p[1] for p in pts]
+    lat0 = sum(ys) / len(ys)
+    dlat = margin_km / 110.54
+    dlon = margin_km / (111.32 * np.cos(np.radians(lat0)))
+    m = (
+        (xy[:, 0] >= min(xs) - dlon)
+        & (xy[:, 0] <= max(xs) + dlon)
+        & (xy[:, 1] >= min(ys) - dlat)
+        & (xy[:, 1] <= max(ys) + dlat)
+    )
+    return ids[m]
+
+
+def plan(depot: tuple, stops: list[tuple], cycle: str | None = None) -> dict:
+    """Spec 009/014 for the map's stops: from one depot, when does each stop get cut off by forecast
+    flooding? Per stop: no_forecast_flooding / go_before (cut_h = first hour it is unreachable) / hold.
+    Same rule as the dispatch board (dispatch.reach_by_hour + verdict), on whatever areas the points touch."""
+    from noah.api.dispatch import verdict
+
+    cycle = cycle or current_cycle()
+    pts = [depot, *stops]
+    reasons = [coverage_state(Point(*p), *coverage()) for p in pts]
+    fresh(cycle)
+    fi = flood_index(cycle)
+    base = {"cycle": cycle, "issue_time": iso(fi.issue_time)}
+    if reasons[0]:
+        return {"state": reasons[0], "stops": [], **base}
+    G, ids, xy = graph_for_points([p for p, r in zip(pts, reasons) if not r])
+    tu = flood_state(cycle).t_uncertain
+    sub = G.subgraph(box_nodes(ids, xy, pts, config.TRIP_BOX_MARGIN_KM))
+    src = nearest_node(ids, xy, *depot)
+    # only the flagged roads inside the box matter: one Dijkstra per distinct blocked set, 3 h travel cutoff
+    in_box = {d.get("seg_id") for _, _, d in sub.edges(data=True)}
+    tu_box = {s: t for s, t in tu.items() if s in in_box}
+    reach, cache = {}, {}
+    for h in range(config.MAX_LEAD_H + 1):
+        key = frozenset(s for s, t in tu_box.items() if t <= h + config.ROUTE_BUFFER_H)
+        if key not in cache:
+            cache[key] = nx.single_source_dijkstra_path_length(
+                sub, src, cutoff=3 * 3600, weight=blocked_weight(tu_box, h)
+            )
+        reach[h] = cache[key]
+    out = []
+    for i, (p, reason) in enumerate(zip(stops, reasons[1:])):
+        if reason:
+            out.append({"i": i, "state": reason, "cut_h": None, "cut_utc": None, "minutes": None})
+            continue
+        n = nearest_node(ids, xy, *p)
+        sids = tuple(
+            d.get("seg_id")
+            for _, _, d in list(sub.out_edges(n, data=True)) + list(sub.in_edges(n, data=True))
+            if d.get("seg_id")
+        )
+        v = verdict((n, n, sids), reach, True, tu)
+        cut = v["cut_h"]
+        out.append(
+            {
+                "i": i,
+                **v,
+                "cut_utc": None
+                if cut is None
+                else iso(fi.issue_time + pd.Timedelta(hours=int(cut))),
+            }
+        )
+    # earliest-cut-first is the order that loses the fewest stops to the water
+    order = sorted(
+        range(len(out)),
+        key=lambda i: (
+            out[i]["state"] == "out_of_coverage",
+            out[i]["cut_h"] if out[i]["cut_h"] is not None else 99,
+            out[i]["minutes"] or 0,
+        ),
+    )
+    return {"state": "ok", "stops": out, "order": order, **base}
 
 
 @lru_cache(maxsize=8)

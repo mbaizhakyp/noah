@@ -78,6 +78,17 @@ def route(
         return failed("route")
 
 
+@app.get("/plan")
+def plan(depot: str = Query(), stops: str = Query(), cycle: str | None = None) -> dict:
+    """Stops plan for the map: depot=lat,lon  stops=lat,lon;lat,lon  -> per-stop cut-off hour + suggested order."""
+    try:
+        d_lat, d_lon = parse_latlon(depot)
+        pts = [parse_latlon(s) for s in stops.split(";") if s.strip()]
+        return routing.plan((d_lon, d_lat), [(lon, lat) for lat, lon in pts], cycle)
+    except Exception:  # noqa: BLE001 (any failure -> conservative reply, never a crash)
+        return failed("plan")
+
+
 @app.get("/assess")
 def assess_area(lat: float, lon: float, cycle: str | None = None) -> dict:
     """Spec 015: every source for the 5 km area + AI assessment (now / next 18 h / next days)."""

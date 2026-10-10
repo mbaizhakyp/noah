@@ -84,6 +84,8 @@
   .btn.outline:hover { border-color: var(--ink-2); }
   .btn.outline[aria-expanded="true"] { border-color: var(--blue); color: var(--blue-ink); background: var(--blue-soft); }
   .btn:disabled { opacity: .6; cursor: progress; transform: none; }
+  .btn.busy .lucide { display: none; }
+  .btn.busy::before { content: ""; width: 15px; height: 15px; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; animation: spin .7s linear infinite; }
   .btn .lucide { width: 17px; height: 17px; }
   .spin { width: 15px; height: 15px; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; animation: spin .7s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
@@ -99,9 +101,22 @@
   .readout b { font-size: 16px; }
   .readout span { font-size: 13px; color: var(--ink-2); text-align: right; }
   #hour { width: 100%; height: 32px; margin: 0; -webkit-appearance: none; appearance: none; background: transparent; cursor: ew-resize; }
-  #hour::-webkit-slider-runnable-track { height: 6px; border-radius: 3px; background: linear-gradient(90deg, var(--line-2) 0 50%, var(--blue) 50% 100%); }
+  #hour { --cutpct: 100%; }
+  #hour::-webkit-slider-runnable-track { height: 6px; border-radius: 3px; background: linear-gradient(90deg, var(--blue) 0 var(--cutpct), #f3a09c var(--cutpct) 100%); }
   #hour::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; margin-top: -8px; border-radius: 50%; background: #fff; border: 2.5px solid var(--blue); box-shadow: 0 1px 4px rgba(20,20,20,.25); }
-  #hour::-moz-range-track { height: 6px; border-radius: 3px; background: linear-gradient(90deg, var(--line-2) 0 50%, var(--blue) 50% 100%); }
+  #hour::-moz-range-track { height: 6px; border-radius: 3px; background: linear-gradient(90deg, var(--blue) 0 var(--cutpct), #f3a09c var(--cutpct) 100%); }
+  #pastHour { width: 100%; height: 28px; margin: 4px 0 0; accent-color: var(--ink-2); }
+  .plan { margin-top: 12px; border: 1.5px solid var(--line-2); border-radius: 10px; padding: 12px 14px 8px; }
+  .plan h3 { margin: 0 0 4px; font-size: 14px; font-weight: 700; }
+  .leaveby { font-size: 14px; line-height: 1.45; margin: 0 0 6px; }
+  .leaveby b { font-weight: 800; }
+  .prow { display: grid; grid-template-columns: 24px 1fr auto; gap: 10px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); font-size: 14px; }
+  .pnum { width: 24px; height: 24px; border-radius: 50%; background: var(--ground); color: var(--ink-2); font-weight: 800; font-size: 12px; display: grid; place-items: center; }
+  .prow .pname { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .prow .pname small { display: block; color: var(--ink-3); font-weight: 400; font-size: 12px; }
+  .pv { font-size: 12.5px; font-weight: 700; white-space: nowrap; text-align: right; }
+  .pv.go_before { color: var(--amber-ink); } .pv.hold { color: var(--flood-ink); } .pv.no_forecast_flooding { color: var(--ink-2); } .pv.out_of_coverage, .pv.no_road_forecast { color: var(--ink-3); }
+  .plan .tb { margin: 4px 0 0 -8px; }
   #hour::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: #fff; border: 2.5px solid var(--blue); }
   .axis { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--ink-3); font-weight: 600; margin: -2px 4px 10px; }
   .axis .mid { color: var(--ink); }
@@ -286,11 +301,11 @@
           <h3>When are you leaving?</h3>
           <div class="quick" id="quick"></div>
           <div class="readout"><b id="hourLbl">Now</b><span id="hourSub"></span></div>
-          <input id="hour" type="range" min="-18" max="18" step="1" value="0" aria-label="Departure hour: 18 hours ago to 18 hours ahead">
-          <div class="axis"><span>18 h ago</span><span class="mid">Now</span><span>+18 h</span></div>
+          <input id="hour" type="range" min="0" max="18" step="1" value="0" aria-label="Departure time, now to 18 hours ahead">
+          <div class="axis"><span id="axL">Now</span><span id="axR">+18 h</span></div>
           <div class="popfoot">
-            <small>Left of now shows NOAA's estimate for past hours.</small>
-            <button id="play" type="button" aria-label="Replay the next 18 hours"><i data-lucide="play"></i>Replay</button>
+            <small id="leaveBy">Add a destination or stops to see your leave-by time.</small>
+            <button id="play" type="button" aria-label="Replay the forecast hour by hour"><i data-lucide="play"></i>Replay</button>
           </div>
         </div>
       </div>
@@ -312,6 +327,12 @@
             <a id="gmaps" target="_blank" rel="noopener">Google Maps <i data-lucide="external-link"></i></a>
             <a id="amaps" target="_blank" rel="noopener">Apple Maps <i data-lucide="external-link"></i></a>
           </div>
+        </div>
+        <div id="plan" class="plan" hidden>
+          <h3>Stops: which get cut off first</h3>
+          <div class="leaveby" id="planHead"></div>
+          <div id="planRows"></div>
+          <button id="reorder" class="tb" type="button" hidden><i data-lucide="list-ordered"></i>Reorder stops: earliest cut first</button>
         </div>
 
         <div id="risk" class="risk" hidden>
@@ -357,6 +378,9 @@
         <section class="tabpanel" data-panel="past" hidden>
           <div id="pastBox" hidden>
             <div id="pastSummary" class="summary"></div>
+            <input id="pastHour" type="range" min="-18" max="-1" step="1" value="-1" aria-label="Past hour, 18 hours ago to 1 hour ago">
+            <div class="axis"><span>18 h ago</span><span>1 h ago</span></div>
+            <div class="summary" id="pastCap">Drag to replay NOAA's hour-by-hour estimate on the map.</div>
             <div id="gaugeList"></div>
             <div id="reportList"></div>
             <div class="note" id="pastNote"></div>
@@ -449,42 +473,50 @@ function roadSentence(p, h) {
 }
 
 // ---------- departure time ----------
-const QUICK = [["Now", 0], ["+1 h", 1], ["+3 h", 3], ["+6 h", 6], ["+12 h", 12], ["+18 h", 18]];
-$("quick").replaceChildren(...QUICK.map(([label, h]) => {
-  const b = document.createElement("button"); b.type = "button"; b.textContent = label; b.dataset.h = h;
-  b.onclick = () => { $("hour").value = h; $("hour").dispatchEvent(new Event("input")); };
-  return b;
-}));
-function leaveLabel(h) {
-  if (h === 0) return "Leave now";
-  if (h > 0) return `${fmtHour.format(hourTime(h))} (+${h} h)`;
-  return `${-h} h ago`;
+// The forecast's hour 0 is NOAA's issue time, already 1-2 h old when it lands. "Now" is the real clock:
+// the departure slider starts at the current hour and only looks forward. Times are shown as clock times.
+const fmtClock = new Intl.DateTimeFormat("en-US", { ...tz, hour: "numeric" });
+const nowH = () => (issue ? Math.max(0, Math.min(18, Math.round((Date.now() - issue.getTime()) / 3600e3))) : 0);
+function rebuildQuick() {
+  const n = nowH();
+  const picks = [...new Set([n, n + 1, n + 2, n + 3, n + 6, n + 12].filter((h) => h <= 18))];
+  $("quick").replaceChildren(...picks.map((h) => {
+    const b = document.createElement("button"); b.type = "button"; b.textContent = h === n ? "Now" : fmtClock.format(hourTime(h)); b.dataset.h = h;
+    b.onclick = () => { $("hour").value = h; $("hour").dispatchEvent(new Event("input")); };
+    return b;
+  }));
+  $("hour").min = n; if (+$("hour").value < n) $("hour").value = n;
+  $("axL").textContent = "Now"; $("axR").textContent = fmtHour.format(hourTime(18));
 }
+function leaveLabel(h) { return h <= nowH() ? "Leave now" : `Leave ${fmtHour.format(hourTime(h))}`; }
 function setTimeUI(h, countTxt) {
   $("leaveLbl").textContent = issue ? leaveLabel(h) : "Leave now";
   document.querySelectorAll("#quick button").forEach((b) => b.classList.toggle("on", +b.dataset.h === h));
   if (!issue) return;
-  $("hourLbl").textContent = h === 0 ? `Now · ${local(hourTime(0))}` : h > 0 ? `${fmtDay.format(hourTime(h))} (+${h} h)` : `${fmtDay.format(hourTime(h))} (${h} h)`;
+  $("hourLbl").textContent = h <= nowH() ? `Now · ${local(new Date())}` : fmtDay.format(hourTime(h));
   $("hourSub").textContent = countTxt || "";
   const cap = $("caption");
-  cap.hidden = h === 0 && !countTxt;
-  cap.className = "caption" + (h < 0 ? " past" : "");
-  cap.textContent = (h < 0 ? "NOAA estimate: " : h > 0 ? "Forecast for " : "Now: ") + (h === 0 ? local(hourTime(0)) : fmtDay.format(hourTime(h))) + (countTxt ? `  —  ${countTxt}` : "");
+  cap.hidden = !countTxt && h <= nowH();
+  cap.className = "caption";
+  cap.textContent = (h <= nowH() ? "Now" : `Forecast for ${fmtHour.format(hourTime(h))}`) + (countTxt ? `  —  ${countTxt}` : "");
 }
 $("leave").onclick = () => {
   const open = $("timePop").hidden; $("timePop").hidden = !open; $("leave").setAttribute("aria-expanded", open);
   if (open) $("hour").focus();
 };
-document.addEventListener("click", (e) => { if (!e.target.closest(".timewrap")) { $("timePop").hidden = true; $("leave").setAttribute("aria-expanded", "false"); } });
+// the picker stays open while you scrub and watch the map; it closes on the panel, the button or Esc
+document.addEventListener("click", (e) => { if (!e.target.closest(".timewrap") && !e.target.closest("#map")) { $("timePop").hidden = true; $("leave").setAttribute("aria-expanded", "false"); } });
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") { $("timePop").hidden = true; $("leave").setAttribute("aria-expanded", "false"); } });
 
+function pastMode(on) {
+  if (!map.getLayer("flooded")) return;
+  for (const id of ["flooded", "uncertain"]) map.setLayoutProperty(id, "visibility", on ? "none" : "visible");
+  for (const id of ["past-flooded", "past-uncertain"]) map.setLayoutProperty(id, "visibility", on ? "visible" : "none");
+}
 function applyHour() {
   if (!map.getLayer("flooded") || !issue) return;
   const h = +$("hour").value;
-  const isPast = h < 0;
-  for (const id of ["flooded", "uncertain"]) map.setLayoutProperty(id, "visibility", isPast ? "none" : "visible");
-  for (const id of ["past-flooded", "past-uncertain"]) map.setLayoutProperty(id, "visibility", isPast ? "visible" : "none");
-  if (isPast) { showPastHour(h); return; }
+  pastMode(false);
   const tf = ["coalesce", ["to-number", ["get", "t_flood"]], 99];
   map.setFilter("flooded", ["<=", tf, h]);
   map.setFilter("uncertain", ["all", ["<=", ["to-number", ["get", "t_uncertain"]], h], [">", tf, h]]);
@@ -509,7 +541,9 @@ function showPastHour(h) {
     txt = `${n} road${n === 1 ? "" : "s"} in the flood band${at.h !== h ? ` (nearest run: ${at.valid_local})` : ""}`;
   }
   map.getSource("past").setData({ type: "FeatureCollection", features: (at?.segments || []).map((s) => ({ type: "Feature", geometry: s.geometry, properties: { state: s.state, name: s.name } })) });
-  setTimeUI(h, txt);
+  pastMode(true);
+  $("pastCap").innerHTML = `<b>${fmtHour.format(hourTime(h))}</b> · ${txt}`;
+  const cap = $("caption"); cap.hidden = false; cap.className = "caption past"; cap.textContent = `NOAA estimate for ${fmtHour.format(hourTime(h))}  —  ${txt.replace(/<[^>]+>/g, "")}`;
 }
 
 function sparkline(series) {
@@ -523,8 +557,8 @@ function renderPast(d) {
   if (!d || d.state !== "ok") { $("pastBox").hidden = true; $("pastEmpty").hidden = false; return; }
   const peak = d.hours.reduce((m, x) => (x.flooded + x.uncertain > (m?.flooded + m?.uncertain || -1) ? x : m), null);
   $("pastSummary").textContent = peak && peak.flooded + peak.uncertain
-    ? `NOAA's estimate peaked at ${peak.flooded + peak.uncertain} road segments in the flood band around ${peak.valid_local}. Move the departure time left of "now" to replay.`
-    : "NOAA's estimate shows no roads in the flood band in the last 18 hours. Move the departure time left of \"now\" to replay.";
+    ? `NOAA's estimate peaked at ${peak.flooded + peak.uncertain} road segments in the flood band around ${peak.valid_local}.`
+    : "NOAA's estimate shows no roads in the flood band in the last 18 hours.";
   $("gaugeList").replaceChildren(...d.gauges.slice(0, 6).map((g) => {
     const row = document.createElement("div"); row.className = "gauge";
     const t = document.createElement("div");
@@ -567,7 +601,9 @@ const REDUCED_MOTION = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const CHECK_WAIT_MS = 8000; // longest we hold the route for the live checks
 const sleep = (ms) => new Promise((r) => window.setTimeout(r, ms));
 const easeOut = (k) => 1 - Math.pow(1 - k, 3);
-let hazardAnim = 0;
+let hazardAnim = 0, searchSeq = 0;
+// timer-driven so a reveal also finishes when the window is in the background (rAF pauses there)
+const tick = (fn) => window.setTimeout(() => fn(performance.now()), 24);
 function stage(text) { // a notice with a spinner while something is being checked
   const b = $("banner"); b.innerHTML = "";
   const s = document.createElement("span"); s.className = "loading";
@@ -583,9 +619,9 @@ function drawLine(sourceId, coords, ms = 900) {
     const step = (t) => {
       const k = Math.min(1, (t - t0) / ms);
       src.setData(feat(coords.slice(0, Math.max(2, Math.round(easeOut(k) * coords.length)))));
-      if (k < 1) requestAnimationFrame(step); else res();
+      if (k < 1) tick(step); else res();
     };
-    requestAnimationFrame(step);
+    tick(step);
   });
 }
 function revealHazard(feats, ms = 1800) {
@@ -599,9 +635,9 @@ function revealHazard(feats, ms = 1800) {
       if (token !== hazardAnim) return res(); // a newer search took over
       const k = Math.min(1, (t - t0) / ms);
       src.setData({ type: "FeatureCollection", features: order.slice(0, Math.ceil(easeOut(k) * order.length)) });
-      if (k < 1) requestAnimationFrame(step); else res();
+      if (k < 1) tick(step); else res();
     };
-    requestAnimationFrame(step);
+    tick(step);
   });
 }
 
@@ -881,8 +917,68 @@ function showTabs(on) { $("tabs").hidden = !on; if (on) selectTab("roads"); else
 function selectTab(name) {
   document.querySelectorAll("#tabs button").forEach((b) => b.setAttribute("aria-selected", b.dataset.tab === name));
   document.querySelectorAll(".tabpanel").forEach((p) => (p.hidden = p.dataset.panel !== name));
+  // the past replay lives in its own tab: its slider drives the map only while that tab is open
+  if (name === "past" && pastData?.state === "ok") showPastHour(+$("pastHour").value); else applyHour();
 }
+$("pastHour").addEventListener("input", () => showPastHour(+$("pastHour").value));
 document.querySelectorAll("#tabs button").forEach((b) => (b.onclick = () => selectTab(b.dataset.tab)));
+// ---------- stop plan: which stops get cut off first, and the latest departure that makes them all ----------
+let lastLegs = [], lastPlan = null, planToken = 0;
+const VERDICT = { go_before: "Cut from", hold: "Forecast cut already, since", no_forecast_flooding: "Reachable through", out_of_coverage: "Outside Georgia", no_road_forecast: "No road timing here yet" };
+async function runPlan() {
+  const token = ++planToken; lastPlan = null; $("plan").hidden = true;
+  const pts = [...stopPlaces(), dest].filter(Boolean);
+  if (!origin || !pts.length) return;
+  try {
+    const r = await fetch(`${API}/plan?depot=${origin.lat},${origin.lon}&stops=${pts.map((p) => `${p.lat},${p.lon}`).join(";")}&cycle=${cyc.cycle}`).then((x) => x.json());
+    if (token !== planToken) return;
+    if (r.state !== "ok") return;
+    lastPlan = { ...r, pts };
+    renderPlan();
+  } catch (e) { /* the plan is extra; the route stands without it */ }
+}
+function renderPlan() {
+  const p = lastPlan; if (!p) { $("leaveBy").textContent = "Add a destination or stops to see your leave-by time."; $("hour").style.setProperty("--cutpct", "100%"); return; }
+  const n = nowH(), h = +$("hour").value;
+  // arrival at stop k = sum of the leg minutes up to it, in the order the stops are visited now
+  // a leg with no route has no minutes: fall back to the plan's own depot-to-stop travel time (a lower bound)
+  let cum = 0, broken = false;
+  const arrival = lastLegs.map((l) => { if (l.minutes == null) broken = true; return broken ? null : (cum += l.minutes); });
+  const rows = p.stops.map((s, i) => ({ ...s, place: p.pts[i], arrive: arrival[i] ?? s.minutes ?? null }));
+  let leaveBy = null, blocker = null;
+  for (const s of rows) {
+    if (s.cut_h == null) continue;
+    const latest = Math.floor(s.cut_h - (s.arrive || 0) / 60); // leave at or before this hour to arrive before the cut
+    if (leaveBy === null || latest < leaveBy) { leaveBy = latest; blocker = s; }
+  }
+  const timeOf = (hh) => fmtHour.format(hourTime(hh));
+  let head;
+  if (leaveBy === null) head = `No stop is forecast to be cut off through ${timeOf(18)}.`;
+  else if (leaveBy < n) head = `<b>No departure makes every stop in this order.</b> ${blocker.place.label.split(",")[0]} is forecast cut from ${timeOf(blocker.cut_h)} and takes ${Math.round(blocker.arrive)} min to reach.`;
+  else head = `<b>Leave by ${timeOf(leaveBy)}</b> to reach every stop before its roads are forecast to flood.${h > leaveBy ? ` Leaving ${timeOf(h)} is too late for ${blocker.place.label.split(",")[0]}.` : ""}`;
+  $("planHead").innerHTML = head;
+  $("leaveBy").textContent = leaveBy === null ? `No stop is forecast cut through ${timeOf(18)}.` : leaveBy < n ? "No departure time makes every stop." : `Leave by ${timeOf(leaveBy)} to make every stop.`;
+  $("hour").style.setProperty("--cutpct", leaveBy === null ? "100%" : `${Math.max(0, Math.min(100, ((leaveBy + 1 - n) / Math.max(1, 18 - n)) * 100))}%`);
+  $("planRows").replaceChildren(...rows.map((s, i) => {
+    const row = document.createElement("div"); row.className = "prow";
+    const num = document.createElement("span"); num.className = "pnum"; num.textContent = i + 1;
+    const name = document.createElement("span"); name.className = "pname"; name.textContent = s.place.label.split(",")[0];
+    const sm = document.createElement("small"); sm.textContent = s.arrive != null ? `arrive ~${Math.round(s.arrive)} min after leaving` : ""; name.append(sm);
+    const v = document.createElement("span"); v.className = "pv " + s.state;
+    v.textContent = s.state === "go_before" || s.state === "hold" ? `${VERDICT[s.state]} ${timeOf(s.cut_h)}` : s.state === "no_forecast_flooding" ? `${VERDICT[s.state]} ${timeOf(18)}` : VERDICT[s.state] || s.state;
+    row.append(num, name, v); return row;
+  }));
+  const current = rows.map((_, i) => i), suggested = p.order.filter((i) => i < stops.length); // destination stays last
+  const differs = suggested.some((v, i) => v !== current[i]) && stops.length > 1;
+  $("reorder").hidden = !differs;
+  $("plan").hidden = false;
+}
+$("reorder").onclick = () => {
+  if (!lastPlan) return;
+  const order = lastPlan.order.filter((i) => i < stops.length);
+  stops = order.map((i) => stops[i]); renderStops(); findRoute();
+};
+
 function routeSummary(r) {
   if (!r) { $("routeSum").hidden = true; return; }
   $("minutes").textContent = Math.round(r.minutes);
@@ -945,9 +1041,12 @@ function cards(rows, h) {
 async function checkArea() {
   if (!origin) { banner("Use your location or type a place first.", "warn"); $("fromQ").focus(); return; }
   mode = "area"; dest = null; lastRoute = null; $("directions").hidden = true; routeSummary(null); $("toQ").value = ""; $("toClear").hidden = true; setGoLabel();
+  planToken++; lastPlan = null; $("plan").hidden = true; renderPlan();
   busy(true);
+  const seq = ++searchSeq;
   try {
     const r = await fetch(`${API}/status?lat=${origin.lat}&lon=${origin.lon}&hours=18&cycle=${cyc.cycle}`).then((x) => x.json());
+    if (seq !== searchSeq) return;
     await mapReady; clearMarkers();
     map.getSource("route").setData(empty);
     map.getSource("area").setData(circle(origin.lat, origin.lon, RADIUS_KM));
@@ -970,6 +1069,7 @@ async function checkArea() {
     stage(`Checking ${feats.length ? feats.length + " flagged road segments, " : ""}live sources and traffic cameras within ${RADIUS_KM} km…`);
     const checks = runAssess("area"); runPast("area");
     await Promise.race([checks, sleep(CHECK_WAIT_MS)]);
+    if (seq !== searchSeq) return;
     applyHour();
     await revealHazard(feats);
     showTabs(true);
@@ -982,7 +1082,7 @@ async function checkArea() {
     cards(r.segments, +$("hour").value);
     applyHour();
   } catch (e) { banner("I can't confirm conditions right now, so treat low roads near creeks as impassable. In an emergency call 911.", "danger"); }
-  finally { busy(false); }
+  finally { if (seq === searchSeq) busy(false); }
 }
 
 async function findRoute(full = true) {
@@ -990,12 +1090,14 @@ async function findRoute(full = true) {
   if (!dest) { checkArea(); return; }
   mode = "route"; busy(true);
   const h = +$("hour").value;
+  const seq = ++searchSeq; // a newer search supersedes this one at every await
   try {
     // one /route per leg (start → stops → destination), joined into one answer
     const legs = await Promise.all(legPairs().map(([a, b]) =>
       fetch(`${API}/route?from=${a.lat},${a.lon}&to=${b.lat},${b.lon}&depart_h=${h}&cycle=${cyc.cycle}&corridor_m=${CORRIDOR_M}`).then((x) => x.json())));
+    if (seq !== searchSeq) return;
     const r = legs.length === 1 ? legs[0] : combineLegs(legs);
-    lastRoute = r;
+    lastRoute = r; lastLegs = legs;
     await mapReady; clearMarkers();
     map.getSource("area").setData(empty);
     if (full) { map.getSource("route").setData(empty); map.getSource("usual").setData(empty); setHazard([]); }
@@ -1036,7 +1138,7 @@ async function findRoute(full = true) {
         fit(r.usual_geometry.coordinates);
         $("minutes").textContent = Math.round(r.usual_minutes || 0); $("via").textContent = `Usual way, forecast cut by flooding${first?.name ? " at " + first.name : ""}. Not a route Noah can recommend.`; $("routeSum").hidden = false;
       } else fit([[origin.lon, origin.lat], [dest.lon, dest.lat]]);
-      if (full) { showTabs(true); const checks = runAssess("route"); runPast("route"); await Promise.race([checks, sleep(CHECK_WAIT_MS)]); if (lastRoute !== r) return; await revealHazard(feats); } else setHazard((r.corridor || []).map((c) => c.seg_id));
+      if (full) { showTabs(true); runPlan(); const checks = runAssess("route"); runPast("route"); await Promise.race([checks, sleep(CHECK_WAIT_MS)]); if (seq !== searchSeq) return; await revealHazard(feats); } else setHazard((r.corridor || []).map((c) => c.seg_id));
       banner(`No route avoids forecast flooding if you leave ${leave}.${why} Try an earlier departure time, or stay where you are. Never drive into water. Emergency: 911.`, "danger");
       $("summary").textContent = feats.length ? `Flood-forecast roads within ${CORRIDOR_M / 1000} km of the usual way:` : "";
       cards(r.corridor || [], h);
@@ -1050,7 +1152,7 @@ async function findRoute(full = true) {
       stage(`Route found. Checking live sources and traffic cameras along it${feats.length ? ` and ${feats.length} flagged road segments within ${CORRIDOR_M / 1000} km` : ""}…`);
       const checks = runAssess("route"); runPast("route");
       await Promise.race([checks, sleep(CHECK_WAIT_MS)]);
-      if (lastRoute !== r) return; // a newer search took over while we waited
+      if (seq !== searchSeq) return; // a newer search took over while we waited
       map.getSource("usual").setData(usual);
       await drawLine("route", r.geometry.coordinates);
       applyHour();
@@ -1075,8 +1177,9 @@ async function findRoute(full = true) {
     cards(r.corridor, h);
     setDirections(r.geometry.coordinates);
     applyHour();
+    if (full) runPlan(); else renderPlan();
   } catch (e) { banner("I can't confirm conditions right now, so treat low roads near creeks as impassable. In an emergency call 911.", "danger"); }
-  finally { busy(false); }
+  finally { if (seq === searchSeq) busy(false); }
 }
 // Outside the processed basins Noah can't compute a detour, so the route geometry comes from OSRM's public
 // OpenStreetMap router (no key). It is drawn grey and dashed and never called a flood-checked route.
@@ -1088,7 +1191,7 @@ async function plainRoute(o, d) {
     return { geometry: rt.geometry, minutes: rt.duration / 60 };
   } catch (e) { return null; }
 }
-function routeEmpty() { assessToken++; $("live").hidden = true; $("risk").hidden = true; clearCams(); map.getSource("route").setData(empty); map.getSource("usual").setData(empty); setHazard([]); $("results").replaceChildren(); $("summary").textContent = ""; routeSummary(null); showTabs(false); }
+function routeEmpty() { assessToken++; planToken++; lastPlan = null; $("plan").hidden = true; renderPlan(); $("live").hidden = true; $("risk").hidden = true; clearCams(); map.getSource("route").setData(empty); map.getSource("usual").setData(empty); setHazard([]); $("results").replaceChildren(); $("summary").textContent = ""; routeSummary(null); showTabs(false); }
 
 // Legs of the trip: start → each picked stop → destination (combined client-side; the API routes one leg at a time)
 const stopPlaces = () => stops.map((s) => s.place).filter(Boolean);
@@ -1128,11 +1231,11 @@ function setDirections(coords) {
   $("directions").hidden = false;
 }
 
-function busy(on) {
-  const b = $("go"); b.disabled = on;
-  if (on) { b.dataset.t = b.innerHTML; b.innerHTML = '<span class="spin"></span>Checking…'; } else if (b.dataset.t) { b.innerHTML = b.dataset.t; icons(); }
+function busy(on) { // keeps the label span in place (replacing the button's HTML broke setGoLabel mid-search)
+  const b = $("go"); b.disabled = on; b.classList.toggle("busy", on);
+  if (on) $("goLbl").textContent = "Checking…"; else setGoLabel();
 }
-function setGoLabel() { $("goLbl").textContent = dest ? "Find route" : "Check roads"; }
+function setGoLabel() { if (!$("go").classList.contains("busy")) $("goLbl").textContent = dest ? "Find route" : "Check roads"; }
 
 // ---------- search (Photon, Georgia only) ----------
 function wireSearch(inputId, listId, onPick) {
@@ -1235,7 +1338,7 @@ $("go").onclick = () => (dest ? findRoute() : checkArea());
 $("hour").addEventListener("input", () => {
   applyHour();
   const h = +$("hour").value;
-  if (h < 0) return; // past: show NOAA's estimate only; routing in the past is meaningless
+  renderPlan();
   if (mode === "area") cards(lastRows, h);
   if (mode === "route") { window.clearTimeout(rerouteTimer); rerouteTimer = window.setTimeout(() => findRoute(false), 450); }
 });
@@ -1243,7 +1346,7 @@ const playIcon = (on) => { $("play").innerHTML = `<i data-lucide="${on ? "pause"
 $("play").onclick = () => {
   if (playing) { window.clearInterval(playing); playing = null; playIcon(false); return; }
   playIcon(true);
-  if (+$("hour").value >= 18) $("hour").value = -18;
+  if (+$("hour").value >= 18) $("hour").value = nowH();
   playing = window.setInterval(() => {
     const h = +$("hour").value + 1;
     if (h > 18) { window.clearInterval(playing); playing = null; playIcon(false); return; }
@@ -1258,6 +1361,7 @@ async function loadCycle(id) {
   $("issued").textContent = `Updated ${fmt.format(issue)}`;
   const gj = await fetch(`data/flood_${cyc.cycle}.geojson`).then((r) => r.json());
   flood = new Map(gj.features.map((f) => [f.properties.seg_id, f]));
+  rebuildQuick();
   setTimeUI(+$("hour").value, "");
   applyHour();
   if (mode === "area") checkArea(); else if (mode === "route") findRoute();
@@ -1273,7 +1377,7 @@ async function loadCycle(id) {
     return;
   }
   const pick = P.get("cycle"); // agent links may pin the cycle they answered from
-  if (P.get("t")) $("hour").value = Math.max(-18, Math.min(18, +P.get("t")));
+  if (P.get("t")) $("hour").value = Math.max(0, Math.min(18, +P.get("t")));
   await loadCycle(pick);
   // C10 links from the agent: ?from=lat,lon&to=lat,lon  or  ?near=lat,lon
   const ll = (s) => { const [lat, lon] = (s || "").split(",").map(Number); return isFinite(lat) && isFinite(lon) ? { lat, lon } : null; };
