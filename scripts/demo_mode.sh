@@ -22,4 +22,8 @@ Noah demo mode: forecast ${CYCLE}, API on http://localhost:8100 (live API stays 
   iPad app (users, recorded snapshot):     http://localhost:8100/ipad/
   iMessage from the demo forecast:         cd bot && API_BASE=http://localhost:8100 npm start
 EOF
-NOAH_CYCLE="$CYCLE" exec uv run uvicorn noah.api.app:app --host 0.0.0.0 --port 8100  # 0.0.0.0: the iPad can reach it over a shared hotspot
+# One dual-stack socket (IPv6 + IPv4) so the iPad reaches it over any hotspot, including IPv6-only ones (J28).
+NOAH_CYCLE="$CYCLE" exec uv run python -c 'import socket, uvicorn
+s = socket.socket(socket.AF_INET6); s.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
+s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1); s.bind(("::", 8100))
+uvicorn.Server(uvicorn.Config("noah.api.app:app")).run(sockets=[s])'
