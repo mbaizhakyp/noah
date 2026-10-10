@@ -50,6 +50,7 @@
   .card { background: var(--card); border-radius: 20px; box-shadow: var(--shadow); }
   .brandrow { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px 12px 18px; }
   .brand { font-size: 27px; font-weight: 900; letter-spacing: -.03em; color: var(--ink); }
+  .storm { margin-left: 12px; margin-right: auto; padding: 6px 12px; border-radius: 999px; background: var(--flood-soft); color: var(--flood-ink); font-size: 14px; font-weight: 800; line-height: 1.2; }
   .livebtn { display: inline-flex; align-items: center; gap: 9px; min-height: 44px; padding: 0 16px; border-radius: 999px; background: var(--paper);
     border: 1.5px solid var(--line); font-weight: 800; font-size: 15px; }
   .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--flood); flex: none; }
@@ -229,7 +230,7 @@
 <div id="map" aria-label="Map"></div>
 
 <aside class="panel" aria-label="Noah">
-  <div class="card brandrow"><span class="brand">Noah</span>
+  <div class="card brandrow"><span class="brand">Noah</span><span class="storm" id="storm" hidden></span>
     <button class="livebtn" id="liveBtn" type="button" aria-controls="sheet"><span id="liveLbl">Sources</span></button></div>
 
   <section class="card planner" aria-label="Route">
@@ -330,6 +331,7 @@ const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<
 const atMin = (m) => new Date(issue.getTime() + m * 60e3);
 const atHour = (h) => new Date(issue.getTime() + h * 3600e3);
 const clock = (d) => fClock.format(d);
+const fLiveDay = new Intl.DateTimeFormat("en-US", { ...tz, weekday: "short", hour: "numeric", minute: "2-digit" }); // camera frames are today's
 const endText = () => fDay.format(atHour(18));
 const ll = (x) => `${x.lat},${x.lon}`;
 const short = (label) => String(label || "").split(",")[0];
@@ -355,11 +357,13 @@ function lookup(path, p) {
   }
   return best?.file || null;
 }
+// Street names people say (J22; same alias as noah/config.py road_alias and the web console), applied where data arrives.
+const readJ = (r) => (r.ok ? r.text().then((t) => JSON.parse(t.replaceAll("Horace E Tate Freeway", "Downtown Connector (I-75/85)"))) : null);
 async function ask(path, p, signal) {
   const f = lookup(path, p);
   try {
-    if (f) return await fetch(SNAP_BASE + f, { signal }).then((r) => (r.ok ? r.json() : null));
-    return await fetch(`${path}?${new URLSearchParams(p)}`, { signal }).then((r) => (r.ok ? r.json() : null));
+    if (f) return await fetch(SNAP_BASE + f, { signal }).then(readJ);
+    return await fetch(`${path}?${new URLSearchParams(p)}`, { signal }).then(readJ);
   } catch { return null; }
 }
 
@@ -823,7 +827,7 @@ function showFrame(art) { // live frame, fetched when its card scrolls into view
     if (!f || !f.image_url) { fr.innerHTML = "<span>Camera not responding</span>"; return; }
     const img = new Image(); img.alt = `Live camera: ${f.title || ""}`; img.onerror = () => (fr.innerHTML = "<span>Camera not responding</span>");
     img.onload = () => { fr.replaceChildren(img); const tg = document.createElement("span"); tg.className = "tag num";
-      tg.innerHTML = `<span class="dot"></span>Live${f.updated_utc ? " · " + esc(clock(new Date(f.updated_utc))) : ""}`; fr.append(tg); };
+      tg.innerHTML = `<span class="dot"></span>Live now${f.updated_utc ? " · " + esc(fLiveDay.format(new Date(f.updated_utc))) : ""}`; fr.append(tg); };
     img.src = f.image_url;
   });
 }
@@ -898,6 +902,7 @@ $("nowBtn").onclick = () => { dep.value = nowMin; dep.dispatchEvent(new Event("i
   try { snap = await fetch(SNAP, { cache: "no-store" }).then((r) => r.json()); }
   catch { $("savedList").innerHTML = '<div class="empty">Can\'t load roads right now. Treat low roads near creeks as impassable.</div>'; return; }
   cycle = snap.cycle; places = snap.places; nowMin = snap.now_min || 0; depMin = nowMin;
+  if (cycle.startsWith("2024")) { $("storm").textContent = "Recorded storm · Hurricane Helene · Sep 26, 2024"; $("storm").hidden = false; }
   const m = cycle.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})Z$/);
   issue = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4]));
   dep.min = nowMin; dep.max = MAX_MIN; dep.step = STEP;
@@ -905,7 +910,7 @@ $("nowBtn").onclick = () => { dep.value = nowMin; dep.dispatchEvent(new Event("i
   $("popNote").textContent = `Forecast window ends ${endText()}`;
   setWhen(); renderSaved(); renderStops(); syncGo();
   try { plans = await fetch(SNAP_BASE + "ipad_plans.json").then((r) => r.json()); } catch {}
-  try { const fc = await fetch(`/data/flood_${cycle}.geojson`).then((r) => r.json()); for (const f of fc.features) flood.set(f.properties.seg_id, f); } catch {}
+  try { const fc = await fetch(`/data/flood_${cycle}.geojson`).then(readJ); for (const f of fc.features) flood.set(f.properties.seg_id, f); } catch {}
   await mapReady; fitAllRoads(); drawAll();
 })();
 </script>

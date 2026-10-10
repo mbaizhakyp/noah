@@ -690,7 +690,7 @@ async function run() {
     flood = gj.features; map.getSource("flood").setData(gj);
     cityStats(flood);
     const live = liveCycles.has(d.cycle);
-    $("eyebrow").textContent = `${live ? "Live NOAA forecast" : "Backup: Hurricane Helene 2024 forecast"} · issued ${fmtDay.format(new Date(d.issue_time))}`;
+    $("eyebrow").textContent = live ? `Live NOAA forecast · issued ${fmtDay.format(new Date(d.issue_time))}` : `Recorded storm · Hurricane Helene · forecast issued ${fmtDay.format(new Date(d.issue_time))}, 2024`;
     $("eyebrowBox").classList.toggle("backup", !live);
     $("tStart").textContent = fmtHour.format(atHour(0)); $("tEnd").textContent = fmtHour.format(atHour(18));
     $("results").replaceChildren(...d.stops.map((s, i) => {
@@ -763,9 +763,15 @@ $("cycle").onchange = run;
     return g;
   };
   $("cycle").replaceChildren(...[live.length && group("Live forecast", live, fmt, " · live"), backup.length && group("Backup: Hurricane Helene 2024", backup, fmtDay, " · Helene")].filter(Boolean));
-  $("business").textContent = sample.business + " · sample stops on public streets";
-  $("depotLabel").value = sample.depot.label; $("depotLat").value = sample.depot.lat; $("depotLon").value = sample.depot.lon;
-  $("stops").value = sample.stops.map((s) => `${s.label}, ${s.lat}, ${s.lon}`).join("\n");
+  // one story per storm (J22): Helene uses the iPad's Buckhead run, the live storm uses Maya's north stops
+  const useSample = (cyc) => {
+    const sm = liveCycles.has(cyc) || !sample.helene ? sample : sample.helene;
+    $("business").textContent = sm.business + " · sample stops on public streets";
+    $("depotLabel").value = sm.depot.label; $("depotLat").value = sm.depot.lat; $("depotLon").value = sm.depot.lon;
+    $("stops").value = sm.stops.map((s) => `${s.label}, ${s.lat}, ${s.lon}`).join("\n");
+  };
+  useSample(pick);
+  $("cycle").onchange = () => { useSample($("cycle").value); run(); };
   setMode(mode);
   run();
 })();

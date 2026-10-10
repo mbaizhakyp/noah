@@ -54,5 +54,57 @@
    "lat": 33.90553,
    "lon": -84.20907
   }
- ]
+ ],
+ "helene": {
+  "business": "Maya's pharmacy (example), Buckhead",
+  "depot": {
+   "label": "Peachtree Rd NE, Buckhead (depot)",
+   "lat": 33.83991,
+   "lon": -84.3792
+  },
+  "stops": [
+   {
+    "id": "S1",
+    "label": "Woodward Way NW, Atlanta",
+    "lat": 33.8214,
+    "lon": -84.41226
+   },
+   {
+    "id": "S2",
+    "label": "Hanover West Ct NW, Atlanta",
+    "lat": 33.82242,
+    "lon": -84.43179
+   },
+   {
+    "id": "S3",
+    "label": "Peachtree Battle Cir NW, Atlanta",
+    "lat": 33.82259,
+    "lon": -84.41893
+   },
+   {
+    "id": "S4",
+    "label": "Bohler Rd NW, Atlanta",
+    "lat": 33.82133,
+    "lon": -84.42926
+   },
+   {
+    "id": "S5",
+    "label": "Windsor Pkwy NE, Brookhaven",
+    "lat": 33.88506,
+    "lon": -84.36256
+   },
+   {
+    "id": "S6",
+    "label": "Caldwell Rd NE, Atlanta",
+    "lat": 33.86417,
+    "lon": -84.33391
+   },
+   {
+    "id": "S7",
+    "label": "Fairwood Ln NE, Atlanta",
+    "lat": 33.84091,
+    "lon": -84.30568
+   }
+  ]
+ }
 }
