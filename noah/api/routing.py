@@ -187,7 +187,10 @@ def _basins(_mtime: float) -> list[tuple[str, shapely.Geometry]]:
     by = {}
     for f in json.loads(p.read_text())["features"]:
         by.setdefault(f["properties"].get("basin"), []).append(shape(f["geometry"]))
-    return [(name, shapely.union_all(polys)) for name, polys in by.items() if name]
+    # Only basins built on this machine (same test as live.load_inputs): basins.geojson is committed, the data
+    # isn't, and a basin without data would answer "no forecast flooding" instead of "no road forecast" (I18).
+    built = lambda n: (config.basin_dir(n) / "seg_thresholds.parquet").exists()
+    return [(name, shapely.union_all(polys)) for name, polys in by.items() if name and built(name)]
 
 
 def basin_of(pt: Point) -> str | None:
