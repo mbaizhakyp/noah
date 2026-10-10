@@ -52,6 +52,7 @@ Never start a lower priority while a higher one in your lane is unfinished, (013
 | 010 | Camera water classifier `classify()` (user photos removed) | Priyanshu | P2 | 1.5 h | Draft |
 | 014 | Dispatch board + barricade list (Replit entry) | Margulan | P1 | 3 h | **Done** (Fri 22:55, standalone; mount = I3) |
 | 013 | Camera snapshot check, on demand (Windy) | Priyanshu | P2 | 2 h | Draft |
+| 016 | Road-level timing for the basins around metro Atlanta, then on demand (J16) | Margulan (pipeline) · Priyanshu (API/map) | P1 | A: 1 h + overnight · C: 2 h | **Draft** (Priyanshu, Sat 02:30), needs Margulan's approval |
 
 Status flow: `Draft → Approved (human) → In progress → Done (acceptance criteria shown passing)`.
 

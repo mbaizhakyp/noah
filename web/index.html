@@ -1073,6 +1073,14 @@ async function loadCycle(id) {
   const f = ll(P.get("from")), t = ll(P.get("to")), n = ll(P.get("near"));
   if (f && t) { setOrigin({ ...f, label: "Start" }); $("fromQ").value = "Start"; setDest({ ...t, label: "Destination" }); $("toQ").value = "Destination"; await mapReady; findRoute(); }
   else if (n || f) { setOrigin({ ...(n || f), label: "Selected place" }); $("fromQ").value = "Selected place"; await mapReady; checkArea(); }
+  // the live loop publishes a new NWM cycle every hour; a page left open follows it (unless a link pinned a cycle)
+  if (!pick) window.setInterval(async () => {
+    try {
+      const m = await fetch("data/cycles.json", { cache: "no-store" }).then((r) => r.json());
+      const newest = (m.cycles || []).filter((c) => c.event === "live").sort((a, b) => a.issue_time.localeCompare(b.issue_time)).at(-1);
+      if (newest && cyc && newest.cycle !== cyc.cycle) { meta = m; await loadCycle(newest.cycle); }
+    } catch (e) { /* keep the cycle we have */ }
+  }, 5 * 60e3);
 })();
 </script>
 </body>
