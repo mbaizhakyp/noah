@@ -3,12 +3,22 @@
 | | |
 |---|---|
 | Owner | Priyanshu |
-| Status | Draft |
+| Status | **Functionally done** (Priyanshu, Sat Oct 10 ~01:00 ET). UI/design polish deferred. |
 | Time box | 3 h |
 | Depends on | C5, C6, C7 (fixtures first), C8 (optional panel), `/route` (006) for route display |
-| Produces | `web/index.html`, served by GitHub Pages; consumes C10 URL params |
+| Produces | `web/index.html`, served by the API at `/` (006 `StaticFiles`, same origin); consumes C10 URL params |
 
 ## Goal
+> **Updates (Priyanshu, Sat 00:15):**
+> - **On demand only.** The map is empty until the user asks. "Check my area" draws the 5 km circle from `/status`. A destination search draws the route + 1 km corridor from `/route`. No statewide layer, no pan-to-load.
+> - **User input:**
+>   - **"Use my location"** (browser geolocation), or type a start place.
+>   - A **destination search box**: Photon geocoder, verified CORS-friendly and keyless, limited to the Georgia bbox.
+>   - After a route: **"Start in Google Maps" / "Start in Apple Maps"** buttons, with up to 3 waypoints sampled from Noah's route, plus a note that those apps pick their own roads between the points.
+> - **Same design as `web/dispatch.html`** (I12): palette, header, side panel + map, cards, badges, legend, and a mobile stack.
+> - **Footer follows the scenario:** "Forecast replay of Hurricane Helene…" for Helene cycles; "Live forecast…" for current cycles.
+> - **Served by the API** (same origin), not GitHub Pages.
+
 The judge-facing visual. Drag an hour slider and watch Georgia roads turn amber, then red, hours before the water reaches them (Helene replay on Peachtree Creek, live Isaias statewide). The same page is the link the agent texts, so it must work on a phone.
 
 ## Non-goals

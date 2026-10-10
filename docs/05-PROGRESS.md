@@ -48,7 +48,7 @@ Never start a lower priority while a higher one in your lane is unfinished, (013
 | 006 | Routing + HTTP API | Priyanshu | P0 | 3 h | **Done** (23:55) |
 | 007 | Gemini agent + safety filter | Priyanshu | P0 | 3 h | Draft |
 | 008 | iMessage relay (Photon Spectrum) | Priyanshu | P0 | 2 h | Draft |
-| 009 | Web map with time slider | Priyanshu | P0 | 3 h | Draft |
+| 009 | Web map with time slider | Priyanshu | P0 | 3 h | **Functional** (01:00); UI polish later |
 | 010 | Camera water classifier `classify()` (user photos removed) | Priyanshu | P2 | 1.5 h | Draft |
 | 014 | Dispatch board + barricade list (Replit entry) | Margulan | P1 | 3 h | **Done** (Fri 22:55, standalone; mount = I3) |
 | 013 | Camera snapshot check, on demand (Windy) | Priyanshu | P2 | 2 h | Draft |
@@ -119,3 +119,8 @@ _Append-only. Format: `HH:MM Name — what was done — how verified (command)`.
   - Chattanooga → `out_of_coverage`; Albany → `no_road_forecast`; +19 h → `beyond_forecast_window`.
   - All responses < 0.05 s.
   — `uv run pytest -q` (18 passed), `ruff check` clean, acceptance script against `uvicorn --port 8010`.
+- 01:00 — **Spec 009 functional.** `web/index.html` (served by the API at `/`, links to `dispatch.html`).
+  - Nothing loads until asked: "Use my location" or a typed place (Photon, Georgia bbox) → "Check my area" (5 km); destination search → route + 1 km corridor.
+  - Time slider 0–18 h with Play. Google/Apple Maps hand-off (3 waypoints from Noah's route). Validation panel (13.2 h). Camera markers render if `/status` / `/route` return `cameras`.
+  - Verified in Chrome on real Helene data: Peachtree Battle → Northside at +16 h goes around 3 flooded segments; Bobby Jones Golf Club 5 km check = 140 streets; 390 px phone width has no sideways scroll and 44 px tap targets. No banned words in visible text.
+  - UI polish deferred (map-first layout on phones is in the CSS but not re-checked).
