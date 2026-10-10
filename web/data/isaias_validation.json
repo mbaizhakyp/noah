@@ -1,0 +1,74 @@
+{
+ "run": "20261010T02Z",
+ "issued_utc": "2026-10-10T02:00Z",
+ "noah_had_utc": "2026-10-10T03:50Z",
+ "gauges": [
+  {
+   "gauge": "Peachtree Creek at Atlanta",
+   "usgs": "02336300",
+   "observed_peak_cfs": 3750,
+   "observed_peak_utc": "2026-10-10T14:45Z",
+   "forecast_peak_cfs": 3290,
+   "forecast_peak_utc": "2026-10-10T13:00Z",
+   "peak_error_pct": -12,
+   "timing_error_h": -1.8,
+   "hours_ahead": 10.9
+  },
+  {
+   "gauge": "Chattahoochee River at Atlanta",
+   "usgs": "02336000",
+   "observed_peak_cfs": 4060,
+   "observed_peak_utc": "2026-10-10T17:00Z",
+   "forecast_peak_cfs": 3729,
+   "forecast_peak_utc": "2026-10-10T14:00Z",
+   "peak_error_pct": -8,
+   "timing_error_h": -3.0,
+   "hours_ahead": 13.2
+  },
+  {
+   "gauge": "Nancy Creek at West Wesley Rd",
+   "usgs": "02336410",
+   "observed_peak_cfs": 1710,
+   "observed_peak_utc": "2026-10-10T14:30Z",
+   "forecast_peak_cfs": 1870,
+   "forecast_peak_utc": "2026-10-10T13:00Z",
+   "peak_error_pct": 9,
+   "timing_error_h": -1.5,
+   "hours_ahead": 10.7
+  },
+  {
+   "gauge": "Sope Creek near Marietta",
+   "usgs": "02335870",
+   "observed_peak_cfs": 801,
+   "observed_peak_utc": "2026-10-10T12:45Z",
+   "forecast_peak_cfs": 1104,
+   "forecast_peak_utc": "2026-10-10T12:00Z",
+   "peak_error_pct": 38,
+   "timing_error_h": -0.8,
+   "hours_ahead": 8.9
+  },
+  {
+   "gauge": "South Fork Peachtree Creek",
+   "usgs": "02336240",
+   "observed_peak_cfs": 1740,
+   "observed_peak_utc": "2026-10-10T13:45Z",
+   "forecast_peak_cfs": 383,
+   "forecast_peak_utc": "2026-10-10T12:00Z",
+   "peak_error_pct": -78,
+   "timing_error_h": -1.8,
+   "hours_ahead": 9.9
+  },
+  {
+   "gauge": "Big Creek near Alpharetta",
+   "usgs": "02335700",
+   "observed_peak_cfs": 426,
+   "observed_peak_utc": "2026-10-10T16:00Z",
+   "forecast_peak_cfs": 577,
+   "forecast_peak_utc": "2026-10-10T15:00Z",
+   "peak_error_pct": 36,
+   "timing_error_h": -1.0,
+   "hours_ahead": 12.2
+  }
+ ],
+ "note": "Gauge-level check of the creek and river forecast Noah used; street-level closures were not reported (TomTom showed no flooding incidents)."
+}
