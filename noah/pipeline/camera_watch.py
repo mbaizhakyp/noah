@@ -244,7 +244,7 @@ def run_pass(client, key: str, aoi, last_alert: dict, force_card: bool = False) 
                     now,
                 )
                 road = (
-                    f"Noah forecast (run issued {issue.tz_convert(ET):%a %I %p}): {r.name or 'road'} "
+                    f"Noah forecast (run issued {issue.tz_convert(ET):%a %I %p}): {r.name if isinstance(r.name, str) else 'an unnamed road'} "
                     f"{int(r.road_m)} m away is '{state}', flooding from ~{when.tz_convert(ET):%a %I %p}."
                 )
             path = None

@@ -39,6 +39,12 @@ def test_change_detection():
     assert change(at("2026-10-10T15:00:00Z"), at("2026-10-10T15:00:00Z", "Elm Street")) == "moved"
     assert change(at("2026-10-10T15:00:00Z"), at("2026-10-10T15:00:00Z")) is None
     assert change(none, none) is None
+    cut_now = lambda t: {"from_utc": t, "street": "Oak Road", "now": True}
+    assert (
+        change(cut_now("2026-10-10T15:00:00Z"), cut_now("2026-10-10T16:00:00Z")) is None
+    )  # still cut
+    assert route_status(["b"], PROPS, ISSUE, had=ISSUE + pd.Timedelta(hours=3))["now"]
+    assert not route_status(["b"], PROPS, ISSUE, had=ISSUE + pd.Timedelta(hours=2))["now"]
 
 
 def test_messages_use_safe_vocabulary_and_lead_time():

@@ -52,8 +52,11 @@ def live_cycles() -> list[str]:
 # ---------- pure logic ----------
 
 
-def route_status(seg_ids: list[str], props: dict, issue: pd.Timestamp) -> dict:
-    """One route in one run. props: seg_id -> C5 properties. The route is cut from its earliest t_uncertain (I5 rule)."""
+def route_status(
+    seg_ids: list[str], props: dict, issue: pd.Timestamp, had: pd.Timestamp | None = None
+) -> dict:
+    """One route in one run. props: seg_id -> C5 properties. The route is cut from its earliest t_uncertain (I5 rule).
+    now = already cut by the time Noah had the run (`had`)."""
     hits = sorted((props[s] for s in seg_ids if s in props), key=lambda p: p["t_uncertain"])
     if not hits:
         return {"state": "no_forecast_flooding", "from_utc": None, "street": None, "streets": []}
@@ -64,6 +67,7 @@ def route_status(seg_ids: list[str], props: dict, issue: pd.Timestamp) -> dict:
     return {
         "state": "flooded" if any(p["t_flood"] is not None for p in hits) else "uncertain",
         "from_utc": at(hits[0]["t_uncertain"]),
+        "now": had is not None and issue + pd.Timedelta(hours=int(hits[0]["t_uncertain"])) <= had,
         "street": hits[0]["name"] or "unnamed road",
         "streets": [{"name": n, "from_utc": at(p["t_uncertain"])} for n, p in first.items()],
     }
@@ -77,6 +81,8 @@ def change(prev: dict | None, cur: dict) -> str | None:
         return "new"
     if cur["from_utc"] is None:
         return "dropped"
+    if prev.get("now") and cur.get("now") and cur["street"] == prev["street"]:
+        return None  # still cut: its "from" just follows each run's start hour
     shift = abs(pd.Timestamp(cur["from_utc"]) - pd.Timestamp(prev["from_utc"]))
     return "moved" if shift >= pd.Timedelta(hours=1) or cur["street"] != prev["street"] else None
 
@@ -206,7 +212,7 @@ def run_once() -> None:
             "cycle": cyc,
             "issued_utc": iso(issue),
             "had_utc": iso(had),
-            "routes": {r["id"]: route_status(r["seg_ids"], props, issue) for r in routes},
+            "routes": {r["id"]: route_status(r["seg_ids"], props, issue, had) for r in routes},
         }
         prev = max(
             (r for r in hist["runs"] if r["cycle"] < cyc), key=lambda r: r["cycle"], default=None
