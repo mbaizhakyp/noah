@@ -252,6 +252,7 @@
   .pm.end { background: var(--ink); border-color: #fff; color: #fff; box-shadow: 0 0 0 1.5px var(--ink), 0 2px 8px rgba(20,20,20,.3); }
   .cutmark { width: 22px; height: 22px; border-radius: 50%; background: var(--flood); color: #fff; border: 2px solid #fff; display: grid; place-items: center; box-shadow: 0 2px 8px rgba(20,20,20,.35); cursor: pointer; }
   .cutmark .lucide { width: 14px; height: 14px; stroke-width: 3; }
+  .maplibregl-marker.mk-pin { z-index: 3; } .maplibregl-marker.mk-cut { z-index: 2; }
   .legend .cutkey { width: 14px; height: 14px; border-radius: 50%; background: var(--flood); color: #fff; font: 800 10px/14px "Overpass", sans-serif; text-align: center; display: inline-block; }
 
   @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
@@ -709,7 +710,7 @@ function addMarker(lon, lat, kind, text, letter) {
   const el = document.createElement("div");
   if (letter) { el.className = "pm" + (kind === "you" ? " start" : kind === "dest" ? " end" : ""); el.textContent = letter; }
   else el.className = kind;
-  const m = new maplibregl.Marker({ element: el }).setLngLat([lon, lat]);
+  const m = new maplibregl.Marker({ element: el, className: "mk-pin" }).setLngLat([lon, lat]); // pins sit above camera markers
   if (text) m.setPopup(new maplibregl.Popup({ offset: 16 }).setText(text));
   markers.push(m.addTo(map));
 }
@@ -725,7 +726,7 @@ function markCuts(avoided, h) {
   for (const { f, t } of [...byName.values()].slice(0, 8)) {
     const c = f.geometry.coordinates, [lon, lat] = c[Math.floor(c.length / 2)];
     const el = document.createElement("div"); el.className = "cutmark"; el.innerHTML = '<i data-lucide="x"></i>';
-    const m = new maplibregl.Marker({ element: el }).setLngLat([lon, lat]);
+    const m = new maplibregl.Marker({ element: el, className: "mk-cut" }).setLngLat([lon, lat]);
     m.setPopup(new maplibregl.Popup({ offset: 14 }).setText(`Fastest way cut here: ${roadSentence(f.properties, Math.max(h, t))}`));
     markers.push(m.addTo(map));
   }
