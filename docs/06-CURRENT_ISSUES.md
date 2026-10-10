@@ -6,7 +6,6 @@ _Newest at the top of each table. Tag the owner as M (Margulan) or P (Priyanshu)
 | # | Opened | Owner | Issue | Next step / fallback |
 |---|---|---|---|---|
 | B4 | Fri 21:05 | P (or M) | **Camera capture (013 step 1) must be running by Sat 01:00.** GDOT cameras keep no recordings, and Isaias rain begins early Sat. **Key requested Fri ~21:27 ET → Pending Approval (manual review).** Plan: option C (own sidewalk photos during Isaias, J4). If the key arrives, switch to option A and start capture right away; a key by Sat noon still catches the heaviest rain. Cameras are P2, so the demo doesn't depend on them. |
-| B1 | Fri 20:30 | M | **Unknown whether NWM short-range forecast Helene well at feature 2047989.** The replay story depends on it. | Spec 001 + gauge plot by 00:00. Fallback: if no cycle before ~21:00 EDT Sep 26 forecasts > 161 m³/s, replay `analysis_assim` (what actually happened). Pitch it as a road-level timing engine; quote lead time only where it exists. |
 | B3 | Fri 20:30 | P | Photon Spectrum API, account and iMessage line provisioning not yet confirmed. | Go to the Photon booth/mentors first thing. Fallback 1: `imessage-kit` on a team Mac with a spare Apple ID. Fallback 2: Twilio SMS, and drop the Photon challenge (keep Gemini). |
 
 ## Decisions needed (both humans)
@@ -23,6 +22,7 @@ _Newest at the top of each table. Tag the owner as M (Margulan) or P (Priyanshu)
 ## Open risks and unknowns
 | # | Opened | Owner | Issue | Plan |
 |---|---|---|---|---|
+| R16 | Fri 22:10 | M | **Forecast timing bias:** the 14Z–21Z Helene runs forecast flood flow 3–11 h late and 35–65% low. Roads flagged from those runs would flag late or not at all. | Demo from the most skillful early run (proposal: `DEMO_CYCLE = 20240926T12Z`, needs Margulan's OK since spec 005's rule said keep 18Z). Q&A: state it plainly; the uncertain band + "re-check before you leave" wording are the mitigation; it's NWM skill, not Noah's logic. |
 | R15 | Fri 21:45 | M | **Confirmed 21:57:** FIM 4.9's `osm_roads_fimpact.csv` gives, per OSM way × HydroID, the discharge at which the road gets wet (`threshold_discharge`, m³/s) and the HAND threshold (m). NOAA's framework already computes road-level flood *thresholds*. | **Proposal CC3 (needs Margulan's OK):** use these thresholds instead of our own HAND sampling. Flood hour = first lead with q(feature_id) ≥ min threshold across branches; uncertain = q ≥ the discharge at (threshold_hand − 0.5 m) on that HydroID's curve. This replaces 003 step 2 + most of 004, saves ~3 h, uses NOAA's own method, and leaves C5 unchanged; C3 becomes unnecessary. Pitch: NOAA computes *where/at what flow*; Noah adds *when* (forecast), routing, and text delivery. |
 | R14 | Fri 21:05 | Both | **Potholes:** no open ATL311 pothole dataset found (raw 311 data appears to come only through open-records requests to OpenRecords-311@atlantaga.gov, ~3 business days). Potholes also barely change flood estimates. | BL-2 research (30 min). Default: roadmap. |
 | R13 | Fri 21:05 | M | **Storm drains / sewers:** no open Atlanta storm-inlet or pipe layer found. Records requests take ~3 business days. Real sewer-overflow feeds exist only for some utilities. | Build 012 (terrain low spots) as the honest stand-in. BL-1 research. Keep "storm-drain flooding is not forecast" in the limits. |
@@ -84,6 +84,7 @@ _Newest at the top of each table. Tag the owner as M (Margulan) or P (Priyanshu)
 ## Resolved
 | # | Resolved | How |
 |---|---|---|
+| B1 | Fri 22:08 | **GO.** NWM short-range forecast Peachtree Creek above minor flood flow in every cycle from 20240926T12Z; first warning 13.2 h before the observed crossing. Mid-day runs were late and low (see PROGRESS 22:08). |
 | B2 | Fri 21:45 | No AWS needed. The same OWP HAND-FIM data (v4.9.9.0) is in the public CIROH bucket `ciroh-owp-hand-fim` (anonymous). NOAA's requester-pays bucket is now only the fallback in spec 002. Disclose the data source (FIMserv / CIROH) in the README. |
 | J4 | Fri 21:45 | Camera fallback if no 511GA key by 00:00 = **option C** (our own sidewalk photos during Isaias). Option B (hand-picked public image URLs) only if both explicitly agree later. Never call `/list/getdata/`. (Margulan) |
 | J3 | Fri 21:30 | Mercedes CV stays dropped. **FINAL:** main track Social Good; side challenges Photon + Gemini + Replit (Margulan, D2). |
