@@ -48,7 +48,7 @@ Never start a lower priority while a higher one in your lane is unfinished, (013
 | 006 | Routing + HTTP API | Priyanshu | P0 | 3 h | **Done** (23:55) |
 | 007 | Gemini agent + safety filter | Priyanshu | P0 | 3 h | Draft |
 | 008 | iMessage relay (Photon Spectrum) | **Margulan** (J14) | P0 | 2 h | **Built + tested locally (Sat 02:20).** Needs Photon credentials (app.photon.codes) → `npm start` → text from iPhone |
-| 009 | Web map with time slider | Priyanshu | P0 | 3 h | **Functional** (01:00); UI polish later |
+| 009 | Web map with time slider | Priyanshu | P0 | 3 h | **Redesigned (Sat ~02:30):** navigation-first UI, departure-time picker, risk score, works statewide (see log) |
 | 010 | Camera water classifier `classify()` (user photos removed) | Priyanshu | P2 | 1.5 h | Draft |
 | 014 | Dispatch board + barricade list (Replit entry) | Margulan | P1 | 3 h | **Done** (Fri 22:55, standalone; mount = I3) |
 | 013 | Camera snapshot check, on demand (Windy) | Priyanshu | P2 | 2 h | Draft |
@@ -155,4 +155,8 @@ _Append-only. Format: `HH:MM Name — what was done — how verified (command)`.
   - A "Last 18 hours" panel shows USGS stage history per gauge (sparklines) + NWS storm reports from the last 24 h.
   - Live loop backfilled 09Z–02Z with `--backfill … --keep 48` (the 23Z run is missing on GCS).
   - The AI assessment panel (now / next 18 h / next days) is on the map.
-  — `uv run pytest -q` (27 passed), JS parse check, no banned words..
+  — `uv run pytest -q` (27 passed), JS parse check, no banned words.
+- 02:30 (Sat) — **Spec 009 map redesigned (Priyanshu).** `web/index.html` rebuilt as a navigation app: full-screen light map, trip planner (Start → Destination, one **Check roads / Find route** button), a small **Leave now ▾** departure-time picker (quick picks + −18 h…+18 h slider + Replay) instead of the big time bar, Overpass type, Lucide icons, cobalt `#2240FF` shell; red/amber stay reserved for road states.
+  - **Flood risk score** (0–100, Low/Elevated/High/Severe) computed in the page from the `/assess` signals with an expandable "How this score is computed" breakdown (every factor + points). Scored by rules, labelled as such.
+  - **Works statewide:** on `no_road_forecast` (outside HUC8 03130001) the page still runs `/assess` (area) or `/assess/route` (trip), shows the risk score, AI assessment, cameras and sources, and the Google/Apple Maps hand-off (no Noah waypoints). Verified for Macon (area: 51/High; route: 41/Elevated, 33 sources, 6 cameras).
+  - Checked: desktop 1440 + mobile 390 captures, JS parse check, no banned words, design detector (2 scoped ignores recorded in `.impeccable/config.json`)..

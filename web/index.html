@@ -3,200 +3,365 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Noah Flood Map</title>
+<title>Noah</title>
+<meta name="theme-color" content="#2240ff">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Overpass:wght@400;600;700;800&display=swap">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
 <style>
   :root {
-    --bg: #0b0f14; --panel: #121821; --line: #233041; --text: #e6edf3; --muted: #8b9bb0;
-    --red: #ef4444; --amber: #f59e0b; --cyan: #22d3ee; --slate: #64748b; --green: #34d399;
+    --ink: #141414; --ink-2: #4b4f58; --ink-3: #686d77;
+    --paper: #ffffff; --ground: #f1f2f5; --line: #e3e5ea; --line-2: #cfd3db;
+    --blue: #2240ff; --blue-ink: #1a33d6; --blue-soft: #eaedff;
+    --flood: #e5322d; --flood-ink: #b3221e; --flood-soft: #fdeceb;
+    --amber: #f2a100; --amber-ink: #8a5100; --amber-soft: #fff3d6;
+    --shadow: 0 2px 6px rgba(20,20,20,.08), 0 16px 40px -12px rgba(20,20,20,.22);
+    --ease: cubic-bezier(.2,.9,.25,1);
+    --r: 12px;
   }
   * { box-sizing: border-box; }
-  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
-    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
-  header { padding: 12px 16px; border-bottom: 1px solid var(--line); display: flex; gap: 12px;
-    align-items: baseline; flex-wrap: wrap; }
-  header h1 { margin: 0; font-size: 18px; }
-  header .sub { color: var(--muted); }
-  header a { color: var(--cyan); margin-left: auto; }
-  main { display: grid; grid-template-columns: 420px 1fr; height: calc(100% - 50px); }
-  aside { overflow-y: auto; border-right: 1px solid var(--line); padding: 14px 16px 24px; }
-  #map { height: 100%; }
-  label { display: block; color: var(--muted); font-size: 12px; margin: 10px 0 4px; }
-  select, input, button { width: 100%; background: var(--panel); color: var(--text);
-    border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px; font: inherit; }
-  button { cursor: pointer; background: #1d4ed8; border-color: #1d4ed8; font-weight: 600; min-height: 44px; }
-  button.secondary { background: var(--panel); border-color: var(--line); }
-  button:disabled { opacity: .6; cursor: wait; }
-  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-  .search { position: relative; }
-  .suggest { position: absolute; z-index: 5; left: 0; right: 0; top: 100%; margin-top: 4px;
-    background: var(--panel); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
-  .suggest button { display: block; text-align: left; background: transparent; border: 0; border-radius: 0;
-    font-weight: 400; min-height: 44px; border-bottom: 1px solid var(--line); }
-  .suggest button:hover, .suggest button:focus { background: #1a2330; }
-  .suggest small { color: var(--muted); }
-  .picked { color: var(--muted); font-size: 12px; margin-top: 4px; min-height: 16px; }
-  .card { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin: 8px 0;
-    background: var(--panel); cursor: pointer; }
-  .card .top { display: flex; gap: 8px; align-items: center; justify-content: space-between; }
-  .card .name { font-weight: 600; }
-  .card .detail { color: var(--muted); margin-top: 4px; }
-  .badge { padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 700; white-space: nowrap; }
-  .b-flooded { background: rgba(239,68,68,.15); color: var(--red); border: 1px solid var(--red); }
-  .b-uncertain { background: rgba(245,158,11,.15); color: var(--amber); border: 1px solid var(--amber); }
-  .b-no_forecast_flooding { background: rgba(100,116,139,.18); color: #cbd5e1; border: 1px solid var(--slate); }
-  .banner { margin: 10px 0; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line);
-    background: var(--panel); display: none; }
-  .banner.danger { border-color: var(--red); color: #fecaca; background: rgba(239,68,68,.1); }
-  .banner.warn { border-color: var(--amber); color: #fde68a; background: rgba(245,158,11,.08); }
-  .banner.info { border-color: var(--slate); color: #cbd5e1; }
-  .summary { color: var(--muted); margin: 6px 0 2px; }
-  .section { margin-top: 18px; padding-top: 4px; border-top: 1px solid var(--line); }
-  .section h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 12px 0 4px; }
-  .go { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
-  .go a { display: flex; align-items: center; justify-content: center; min-height: 44px; border-radius: 8px;
-    border: 1px solid var(--line); background: var(--panel); color: var(--text); text-decoration: none; font-weight: 600; }
-  .note { color: var(--muted); font-size: 12px; margin-top: 6px; }
-  details { margin-top: 14px; border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; background: var(--panel); }
-  details summary { cursor: pointer; font-weight: 600; }
-  details img { width: 100%; border-radius: 6px; margin-top: 8px; }
-  .legend { position: absolute; top: 10px; left: 10px; background: rgba(18,24,33,.92);
-    border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 12px; }
-  .legend div { display: flex; align-items: center; gap: 6px; margin: 2px 0; }
-  .sw { width: 18px; height: 4px; border-radius: 2px; display: inline-block; }
-  .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
-  .timebar { position: absolute; left: 10px; right: 10px; bottom: 24px; background: rgba(18,24,33,.94);
-    border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; display: grid;
-    grid-template-columns: 44px 1fr; gap: 10px; align-items: center; }
-  .timebar button { width: 44px; padding: 0; }
-  .timebar .cap { grid-column: 1 / -1; font-size: 13px; }
-  .timebar .cap b { color: var(--text); }
-  .timebar input[type=range] { padding: 0; height: 44px; background: transparent; border: 0; accent-color: var(--cyan); }
-  footer { color: var(--muted); font-size: 12px; margin-top: 16px; }
-  .mapwrap { position: relative; height: 100%; }
-  .cam img { width: 100%; max-width: 260px; border-radius: 6px; display: block; margin-top: 6px; }
-  .cammark { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-    font-size: 15px; background: #121821; border: 3px solid var(--slate); cursor: pointer; box-shadow: 0 1px 6px #0008; }
-  .cammark.wet { border-color: var(--red); } .cammark.maybe { border-color: var(--amber); }
-  .camcard { display: grid; grid-template-columns: 120px 1fr; gap: 10px; align-items: start; }
-  .camcard img { width: 120px; height: 67px; object-fit: cover; border-radius: 6px; background: #000; }
-  .src { display: flex; justify-content: space-between; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--line); cursor: pointer; }
-  .src .n { font-weight: 600; } .src .c { color: var(--muted); white-space: nowrap; }
-  .src.fail .n { color: #fecaca; }
-  .sig { color: var(--muted); font-size: 12px; padding: 4px 0 6px 10px; border-left: 2px solid var(--line); margin: 2px 0 6px; }
-  .sig b { color: var(--text); font-weight: 600; }
+  html, body { margin: 0; height: 100%; background: var(--ground); color: var(--ink);
+    font: 15px/1.5 "Overpass", system-ui, -apple-system, "Segoe UI", sans-serif; -webkit-font-smoothing: antialiased; }
+  ::selection { background: var(--blue-soft); color: var(--blue-ink); }
+  :focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+  a { color: var(--blue-ink); text-underline-offset: 3px; }
+  button { font: inherit; color: inherit; }
+  [hidden] { display: none !important; }
+  .num { font-variant-numeric: tabular-nums; }
+  .lucide { width: 18px; height: 18px; flex: none; stroke-width: 2; }
+
+  /* ---------- shell ---------- */
+  .app { position: fixed; inset: 0; }
+  #map { position: absolute; inset: 0; }
+  .panel { position: absolute; z-index: 3; top: 16px; left: 16px; bottom: 16px; width: 400px; display: flex; flex-direction: column;
+    background: var(--paper); border-radius: var(--r); box-shadow: var(--shadow); overflow: hidden; }
+  .scroll { overflow-y: auto; flex: 1; scrollbar-width: thin; scrollbar-color: var(--line-2) transparent; }
+  .scroll::-webkit-scrollbar { width: 8px; } .scroll::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 8px; border: 2px solid #fff; }
+
+  /* ---------- header ---------- */
+  .head { display: flex; align-items: center; gap: 10px; padding: 14px 16px 0; }
+  .wordmark { display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 22px; letter-spacing: -.02em; line-height: 1; }
+  .wordmark .lucide { width: 22px; height: 22px; color: var(--blue); stroke-width: 2.4; }
+  .updated { margin-left: auto; font-size: 12px; color: var(--ink-3); display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .updated i { width: 7px; height: 7px; border-radius: 50%; background: var(--blue); }
+  .tag { padding: 4px 16px 0; font-size: 13px; color: var(--ink-2); }
+
+  /* ---------- trip planner ---------- */
+  .trip { margin: 14px 16px 0; border: 1.5px solid var(--line-2); border-radius: 10px; position: relative; background: #fff; }
+  .trip::before { content: ""; position: absolute; left: 19px; top: 30px; height: 28px; border-left: 2px dotted var(--line-2); }
+  .field { position: relative; display: flex; align-items: center; gap: 10px; padding: 0 6px 0 12px; min-height: 48px; }
+  .field + .field { border-top: 1px solid var(--line); }
+  .pin { width: 10px; height: 10px; border-radius: 50%; border: 2.5px solid var(--blue); flex: none; }
+  .pin.b { border-radius: 2px; border-color: var(--ink); }
+  .field input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font: inherit; font-weight: 600; color: var(--ink); padding: 12px 0 10px; }
+  .field input::placeholder { color: var(--ink-3); font-weight: 400; }
+  .ib { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border: 0; border-radius: 8px; background: transparent; color: var(--ink-2); cursor: pointer; }
+  .ib:hover { background: var(--ground); color: var(--ink); }
+  .ib .lucide { width: 18px; height: 18px; }
+  .suggest { position: absolute; z-index: 10; left: -1px; right: -1px; top: calc(100% + 4px); background: #fff; border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); overflow: hidden; }
+  .suggest button { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: transparent; border: 0; min-height: 44px; padding: 8px 12px; cursor: pointer; font-weight: 600; }
+  .suggest button + button { border-top: 1px solid var(--line); }
+  .suggest button:hover, .suggest button:focus-visible { background: var(--blue-soft); outline: 0; }
+  .suggest small { color: var(--ink-3); font-weight: 400; }
+
+  .row { display: flex; gap: 8px; align-items: center; padding: 10px 16px 0; }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 14px; border-radius: 10px; border: 1.5px solid transparent;
+    font-weight: 700; cursor: pointer; text-decoration: none; transition: background .15s, border-color .15s, transform .15s var(--ease); white-space: nowrap; }
+  .btn:active { transform: translateY(1px); }
+  .btn.primary { flex: 1; min-width: 0; background: var(--blue); color: #fff; }
+  .btn.primary span { overflow: hidden; text-overflow: ellipsis; }
+  .btn.outline { flex: none; }
+  .btn.primary:hover { background: var(--blue-ink); }
+  .btn.outline { background: #fff; border-color: var(--line-2); color: var(--ink); }
+  .btn.outline:hover { border-color: var(--ink-2); }
+  .btn.outline[aria-expanded="true"] { border-color: var(--blue); color: var(--blue-ink); background: var(--blue-soft); }
+  .btn:disabled { opacity: .6; cursor: progress; transform: none; }
+  .btn .lucide { width: 17px; height: 17px; }
+  .spin { width: 15px; height: 15px; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; animation: spin .7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ---------- leave-time popover ---------- */
+  .timewrap { position: relative; }
+  .pop { position: absolute; z-index: 20; top: calc(100% + 6px); left: 0; width: 352px; background: #fff; border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); padding: 14px 14px 12px; }
+  .pop h3 { margin: 0 0 10px; font-size: 14px; font-weight: 700; }
+  .quick { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; background: var(--ground); padding: 3px; border-radius: 9px; }
+  .quick button { border: 0; background: transparent; border-radius: 7px; min-height: 34px; font-size: 13px; font-weight: 600; color: var(--ink-2); cursor: pointer; }
+  .quick button:hover { color: var(--ink); } .quick button.on { background: #fff; color: var(--blue-ink); box-shadow: 0 1px 3px rgba(20,20,20,.15); }
+  .readout { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin: 12px 2px 4px; }
+  .readout b { font-size: 16px; }
+  .readout span { font-size: 13px; color: var(--ink-2); text-align: right; }
+  #hour { width: 100%; height: 32px; margin: 0; -webkit-appearance: none; appearance: none; background: transparent; cursor: ew-resize; }
+  #hour::-webkit-slider-runnable-track { height: 6px; border-radius: 3px; background: linear-gradient(90deg, var(--line-2) 0 50%, var(--blue) 50% 100%); }
+  #hour::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; margin-top: -8px; border-radius: 50%; background: #fff; border: 2.5px solid var(--blue); box-shadow: 0 1px 4px rgba(20,20,20,.25); }
+  #hour::-moz-range-track { height: 6px; border-radius: 3px; background: linear-gradient(90deg, var(--line-2) 0 50%, var(--blue) 50% 100%); }
+  #hour::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: #fff; border: 2.5px solid var(--blue); }
+  .axis { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--ink-3); font-weight: 600; margin: -2px 4px 10px; }
+  .axis .mid { color: var(--ink); }
+  .popfoot { display: flex; align-items: center; justify-content: space-between; gap: 10px; border-top: 1px solid var(--line); padding-top: 10px; }
+  .popfoot small { color: var(--ink-3); font-size: 12px; }
+  #play { display: inline-flex; align-items: center; gap: 6px; border: 0; background: var(--blue-soft); color: var(--blue-ink); border-radius: 8px; min-height: 36px; padding: 0 12px; font-weight: 700; font-size: 13px; cursor: pointer; }
+  #play:hover { background: #dde2ff; }
+
+  /* ---------- results ---------- */
+  .body { padding: 14px 16px 20px; }
+  .empty { padding: 4px 0 0; }
+  .empty h2 { font-size: 15px; font-weight: 700; margin: 6px 0 2px; }
+  .empty p { margin: 0 0 12px; color: var(--ink-2); font-size: 14px; }
+  .try { display: flex; align-items: center; gap: 12px; width: 100%; border: 0; background: transparent; text-align: left; min-height: 46px; padding: 6px 4px; border-radius: 8px; cursor: pointer; font-weight: 600; }
+  .try:hover { background: var(--ground); }
+  .try .lucide { color: var(--ink-3); } .try small { color: var(--ink-3); font-weight: 400; }
+
+  .notice { display: grid; grid-template-columns: 20px 1fr; gap: 10px; padding: 12px 14px; border-radius: 10px; background: var(--blue-soft); color: var(--ink); font-size: 14px; line-height: 1.45; }
+  .notice .lucide { width: 20px; height: 20px; color: var(--blue-ink); margin-top: 1px; }
+  .notice.danger { background: var(--flood-soft); } .notice.danger .lucide { color: var(--flood-ink); }
+  .notice.warn { background: var(--amber-soft); } .notice.warn .lucide { color: var(--amber-ink); }
+  .sum { display: flex; align-items: center; gap: 14px; margin: 14px 0 0; }
+  .sum .min { font-size: 28px; font-weight: 800; letter-spacing: -.02em; line-height: 1; }
+  .sum .min small { font-size: 14px; font-weight: 600; color: var(--ink-2); margin-left: 3px; letter-spacing: 0; }
+  .sum .via { font-size: 13.5px; color: var(--ink-2); }
+  .go { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+  .go a { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 42px; border-radius: 10px; border: 1.5px solid var(--line-2); color: var(--ink); text-decoration: none; font-weight: 700; font-size: 14px; }
+  .go a:hover { border-color: var(--ink-2); }
+  .go .lucide { width: 16px; height: 16px; color: var(--ink-3); }
+  .note { color: var(--ink-3); font-size: 12.5px; margin-top: 8px; line-height: 1.45; }
+
+  /* ---------- risk score ---------- */
+  .risk { margin-top: 14px; border: 1.5px solid var(--line-2); border-radius: 10px; padding: 12px 14px 10px; }
+  .risk-head { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; font-size: 13px; color: var(--ink-2); }
+  .risk-head b { color: var(--ink); font-weight: 700; }
+  .risk-row { display: flex; align-items: baseline; gap: 12px; margin: 6px 0 8px; }
+  .risk-score { font-size: 40px; font-weight: 800; letter-spacing: -.03em; line-height: 1; font-variant-numeric: tabular-nums; }
+  .risk-score small { font-size: 14px; font-weight: 600; color: var(--ink-3); letter-spacing: 0; margin-left: 2px; }
+  .risk-band { font-size: 15px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; }
+  .risk-band small { display: block; font-size: 12.5px; font-weight: 400; color: var(--ink-2); text-transform: none; letter-spacing: 0; }
+  .risk-bar { position: relative; display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px; height: 8px; margin: 4px 0 2px; }
+  .risk-bar i { border-radius: 3px; background: var(--line); }
+  .risk-bar i:nth-child(2) { background: #ffe3a3; } .risk-bar i:nth-child(3) { background: #ffc79b; } .risk-bar i:nth-child(4) { background: #f8b1ae; }
+  .risk-mark { position: absolute; top: -5px; width: 4px; height: 18px; border-radius: 2px; background: var(--ink); transform: translateX(-2px); transition: left .5s var(--ease); }
+  .risk-scale { display: flex; justify-content: space-between; font-size: 11px; color: var(--ink-3); font-weight: 600; margin-bottom: 6px; }
+  .risk details summary { cursor: pointer; font-size: 13px; font-weight: 700; color: var(--blue-ink); padding: 4px 0; list-style: none; }
+  .risk details summary::-webkit-details-marker { display: none; }
+  .risk details summary::after { content: " ▾"; } .risk details[open] summary::after { content: " ▴"; }
+  .factors { list-style: none; margin: 4px 0 0; padding: 0; font-size: 13.5px; }
+  .factors li { display: flex; justify-content: space-between; gap: 10px; padding: 6px 0; border-top: 1px solid var(--line); }
+  .factors li span { color: var(--ink-2); } .factors li b { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .factors li small { display: block; color: var(--ink-3); font-size: 12px; }
+  .r-low .risk-score, .r-low .risk-band { color: var(--ink-2); } .r-elevated .risk-score, .r-elevated .risk-band { color: var(--amber-ink); }
+  .r-high .risk-score, .r-high .risk-band { color: #b4430a; } .r-severe .risk-score, .r-severe .risk-band { color: var(--flood-ink); }
+
+  .tabs { display: flex; gap: 2px; border-bottom: 1.5px solid var(--line); margin: 18px 0 8px; position: sticky; top: 0; background: #fff; z-index: 2; }
+  .tabs button { border: 0; background: transparent; color: var(--ink-2); font-weight: 700; font-size: 13.5px; padding: 8px 10px 10px; margin-bottom: -1.5px; border-bottom: 2.5px solid transparent; cursor: pointer; white-space: nowrap; }
+  .tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--blue); }
+  .tabs .ct { color: var(--ink-3); font-weight: 600; margin-left: 3px; }
+  .tabs button[aria-selected="true"] .ct { color: var(--blue-ink); }
+  .summary { color: var(--ink-2); font-size: 13.5px; margin: 4px 0 6px; }
+  .card { display: grid; grid-template-columns: 30px 1fr; gap: 12px; align-items: start; padding: 10px 6px; border-radius: 8px; cursor: pointer; }
+  .card:hover { background: var(--ground); }
+  .card + .card { border-top: 1px solid var(--line); border-radius: 0; }
+  .st { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: var(--ground); color: var(--ink-2); }
+  .st .lucide { width: 16px; height: 16px; }
+  .s-flooded .st { background: var(--flood-soft); color: var(--flood-ink); } .s-uncertain .st { background: var(--amber-soft); color: var(--amber-ink); }
+  .card .top { display: flex; gap: 8px; align-items: baseline; justify-content: space-between; }
+  .card .name { font-weight: 700; }
+  .card .detail { color: var(--ink-2); font-size: 13.5px; margin-top: 1px; }
+  .badge { font-size: 12px; font-weight: 700; white-space: nowrap; }
+  .b-flooded { color: var(--flood-ink); } .b-uncertain { color: var(--amber-ink); } .b-no_forecast_flooding { color: var(--ink-3); }
+  .none { color: var(--ink-3); font-size: 14px; padding: 16px 4px; }
+
   .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 10px 0; }
-  .tile { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; background: var(--panel); }
-  .tile .when { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .05em; }
-  .tile .lvl { font-weight: 800; font-size: 15px; margin: 2px 0 4px; text-transform: capitalize; }
-  .tile .sum { font-size: 12px; color: #cbd5e1; }
-  .lvl-low { color: #cbd5e1; } .lvl-elevated { color: var(--amber); } .lvl-high { color: #fb923c; } .lvl-severe { color: var(--red); }
-  .tile.t-elevated { border-color: rgba(245,158,11,.6); } .tile.t-high { border-color: rgba(251,146,60,.7); } .tile.t-severe { border-color: var(--red); background: rgba(239,68,68,.08); }
-  .reasons { margin: 6px 0 0; padding-left: 18px; } .reasons li { margin: 4px 0; }
-  .chip { display: inline-block; font-size: 11px; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 0 6px; margin: 2px 4px 0 0; }
-  .gauge { display: grid; grid-template-columns: 1fr 120px; gap: 8px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--line); }
+  .tile { border-radius: 10px; padding: 10px 11px; background: var(--ground); }
+  .tile .when { color: var(--ink-3); font-size: 12px; font-weight: 600; }
+  .tile .lvl { font-size: 16px; font-weight: 800; margin: 2px 0 3px; text-transform: capitalize; }
+  .tile .sumt { font-size: 12.5px; color: var(--ink-2); }
+  .lvl-low { color: var(--ink-2); } .lvl-elevated { color: var(--amber-ink); } .lvl-high { color: #b4430a; } .lvl-severe { color: var(--flood-ink); }
+  .tile.t-elevated { background: var(--amber-soft); } .tile.t-high { background: #ffe6d6; } .tile.t-severe { background: var(--flood-soft); }
+  .reasons { margin: 6px 0 0; padding-left: 18px; font-size: 14px; } .reasons li { margin: 6px 0; }
+  .chip { display: inline-block; font-size: 11.5px; font-weight: 600; color: var(--blue-ink); background: var(--blue-soft); border-radius: 4px; padding: 1px 6px; margin: 3px 4px 0 0; }
+  .action { margin-top: 12px; padding: 12px 14px; border: 1.5px solid var(--line-2); border-radius: 10px; font-weight: 600; font-size: 14px; }
+  .loading { display: flex; align-items: center; gap: 10px; color: var(--ink-2); font-size: 14px; }
+  .loading .spin { color: var(--blue); }
+  .h3 { font-size: 14px; font-weight: 700; margin: 18px 0 4px; }
+
+  .cam img { width: 100%; max-width: 260px; border-radius: 8px; display: block; margin-top: 8px; }
+  .cammark { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: #fff; color: var(--ink-2); border: 2.5px solid var(--line-2); cursor: pointer; box-shadow: 0 2px 8px rgba(20,20,20,.25); }
+  .cammark .lucide { width: 15px; height: 15px; }
+  .cammark.wet { border-color: var(--flood); color: var(--flood-ink); } .cammark.maybe { border-color: var(--amber); color: var(--amber-ink); }
+  .camcard { grid-template-columns: 104px 1fr; }
+  .camcard img { width: 104px; height: 64px; object-fit: cover; border-radius: 8px; background: var(--line); display: block; }
+  .src { display: flex; justify-content: space-between; gap: 8px; padding: 10px 4px; border-bottom: 1px solid var(--line); cursor: pointer; font-size: 14px; }
+  .src .n { font-weight: 600; display: inline-flex; gap: 6px; align-items: center; } .src .n .lucide { width: 15px; height: 15px; color: var(--blue-ink); }
+  .src .c { color: var(--ink-3); white-space: nowrap; }
+  .src.fail .n { color: var(--flood-ink); } .src.fail .n .lucide { color: var(--flood-ink); }
+  .sig { color: var(--ink-2); font-size: 13px; padding: 6px 0 8px 12px; border-left: 1px solid var(--line-2); margin: 4px 0 6px 4px; }
+  .sig b { color: var(--ink); font-weight: 600; }
+  .gauge { display: grid; grid-template-columns: 1fr 120px; gap: 10px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 13.5px; }
+  .gauge a { font-weight: 700; color: var(--ink); }
   .gauge svg { width: 120px; height: 34px; }
-  .pastnote { color: var(--muted); font-size: 12px; margin: 6px 0; }
-  .action { margin-top: 10px; padding: 8px 10px; border-left: 3px solid var(--cyan); background: rgba(34,211,238,.06); border-radius: 6px; }
-  @media (max-width: 520px) { .tiles { grid-template-columns: 1fr; } }
-  .cam a { color: var(--cyan); }
-  .maplibregl-popup-content { background: var(--panel); color: var(--text); border: 1px solid var(--line); }
+  footer { color: var(--ink-3); font-size: 12px; margin-top: 22px; padding-top: 12px; border-top: 1px solid var(--line); }
+
+  /* ---------- map chrome ---------- */
+  .caption { position: absolute; z-index: 2; top: 16px; left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; border-radius: 8px; padding: 7px 12px; font-size: 13px; font-weight: 600; white-space: nowrap; box-shadow: var(--shadow); }
+  .caption.past { background: var(--ink-2); }
+  .legend { position: absolute; z-index: 2; right: 16px; bottom: 28px; background: #fff; border-radius: 8px; box-shadow: var(--shadow); padding: 8px 12px; font-size: 12px; color: var(--ink-2); display: grid; gap: 4px; }
+  .legend span { display: inline-flex; align-items: center; gap: 8px; }
+  .sw { width: 18px; height: 4px; border-radius: 2px; display: inline-block; }
+  .maplibregl-popup-content { background: #fff; color: var(--ink); border-radius: 10px; padding: 12px 14px; box-shadow: var(--shadow); font: 14px/1.45 "Overpass", sans-serif; }
   .maplibregl-popup-tip { display: none; }
-  @media (max-width: 820px) {
-    /* phones: map first (texted links open straight to it), panel below */
-    main { grid-template-columns: 1fr; grid-template-rows: 62vh auto; height: auto; }
-    aside { border-right: 0; border-top: 1px solid var(--line); }
-    .mapwrap { height: 62vh; order: -1; }
-    .legend { font-size: 11px; }
+  .maplibregl-popup-close-button { font-size: 18px; color: var(--ink-3); right: 4px; top: 2px; }
+  .maplibregl-ctrl-group { border-radius: 10px !important; box-shadow: var(--shadow) !important; overflow: hidden; }
+  .maplibregl-ctrl-top-right { top: 16px; right: 16px; }
+  .you { width: 18px; height: 18px; border-radius: 50%; background: var(--blue); border: 3px solid #fff; box-shadow: 0 0 0 1.5px var(--blue), 0 2px 6px rgba(20,20,20,.35); }
+  .dest { width: 16px; height: 16px; border-radius: 3px; background: var(--ink); border: 3px solid #fff; box-shadow: 0 0 0 1.5px var(--ink), 0 2px 6px rgba(20,20,20,.35); }
+
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+
+  /* ---------- phones: map first (texted links open straight to it), panel below ---------- */
+  @media (max-width: 860px) {
+    .app { position: static; }
+    .mapwrap { position: relative; height: 56vh; }
+    .panel { position: relative; top: auto; left: auto; bottom: auto; width: auto; margin: -14px 0 0; border-radius: var(--r) var(--r) 0 0; }
+    .scroll { overflow: visible; }
+    .legend { display: none; }
+    .caption { top: 12px; font-size: 12px; max-width: calc(100% - 100px); overflow: hidden; text-overflow: ellipsis; }
+    .pop { width: calc(100vw - 32px); }
+    .tabs { top: 0; }
   }
+  @media (max-width: 520px) { .tiles { grid-template-columns: 1fr; } .quick { grid-template-columns: repeat(3, 1fr); } }
 </style>
 </head>
 <body>
-<header>
-  <h1>Noah</h1>
-  <span class="sub">Flood-aware routes for Georgia · warns you before the road goes under</span>
-  <a href="dispatch.html">Dispatch board →</a>
-</header>
-<main>
-  <aside>
-    <div id="issued" class="summary">Loading the latest forecast…</div>
-
-    <div class="section">
-      <h2>Where are you?</h2>
-      <button id="locate" class="secondary">📍 Use my location</button>
-      <div class="search">
-        <label for="fromQ">…or type a place</label>
-        <input id="fromQ" autocomplete="off" placeholder="Address or place in Georgia">
-        <div id="fromList" class="suggest" hidden></div>
-      </div>
-      <div id="fromPicked" class="picked"></div>
-      <div style="margin-top:8px"><button id="area">Check my area (5 km)</button></div>
-    </div>
-
-    <div class="section">
-      <h2>Where to?</h2>
-      <div class="search">
-        <input id="toQ" autocomplete="off" placeholder="Search a destination" aria-label="Destination">
-        <div id="toList" class="suggest" hidden></div>
-      </div>
-      <div id="toPicked" class="picked"></div>
-      <div style="margin-top:8px"><button id="go">Find a route around flooding</button></div>
-    </div>
-
-    <div id="banner" class="banner" role="status"></div>
-    <div id="summary" class="summary"></div>
-    <div id="directions" hidden>
-      <div class="go">
-        <a id="gmaps" target="_blank" rel="noopener">Start in Google Maps</a>
-        <a id="amaps" target="_blank" rel="noopener">Start in Apple Maps</a>
-      </div>
-      <div class="note">Google and Apple Maps choose their own roads between Noah's points. Check the red and amber roads here before you go.</div>
-    </div>
-    <div id="results"></div>
-
-    <div id="live" class="section" hidden>
-      <h2>Live checks</h2>
-      <div id="liveStatus" class="summary"></div>
-      <div id="assessBox" hidden>
-        <div class="tiles" id="tiles"></div>
-        <ol class="reasons" id="reasons"></ol>
-        <div class="action" id="action"></div>
-        <div class="note" id="assessBy"></div>
-      </div>
-      <div id="liveNote" class="note"></div>
-      <h2 id="camHead" hidden>Traffic cameras</h2>
-      <div id="camList"></div>
-      <div id="camCredit" class="note" hidden>Snapshots taken when you searched and checked for water by AI. Water counts only if a second, stricter look agrees.
-        Webcams provided by <a href="https://www.windy.com" target="_blank" rel="noopener">Windy.com</a> · <a href="https://www.windy.com/webcams/add" target="_blank" rel="noopener">add a webcam</a></div>
-      <div id="pastBox" hidden>
-        <h2>Last 18 hours</h2>
-        <div id="pastSummary" class="summary"></div>
-        <div id="gaugeList"></div>
-        <div id="reportList"></div>
-        <div class="pastnote" id="pastNote"></div>
-      </div>
-      <details id="srcBox" style="margin-top:12px"><summary id="srcSum">Sources checked</summary><div id="srcList"></div></details>
-    </div>
-
-    <footer id="footer"></footer>
-  </aside>
+<div class="app">
   <div class="mapwrap">
-    <div id="map"></div>
+    <div id="map" role="region" aria-label="Map of roads forecast to flood"></div>
+    <div class="caption" id="caption" aria-live="polite" hidden></div>
     <div class="legend">
-      <div><span class="sw" style="background:var(--red)"></span>Do not cross (forecast flooded)</div>
-      <div><span class="sw" style="background:var(--amber)"></span>Uncertain: treat as impassable</div>
-      <div><span class="sw" style="background:var(--cyan)"></span>Noah's route</div>
-      <div><span class="dot" style="background:var(--cyan);opacity:.5"></span>5 km check area</div>
-      <div><span class="sw" style="background:repeating-linear-gradient(90deg,#ef4444 0 6px,transparent 6px 9px)"></span>Past hours: NOAA estimate</div>
-    </div>
-    <div class="timebar">
-      <div class="cap" id="caption">Pick a place to see which roads are forecast to flood.</div>
-      <button id="play" class="secondary" aria-label="Play forecast">▶</button>
-      <input id="hour" type="range" min="-18" max="18" step="1" value="0" aria-label="Hour: past 18 h to next 18 h">
+      <span><i class="sw" style="background:var(--flood)"></i>Do not cross (forecast flooded)</span>
+      <span><i class="sw" style="background:var(--amber)"></i>Uncertain: treat as impassable</span>
+      <span><i class="sw" style="background:var(--blue)"></i>Noah's route</span>
+      <span><i class="sw" style="background:repeating-linear-gradient(90deg,var(--flood) 0 5px,transparent 5px 8px)"></i>Past hours: NOAA estimate</span>
     </div>
   </div>
-</main>
+
+  <aside class="panel" aria-label="Noah">
+    <div class="head">
+      <div class="wordmark"><i data-lucide="navigation"></i>Noah</div>
+      <div class="updated" id="updated" title="Road forecasts come from the NOAA National Water Model and refresh every hour."><i></i><span id="issued">Loading…</span></div>
+    </div>
+    <div class="tag">Get home around the floods. Routes that skip roads forecast to go under.</div>
+
+    <div class="trip">
+      <div class="field search">
+        <span class="pin"></span>
+        <input id="fromQ" autocomplete="off" placeholder="Start: address or place in Georgia" aria-label="Start: address or place in Georgia">
+        <button id="locate" class="ib" type="button" aria-label="Use my location" title="Use my location"><i data-lucide="locate-fixed"></i></button>
+        <div id="fromList" class="suggest" hidden></div>
+      </div>
+      <div class="field search">
+        <span class="pin b"></span>
+        <input id="toQ" autocomplete="off" placeholder="Destination (optional)" aria-label="Destination">
+        <button id="toClear" class="ib" type="button" aria-label="Remove destination" title="Remove destination" hidden><i data-lucide="x"></i></button>
+        <div id="toList" class="suggest" hidden></div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="timewrap">
+        <button id="leave" class="btn outline" type="button" aria-expanded="false" aria-controls="timePop"><i data-lucide="clock-3"></i><span id="leaveLbl">Leave now</span><i data-lucide="chevron-down"></i></button>
+        <div id="timePop" class="pop" hidden>
+          <h3>When are you leaving?</h3>
+          <div class="quick" id="quick"></div>
+          <div class="readout"><b id="hourLbl">Now</b><span id="hourSub"></span></div>
+          <input id="hour" type="range" min="-18" max="18" step="1" value="0" aria-label="Departure hour: 18 hours ago to 18 hours ahead">
+          <div class="axis"><span>18 h ago</span><span class="mid">Now</span><span>+18 h</span></div>
+          <div class="popfoot">
+            <small>Left of now shows NOAA's estimate for past hours.</small>
+            <button id="play" type="button" aria-label="Replay the next 18 hours"><i data-lucide="play"></i>Replay</button>
+          </div>
+        </div>
+      </div>
+      <button id="go" class="btn primary" type="button"><i data-lucide="route"></i><span id="goLbl">Check roads</span></button>
+    </div>
+
+    <div class="scroll" id="scroll">
+      <div class="body">
+        <div id="welcome" class="empty">
+          <h2>Where are you starting from?</h2>
+          <p>Noah checks every road within 5 km of you, or within 1 km of your route, against the latest forecast.</p>
+          <div id="samples"></div>
+        </div>
+
+        <div id="verdict" class="notice" hidden role="status"><i data-lucide="info" id="vIcon"></i><div id="banner"></div></div>
+        <div id="routeSum" class="sum" hidden><div class="min"><span id="minutes">–</span><small>min</small></div><div class="via" id="via"></div></div>
+        <div id="directions" hidden>
+          <div class="go">
+            <a id="gmaps" target="_blank" rel="noopener">Google Maps <i data-lucide="external-link"></i></a>
+            <a id="amaps" target="_blank" rel="noopener">Apple Maps <i data-lucide="external-link"></i></a>
+          </div>
+          <div class="note">Google and Apple Maps choose their own roads between Noah's points. Check the red and amber roads here before you go.</div>
+        </div>
+
+        <div id="risk" class="risk" hidden>
+          <div class="risk-head"><span><b>Flood risk</b> <span id="riskScope"></span>, next 18 h</span><span id="riskSrc"></span></div>
+          <div class="risk-row"><div class="risk-score"><span id="riskNum">–</span><small>/100</small></div><div class="risk-band" id="riskBand"></div></div>
+          <div class="risk-bar"><i></i><i></i><i></i><i></i><span class="risk-mark" id="riskMark" style="left:0"></span></div>
+          <div class="risk-scale"><span>Low</span><span>Elevated</span><span>High</span><span>Severe</span></div>
+          <details><summary>How this score is computed</summary>
+            <ol class="factors" id="riskFactors"></ol>
+            <div class="note">Each live signal adds points by its weight; the total is capped at 100. Scored by Noah's rules, not a safety guarantee.</div>
+          </details>
+        </div>
+
+        <div class="tabs" id="tabs" role="tablist" hidden>
+          <button role="tab" data-tab="roads" aria-selected="true">Roads to avoid<span class="ct num" id="tRoads"></span></button>
+          <button role="tab" data-tab="live" aria-selected="false">Live checks</button>
+          <button role="tab" data-tab="past" aria-selected="false">Last 18 h</button>
+          <button role="tab" data-tab="sources" aria-selected="false">Sources<span class="ct num" id="tSrc"></span></button>
+        </div>
+
+        <section class="tabpanel" data-panel="roads" hidden>
+          <div id="summary" class="summary"></div>
+          <div id="results"></div>
+        </section>
+
+        <section class="tabpanel" data-panel="live" hidden>
+          <div id="live" hidden>
+            <div id="liveStatus" class="summary"></div>
+            <div id="assessBox" hidden>
+              <div class="tiles" id="tiles"></div>
+              <ol class="reasons" id="reasons"></ol>
+              <div class="action" id="action"></div>
+              <div class="note" id="assessBy"></div>
+            </div>
+            <div id="liveNote" class="note"></div>
+            <h3 class="h3" id="camHead" hidden>Traffic cameras</h3>
+            <div id="camList"></div>
+            <div id="camCredit" class="note" hidden>Snapshots taken when you searched and checked for water by AI. Water counts only if a second, stricter look agrees.
+              Webcams provided by <a href="https://www.windy.com" target="_blank" rel="noopener">Windy.com</a> · <a href="https://www.windy.com/webcams/add" target="_blank" rel="noopener">add a webcam</a></div>
+          </div>
+        </section>
+
+        <section class="tabpanel" data-panel="past" hidden>
+          <div id="pastBox" hidden>
+            <div id="pastSummary" class="summary"></div>
+            <div id="gaugeList"></div>
+            <div id="reportList"></div>
+            <div class="note" id="pastNote"></div>
+          </div>
+          <div class="none" id="pastEmpty">No history for this place yet.</div>
+        </section>
+
+        <section class="tabpanel" data-panel="sources" hidden>
+          <div class="summary" id="srcSum">Sources checked</div><div id="srcList"></div>
+        </section>
+
+        <footer id="footer"></footer>
+      </div>
+    </div>
+  </aside>
+</div>
 <script>
 const P = new URLSearchParams(location.search);
 const API = (P.get("api") || location.origin).replace(/\/$/, "");
@@ -206,6 +371,9 @@ const $ = (id) => document.getElementById(id);
 const tz = { timeZone: "America/New_York" };
 const fmt = new Intl.DateTimeFormat("en-US", { ...tz, weekday: "short", hour: "numeric", minute: "2-digit" });
 const fmtDay = new Intl.DateTimeFormat("en-US", { ...tz, weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+const fmtHour = new Intl.DateTimeFormat("en-US", { ...tz, weekday: "short", hour: "numeric" });
+const BLUE = "#2240ff", FLOOD = "#e5322d", AMBER = "#f2a100";
+const icons = () => window.lucide && lucide.createIcons();
 
 let meta = null, cyc = null, issue = null, flood = new Map();
 let origin = null, dest = null, mode = null, lastRoute = null, playing = null, rerouteTimer = null;
@@ -216,28 +384,30 @@ const hourTime = (h) => new Date(issue.getTime() + h * 3600e3);
 const local = (d) => fmt.format(d);
 
 // ---------- map ----------
-const map = new maplibregl.Map({ container: "map", style: "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
+const map = new maplibregl.Map({ container: "map", style: "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
   center: [-84.39, 33.80], zoom: 9.5, attributionControl: { compact: true } });
 map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
 const empty = { type: "FeatureCollection", features: [] };
 // Start once the style is ready; don't wait for every base-map tile (slow networks, background tabs).
 const mapReady = new Promise((res) => (map.isStyleLoaded() ? res() : map.once("style.load", res)));
+// keep the floating panel from covering what we fit to
+const pad = (x = 40) => (innerWidth > 860 ? { left: 432 + x, right: x + 40, top: x + 30, bottom: x + 40 } : { left: x, right: x, top: x + 30, bottom: x });
 
 mapReady.then(() => {
   map.addSource("area", { type: "geojson", data: empty });
-  map.addLayer({ id: "area-fill", type: "fill", source: "area", paint: { "fill-color": "#22d3ee", "fill-opacity": 0.06 } });
-  map.addLayer({ id: "area-line", type: "line", source: "area", paint: { "line-color": "#22d3ee", "line-opacity": 0.5, "line-dasharray": [2, 2] } });
+  map.addLayer({ id: "area-fill", type: "fill", source: "area", paint: { "fill-color": BLUE, "fill-opacity": 0.06 } });
+  map.addLayer({ id: "area-line", type: "line", source: "area", paint: { "line-color": BLUE, "line-opacity": 0.8, "line-width": 2, "line-dasharray": [2, 2] } });
   map.addSource("route", { type: "geojson", data: empty });
-  map.addLayer({ id: "route-casing", type: "line", source: "route", paint: { "line-color": "#0b0f14", "line-width": 9 } });
-  map.addLayer({ id: "route", type: "line", source: "route", paint: { "line-color": "#22d3ee", "line-width": 5 } });
+  map.addLayer({ id: "route-casing", type: "line", source: "route", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": "#ffffff", "line-width": 10 } });
+  map.addLayer({ id: "route", type: "line", source: "route", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": BLUE, "line-width": 6 } });
   map.addSource("hazard", { type: "geojson", data: empty });
-  map.addLayer({ id: "uncertain", type: "line", source: "hazard", paint: { "line-color": "#f59e0b", "line-width": 3 } });
-  map.addLayer({ id: "flooded", type: "line", source: "hazard", paint: { "line-color": "#ef4444", "line-width": 4 } });
+  map.addLayer({ id: "uncertain", type: "line", source: "hazard", layout: { "line-cap": "round" }, paint: { "line-color": AMBER, "line-width": 3.5 } });
+  map.addLayer({ id: "flooded", type: "line", source: "hazard", layout: { "line-cap": "round" }, paint: { "line-color": FLOOD, "line-width": 4.5 } });
   map.addSource("past", { type: "geojson", data: empty }); // NOAA hour-0 estimate for past hours
   map.addLayer({ id: "past-uncertain", type: "line", source: "past", filter: ["==", ["get", "state"], "uncertain"],
-    layout: { visibility: "none" }, paint: { "line-color": "#f59e0b", "line-width": 3, "line-dasharray": [2, 1] } });
+    layout: { visibility: "none" }, paint: { "line-color": AMBER, "line-width": 3.5, "line-dasharray": [2, 1] } });
   map.addLayer({ id: "past-flooded", type: "line", source: "past", filter: ["==", ["get", "state"], "flooded"],
-    layout: { visibility: "none" }, paint: { "line-color": "#ef4444", "line-width": 4, "line-dasharray": [2, 1] } });
+    layout: { visibility: "none" }, paint: { "line-color": FLOOD, "line-width": 4.5, "line-dasharray": [2, 1] } });
   for (const id of ["uncertain", "flooded"]) {
     map.on("click", id, (e) => {
       const p = e.features[0].properties;
@@ -265,6 +435,36 @@ function roadSentence(p, h) {
   return `${name}: no forecast flooding at this hour. Forecast to turn ${p.t_flood != null && p.t_flood !== "null" ? "flooded" : "uncertain"} around ${local(hourTime(t))}.`;
 }
 
+// ---------- departure time ----------
+const QUICK = [["Now", 0], ["+1 h", 1], ["+3 h", 3], ["+6 h", 6], ["+12 h", 12], ["+18 h", 18]];
+$("quick").replaceChildren(...QUICK.map(([label, h]) => {
+  const b = document.createElement("button"); b.type = "button"; b.textContent = label; b.dataset.h = h;
+  b.onclick = () => { $("hour").value = h; $("hour").dispatchEvent(new Event("input")); };
+  return b;
+}));
+function leaveLabel(h) {
+  if (h === 0) return "Leave now";
+  if (h > 0) return `${fmtHour.format(hourTime(h))} (+${h} h)`;
+  return `${-h} h ago`;
+}
+function setTimeUI(h, countTxt) {
+  $("leaveLbl").textContent = issue ? leaveLabel(h) : "Leave now";
+  document.querySelectorAll("#quick button").forEach((b) => b.classList.toggle("on", +b.dataset.h === h));
+  if (!issue) return;
+  $("hourLbl").textContent = h === 0 ? `Now · ${local(hourTime(0))}` : h > 0 ? `${fmtDay.format(hourTime(h))} (+${h} h)` : `${fmtDay.format(hourTime(h))} (${h} h)`;
+  $("hourSub").textContent = countTxt || "";
+  const cap = $("caption");
+  cap.hidden = h === 0 && !countTxt;
+  cap.className = "caption" + (h < 0 ? " past" : "");
+  cap.textContent = (h < 0 ? "NOAA estimate: " : h > 0 ? "Forecast for " : "Now: ") + (h === 0 ? local(hourTime(0)) : fmtDay.format(hourTime(h))) + (countTxt ? `  —  ${countTxt}` : "");
+}
+$("leave").onclick = () => {
+  const open = $("timePop").hidden; $("timePop").hidden = !open; $("leave").setAttribute("aria-expanded", open);
+  if (open) $("hour").focus();
+};
+document.addEventListener("click", (e) => { if (!e.target.closest(".timewrap")) { $("timePop").hidden = true; $("leave").setAttribute("aria-expanded", "false"); } });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") { $("timePop").hidden = true; $("leave").setAttribute("aria-expanded", "false"); } });
+
 function applyHour() {
   if (!map.getLayer("flooded") || !issue) return;
   const h = +$("hour").value;
@@ -275,13 +475,12 @@ function applyHour() {
   const tf = ["coalesce", ["to-number", ["get", "t_flood"]], 99];
   map.setFilter("flooded", ["<=", tf, h]);
   map.setFilter("uncertain", ["all", ["<=", ["to-number", ["get", "t_uncertain"]], h], [">", tf, h]]);
-  const label = h === 0 ? `Now (estimated), ${local(hourTime(0))}` : `Forecast: ${fmtDay.format(hourTime(h))} (+${h} h)`;
   let count = "";
   if (mode) {
     const n = new Set(shown.filter((f) => stateAt(f.properties, h) !== "no_forecast_flooding").map((f) => f.properties.name || f.properties.seg_id)).size;
-    count = ` · <b>${n}</b> road${n === 1 ? "" : "s"} forecast underwater or uncertain`;
+    count = `${n} road${n === 1 ? "" : "s"} forecast underwater or uncertain`;
   }
-  $("caption").innerHTML = `<b>${label}</b>${count}`;
+  setTimeUI(h, count);
 }
 
 // ---------- past mode: NOAA's hour-0 estimate for each of the last 18 hourly runs + observations ----------
@@ -289,39 +488,37 @@ let pastData = null, pastToken = 0;
 function showPastHour(h) {
   const hrs = pastData?.hours || [];
   const at = hrs.filter((x) => x.h <= h).at(-1); // nearest run at or before this hour
-  const when = new Date(hourTime(h));
   let txt;
   if (!pastData) txt = mode ? "Loading the last 18 hours…" : "Pick a place to see the last 18 hours.";
   else if (!at) txt = "No estimate for this hour yet.";
   else {
     const n = new Set(at.segments.map((s) => s.name || s.seg_id)).size;
-    txt = `<b>${n}</b> road${n === 1 ? "" : "s"} in the flood band${at.h !== h ? ` (nearest run: ${at.valid_local})` : ""}`;
+    txt = `${n} road${n === 1 ? "" : "s"} in the flood band${at.h !== h ? ` (nearest run: ${at.valid_local})` : ""}`;
   }
   map.getSource("past").setData({ type: "FeatureCollection", features: (at?.segments || []).map((s) => ({ type: "Feature", geometry: s.geometry, properties: { state: s.state, name: s.name } })) });
-  $("caption").innerHTML = `<b>Estimated (past): ${fmtDay.format(when)} (${h} h)</b> · ${txt}`;
+  setTimeUI(h, txt);
 }
 
 function sparkline(series) {
   const v = series.map((p) => p[1]); const lo = Math.min(...v), hi = Math.max(...v), span = hi - lo || 1;
   const pts = v.map((y, i) => `${(i / Math.max(1, v.length - 1)) * 118 + 1},${33 - ((y - lo) / span) * 30}`).join(" ");
-  return `<svg viewBox="0 0 120 34" aria-hidden="true"><polyline fill="none" stroke="#22d3ee" stroke-width="2" points="${pts}"/></svg>`;
+  return `<svg viewBox="0 0 120 34" aria-hidden="true"><polyline fill="none" stroke="${BLUE}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" points="${pts}"/></svg>`;
 }
 
 function renderPast(d) {
   pastData = d;
-  if (!d || d.state !== "ok") { $("pastBox").hidden = true; return; }
+  if (!d || d.state !== "ok") { $("pastBox").hidden = true; $("pastEmpty").hidden = false; return; }
   const peak = d.hours.reduce((m, x) => (x.flooded + x.uncertain > (m?.flooded + m?.uncertain || -1) ? x : m), null);
   $("pastSummary").textContent = peak && peak.flooded + peak.uncertain
-    ? `NOAA's estimate peaked at ${peak.flooded + peak.uncertain} road segments in the flood band around ${peak.valid_local}. Drag the time bar left to replay.`
-    : "NOAA's estimate shows no roads in the flood band in the last 18 hours. Drag the time bar left to replay.";
+    ? `NOAA's estimate peaked at ${peak.flooded + peak.uncertain} road segments in the flood band around ${peak.valid_local}. Move the departure time left of "now" to replay.`
+    : "NOAA's estimate shows no roads in the flood band in the last 18 hours. Move the departure time left of \"now\" to replay.";
   $("gaugeList").replaceChildren(...d.gauges.slice(0, 6).map((g) => {
     const row = document.createElement("div"); row.className = "gauge";
     const t = document.createElement("div");
-    const a = document.createElement("a"); a.href = g.url; a.target = "_blank"; a.rel = "noopener"; a.style.color = "var(--text)";
+    const a = document.createElement("a"); a.href = g.url; a.target = "_blank"; a.rel = "noopener";
     a.textContent = `USGS ${g.site.split("-")[1]}`;
     const dir = g.change_ft > 0.05 ? `rose ${g.change_ft} ft` : g.change_ft < -0.05 ? `fell ${-g.change_ft} ft` : "steady";
     t.append(a, document.createElement("br"), `Creek level ${dir} (now ${g.last} ft, high ${g.max} ft at ${g.max_time_local})`);
-    t.style.fontSize = "13px";
     const sv = document.createElement("div"); sv.innerHTML = sparkline(g.series);
     row.append(t, sv); return row;
   }));
@@ -330,12 +527,12 @@ function renderPast(d) {
     const b = document.createElement("b"); b.textContent = r.title; c.append(b, document.createElement("br"), r.detail || ""); return c;
   }));
   $("pastNote").textContent = d.note + (d.missing_hours?.length ? ` No estimate for ${d.missing_hours.length} of the hours (runs not processed yet).` : "") + " Cameras and road closures have no history.";
-  $("pastBox").hidden = false;
+  $("pastBox").hidden = false; $("pastEmpty").hidden = true;
   if (+$("hour").value < 0) applyHour();
 }
 
 async function runPast(kind) {
-  const token = ++pastToken; pastData = null; $("pastBox").hidden = true;
+  const token = ++pastToken; pastData = null; $("pastBox").hidden = true; $("pastEmpty").hidden = false;
   const url = kind === "route"
     ? `${API}/past/route?from=${origin.lat},${origin.lon}&to=${dest.lat},${dest.lon}&cycle=${cyc.cycle}`
     : `${API}/past?lat=${origin.lat}&lon=${origin.lon}&cycle=${cyc.cycle}`;
@@ -360,11 +557,10 @@ function circle(lat, lon, km, n = 72) {
 }
 
 function clearMarkers() { markers.forEach((m) => m.remove()); markers = []; }
-function addMarker(lon, lat, color, text, size = 14) {
-  const el = document.createElement("div");
-  el.style.cssText = `width:${size}px;height:${size}px;border-radius:50%;background:${color};border:2px solid #0b0f14;box-shadow:0 0 0 1px ${color}`;
+function addMarker(lon, lat, kind, text) {
+  const el = document.createElement("div"); el.className = kind;
   const m = new maplibregl.Marker({ element: el }).setLngLat([lon, lat]);
-  if (text) m.setPopup(new maplibregl.Popup({ offset: 10 }).setText(text));
+  if (text) m.setPopup(new maplibregl.Popup({ offset: 12 }).setText(text));
   markers.push(m.addTo(map));
 }
 
@@ -381,7 +577,6 @@ function clearCams() { camMarkers.forEach((m) => m.remove()); camMarkers = []; }
 function camBox(c) {
   const box = document.createElement("div"); box.className = "cam";
   const t = document.createElement("div");
-  t.innerHTML = "";
   const b = document.createElement("b"); b.textContent = c.name || "Traffic camera";
   t.append(b, document.createElement("br"), `${CAM_LABEL[c.bucket] || c.bucket} · checked ${local(new Date(c.checked_utc))}`);
   if (camClass(c.bucket) === "wet") t.append(document.createElement("br"), "Treat nearby roads as impassable.");
@@ -398,7 +593,8 @@ function drawCameras(cams) {
   clearCams();
   for (const c of cams || []) {
     if (c.lat == null) continue;
-    const el = document.createElement("div"); el.className = "cammark " + camClass(c.bucket); el.textContent = "📷";
+    const el = document.createElement("div"); el.className = "cammark " + camClass(c.bucket);
+    el.innerHTML = '<i data-lucide="video"></i>';
     el.title = `${c.name}: ${CAM_LABEL[c.bucket] || c.bucket}`;
     camMarkers.push(new maplibregl.Marker({ element: el }).setLngLat([c.lon, c.lat])
       .setPopup(new maplibregl.Popup({ offset: 16, maxWidth: "290px" }).setDOMContent(camBox(c))).addTo(map));
@@ -418,6 +614,7 @@ function drawCameras(cams) {
     card.onclick = (e) => { if (e.target.tagName !== "IMG") map.flyTo({ center: [c.lon, c.lat], zoom: 15 }); };
     return card;
   }));
+  icons();
 }
 
 function renderAssessment(a, nSources) {
@@ -428,7 +625,7 @@ function renderAssessment(a, nSources) {
     const d = document.createElement("div"); d.className = "tile t-" + lvl;
     const w = document.createElement("div"); w.className = "when"; w.textContent = label;
     const l = document.createElement("div"); l.className = "lvl lvl-" + lvl; l.textContent = lvl;
-    const s = document.createElement("div"); s.className = "sum"; s.textContent = t.summary || "";
+    const s = document.createElement("div"); s.className = "sumt"; s.textContent = t.summary || "";
     d.append(w, l, s); return d;
   }));
   $("reasons").replaceChildren(...(a.reasons || []).map((r) => {
@@ -444,6 +641,80 @@ function renderAssessment(a, nSources) {
   $("assessBox").hidden = false;
 }
 
+// ---------- risk score: a weighted sum over the live signals the API returned, nothing invented ----------
+const SEV = { info: 0, watch: 1, warning: 2, danger: 3 };
+function riskScore(r) {
+  const sig = r.signals || [];
+  const by = (src) => sig.filter((s) => (s.source || "").startsWith(src));
+  const f = []; // { label, detail, pts }
+  const add = (label, pts, detail) => { if (pts > 0) f.push({ label, pts: Math.round(pts), detail }); };
+
+  const rf = r.road_forecast || {};
+  const segs = rf.segments || [];
+  const fl = segs.filter((s) => s.state === "flooded").length, un = segs.filter((s) => s.state === "uncertain").length;
+  if (rf.state === "flooded") add("NOAA road forecast", 20 + Math.min(15, 3 * fl), `${fl} road${fl === 1 ? "" : "s"} forecast flooded, ${un} uncertain, in the next 18 h`);
+  else if (rf.state === "uncertain") add("NOAA road forecast", 12 + Math.min(10, 2 * un), `${un} road${un === 1 ? "" : "s"} forecast uncertain in the next 18 h`);
+
+  let alert = 0, alertName = "";
+  for (const s of by("NWS alerts")) {
+    const t = s.title || ""; const p = /flash flood warning/i.test(t) ? 20 : /flood warning/i.test(t) ? 18 : /flash flood watch/i.test(t) ? 12 : /flood watch/i.test(t) ? 10 : 2;
+    if (p > alert) { alert = p; alertName = t; }
+  }
+  add("NWS alerts", alert, alertName);
+
+  const ro = by("NWM rapid-onset flooding (18 h)")[0];
+  if (ro?.value) add("NWM rapid-onset flooding", Math.min(10, ro.value * 0.5), `${ro.value} creek reaches forecast to rise fast in 18 h`);
+  const hw = by("NWM high-water probability")[0];
+  if (hw?.value) add("NWM high-water probability", Math.min(10, hw.value / 10), `${hw.value}% chance of high water on nearby creeks`);
+  const rain = by("NWS gridpoint rain forecast")[0];
+  if (rain?.value) add("Rain forecast (24 h)", rain.value >= 3 ? 8 : rain.value >= 2 ? 6 : rain.value >= 1 ? 4 : rain.value * 3, `${rain.value} in forecast in the next 24 h`);
+  const ero = by("WPC Excessive Rainfall Outlook")[0];
+  if (ero) { const t = ero.title || ""; add("WPC flash-flood outlook", /high/i.test(t) ? 12 : /moderate/i.test(t) ? 8 : /slight/i.test(t) ? 4 : /marginal/i.test(t) ? 2 : 0, t); }
+
+  const g = Math.max(0, ...by("NWPS river gauges").map((s) => SEV[s.severity] || 0));
+  const ng = by("NWPS river gauges").filter((s) => SEV[s.severity] >= 1).length;
+  if (g) add("River gauges", g === 3 ? 10 : g === 2 ? 6 : 3, `${ng} gauge${ng === 1 ? "" : "s"} at watch or above`);
+  const inc = by("TomTom traffic incidents");
+  const wetInc = inc.filter((s) => /flood|water/i.test(s.title || "")).length;
+  if (wetInc) add("Live road incidents", 8, `${wetInc} flooding incident${wetInc === 1 ? "" : "s"} reported`);
+  else if (inc.length) add("Live road closures", Math.min(4, 2 * inc.length), `${inc.length} closure${inc.length === 1 ? "" : "s"} nearby (any cause)`);
+  const lsr = by("NWS Local Storm Reports").filter((s) => /flood/i.test(s.title || "") || SEV[s.severity] >= 2).length;
+  if (lsr) add("Storm reports (24 h)", 6, `${lsr} flood report${lsr === 1 ? "" : "s"} in the last 24 h`);
+  const cams = r.cameras || [];
+  const wet = cams.filter((c) => camClass(c.bucket) === "wet").length, maybe = cams.filter((c) => camClass(c.bucket) === "maybe").length;
+  if (wet) add("Traffic cameras", 10, `${wet} camera${wet === 1 ? "" : "s"} show water on the road`);
+  else if (maybe) add("Traffic cameras", 4, `${maybe} camera${maybe === 1 ? "" : "s"} show possible water`);
+
+  const lvl = r.assessment?.next_18h?.level;
+  if (lvl && lvl !== "low") add("AI assessment, next 18 h", { elevated: 3, high: 5, severe: 8 }[lvl] || 0, `rated ${lvl} from ${(r.sources_ok || []).length} sources`);
+
+  let ctx = 0; const ctxBits = [];
+  if (by("FEMA flood zones").some((s) => /zone\s+(A|AE|AH|AO|V|VE)\b/i.test(s.title || ""))) { ctx += 3; ctxBits.push("FEMA flood zone"); }
+  const past = by("NWS flood reports here before")[0]; if (past?.value >= 10) { ctx += 2; ctxBits.push(`${past.value} past flood reports`); }
+  if (by("EPA combined sewer overflow").length) { ctx += 1; ctxBits.push("combined sewers nearby"); }
+  add("Area history", Math.min(4, ctx), ctxBits.join(", "));
+
+  const score = Math.min(100, f.reduce((a, x) => a + x.pts, 0));
+  const band = score < 25 ? "low" : score < 50 ? "elevated" : score < 75 ? "high" : "severe";
+  return { score, band, factors: f.sort((a, b) => b.pts - a.pts) };
+}
+const BAND_TEXT = { low: "No flood signals of note right now.", elevated: "Some signals point to flooding; check the roads list before you go.", high: "Several signals agree on flooding; expect roads to go under.", severe: "Strong agreement across sources; roads here are forecast to flood." };
+function renderRisk(r) {
+  const { score, band, factors } = riskScore(r);
+  const box = $("risk"); box.className = "risk r-" + band;
+  $("riskNum").textContent = score;
+  $("riskBand").innerHTML = ""; $("riskBand").append(band, Object.assign(document.createElement("small"), { textContent: BAND_TEXT[band] }));
+  $("riskMark").style.left = score + "%";
+  $("riskScope").textContent = mode === "route" ? "on this route" : `within ${RADIUS_KM} km`;
+  $("riskSrc").textContent = `${(r.sources_ok || []).length} live sources`;
+  $("riskFactors").replaceChildren(...factors.map((x) => {
+    const li = document.createElement("li"); const s = document.createElement("span"); s.textContent = x.label;
+    if (x.detail) { const d = document.createElement("small"); d.textContent = x.detail; s.append(d); }
+    const b = document.createElement("b"); b.textContent = `+${x.pts}`; li.append(s, b); return li;
+  }));
+  box.hidden = false;
+}
+
 function renderSources(r) {
   const bySrc = new Map();
   for (const s of r.signals || []) {
@@ -455,7 +726,7 @@ function renderSources(r) {
     const sigs = bySrc.get(o.source) || [...bySrc.entries()].find(([k]) => o.source.startsWith(k))?.[1] || [];
     const row = document.createElement("div");
     const head = document.createElement("div"); head.className = "src";
-    const n = document.createElement("span"); n.className = "n"; n.textContent = "✓ " + o.source;
+    const n = document.createElement("span"); n.className = "n"; n.innerHTML = '<i data-lucide="check"></i>'; n.append(o.source);
     const c = document.createElement("span"); c.className = "c"; c.textContent = o.signals ? `${o.signals} finding${o.signals === 1 ? "" : "s"}` : "nothing found";
     head.append(n, c);
     const body = document.createElement("div"); body.hidden = true;
@@ -463,7 +734,7 @@ function renderSources(r) {
       const d = document.createElement("div"); d.className = "sig";
       const b = document.createElement("b"); b.textContent = s.title;
       d.append(b, document.createElement("br"), s.detail || "");
-      if (s.url) { const a = document.createElement("a"); a.href = s.url; a.target = "_blank"; a.rel = "noopener"; a.textContent = " source ↗"; a.style.color = "var(--cyan)"; d.append(a); }
+      if (s.url) { const a = document.createElement("a"); a.href = s.url; a.target = "_blank"; a.rel = "noopener"; a.textContent = " source ↗"; d.append(a); }
       body.append(d);
     }
     head.onclick = () => (body.hidden = !body.hidden);
@@ -471,21 +742,24 @@ function renderSources(r) {
   }
   for (const f of r.sources_failed || []) {
     const head = document.createElement("div"); head.className = "src fail";
-    const n = document.createElement("span"); n.className = "n"; n.textContent = "✗ " + f.source;
+    const n = document.createElement("span"); n.className = "n"; n.innerHTML = '<i data-lucide="x"></i>'; n.append(f.source);
     const c = document.createElement("span"); c.className = "c"; c.textContent = f.error;
     head.append(n, c); rows.push(head);
   }
   $("srcList").replaceChildren(...rows);
   const nOk = (r.sources_ok || []).length, nFail = (r.sources_failed || []).length;
-  $("srcSum").textContent = `Sources checked: ${nOk + nFail} (${nOk} answered${nFail ? `, ${nFail} unavailable` : ""}) · ${(r.signals || []).length} findings`;
+  $("tSrc").textContent = nOk + nFail;
+  $("srcSum").textContent = `${nOk + nFail} sources checked (${nOk} answered${nFail ? `, ${nFail} unavailable` : ""}) · ${(r.signals || []).length} findings. Tap a source to see what it found.`;
+  icons();
 }
 
 async function runAssess(kind) {
   const token = ++assessToken;
-  $("live").hidden = false; $("liveNote").textContent = ""; $("assessBox").hidden = true; clearCams();
+  $("live").hidden = false; $("liveNote").textContent = ""; $("assessBox").hidden = true; $("risk").hidden = true; clearCams();
   $("camList").replaceChildren(); $("camHead").hidden = $("camCredit").hidden = true; $("srcList").replaceChildren();
-  $("srcSum").textContent = "Sources checked";
-  $("liveStatus").textContent = "Checking live sources and traffic cameras along " + (kind === "route" ? "your route…" : "your area…");
+  $("srcSum").textContent = "Sources checked"; $("tSrc").textContent = "";
+  $("liveStatus").innerHTML = '<span class="loading"><span class="spin"></span><span></span></span>';
+  $("liveStatus").querySelector(".loading span:last-child").textContent = "Checking live sources and traffic cameras along " + (kind === "route" ? "your route…" : "your area…");
   const url = kind === "route"
     ? `${API}/assess/route?from=${origin.lat},${origin.lon}&to=${dest.lat},${dest.lon}&depart_h=${+$("hour").value}&cycle=${cyc.cycle}`
     : `${API}/assess?lat=${origin.lat}&lon=${origin.lon}&cycle=${cyc.cycle}`;
@@ -497,6 +771,7 @@ async function runAssess(kind) {
     const cached = (r.sources_ok || []).filter((x) => x.cached).length;
     $("liveStatus").textContent = `${nOk} live sources answered ${cached === nOk ? "(from the last few minutes)" : `in ${r.took_s} s`} · ${(r.cameras || []).length} camera${(r.cameras || []).length === 1 ? "" : "s"} checked.`;
     renderAssessment(r.assessment, nOk);
+    renderRisk(r);
     drawCameras(r.cameras);
     renderSources(r);
     const rt = r.route;
@@ -513,8 +788,24 @@ async function runAssess(kind) {
 
 // ---------- panel ----------
 function banner(text, kind) {
-  const b = $("banner"); b.textContent = text || ""; b.className = "banner " + (kind || "info");
-  b.style.display = text ? "block" : "none";
+  $("banner").textContent = text || "";
+  $("verdict").className = "notice " + (kind || "info");
+  $("verdict").hidden = !text;
+  $("vIcon").outerHTML = `<i data-lucide="${kind === "danger" ? "octagon-alert" : kind === "warn" ? "triangle-alert" : "info"}" id="vIcon"></i>`;
+  icons();
+  if (text) $("welcome").hidden = true;
+}
+function showTabs(on) { $("tabs").hidden = !on; if (on) selectTab("roads"); else document.querySelectorAll(".tabpanel").forEach((p) => (p.hidden = true)); }
+function selectTab(name) {
+  document.querySelectorAll("#tabs button").forEach((b) => b.setAttribute("aria-selected", b.dataset.tab === name));
+  document.querySelectorAll(".tabpanel").forEach((p) => (p.hidden = p.dataset.panel !== name));
+}
+document.querySelectorAll("#tabs button").forEach((b) => (b.onclick = () => selectTab(b.dataset.tab)));
+function routeSummary(r) {
+  if (!r) { $("routeSum").hidden = true; return; }
+  $("minutes").textContent = Math.round(r.minutes);
+  $("via").textContent = r.avoided?.length ? `Goes around ${r.avoided.length} road segment${r.avoided.length === 1 ? "" : "s"} forecast to flood` : "No forecast-flooded roads on this route";
+  $("routeSum").hidden = false;
 }
 const END = () => local(hourTime(18));
 const MSG = {
@@ -522,6 +813,7 @@ const MSG = {
   no_road_forecast: "Noah doesn't have road-level forecasts for this part of Georgia yet. Check official NWS warnings for your county. Treat any water on a road as impassable.",
   beyond_forecast_window: "That's more than 18 hours out, past Noah's forecast window. Ask again closer to the time.",
 };
+const STATE_ICON = { flooded: "ban", uncertain: "triangle-alert", no_forecast_flooding: "clock-3" };
 
 function cards(rows, h) {
   lastRows = rows;
@@ -537,12 +829,15 @@ function cards(rows, h) {
   const all = [...byName.values()].sort((a, b) => a.t - b.t || (a.d || 0) - (b.d || 0));
   const named = all.filter((x) => x.p.name), unnamed = all.length - named.length;
   const list = named.slice(0, 40);
+  $("tRoads").textContent = named.length || "";
   const more = document.createElement("div"); more.className = "note";
   more.textContent = [named.length > 40 ? `+${named.length - 40} more named streets on the map.` : "",
     unnamed ? `${unnamed} unnamed road${unnamed === 1 ? "" : "s"} (driveways, service lanes) shown on the map only.` : ""].filter(Boolean).join(" ");
-  $("results").replaceChildren(...list.map(({ p, d }) => {
+  const out = list.map(({ p, d }) => {
     const s = stateAt(p, h);
-    const c = document.createElement("div"); c.className = "card";
+    const c = document.createElement("div"); c.className = "card s-" + s; c.tabIndex = 0;
+    const st = document.createElement("span"); st.className = "st"; st.innerHTML = `<i data-lucide="${STATE_ICON[s]}"></i>`;
+    const body = document.createElement("div");
     const top = document.createElement("div"); top.className = "top";
     const n = document.createElement("span"); n.className = "name"; n.textContent = p.name || "Unnamed road";
     const b = document.createElement("span"); b.className = "badge b-" + s;
@@ -550,35 +845,48 @@ function cards(rows, h) {
     top.append(n, b);
     const det = document.createElement("div"); det.className = "detail";
     det.textContent = roadSentence(p, h) + (d != null ? ` ${(d / 1000).toFixed(1)} km away.` : "");
-    c.append(top, det);
-    c.onclick = () => {
+    body.append(top, det);
+    c.append(st, body);
+    c.onclick = c.onkeydown = (e) => {
+      if (e.type === "keydown" && e.key !== "Enter") return;
       const g = flood.get(p.seg_id).geometry.coordinates;
       map.flyTo({ center: g[Math.floor(g.length / 2)], zoom: 15 });
     };
     return c;
-  }), more);
+  });
+  if (!out.length && !unnamed) { const e = document.createElement("div"); e.className = "none"; e.textContent = "No named streets in the flood forecast here."; out.push(e); }
+  $("results").replaceChildren(...out, more);
+  icons();
 }
 
 async function checkArea() {
-  if (!origin) { banner("Use your location or type a place first.", "warn"); return; }
-  mode = "area"; dest = null; lastRoute = null; $("directions").hidden = true; $("toPicked").textContent = "";
-  busy("area", true);
+  if (!origin) { banner("Use your location or type a place first.", "warn"); $("fromQ").focus(); return; }
+  mode = "area"; dest = null; lastRoute = null; $("directions").hidden = true; routeSummary(null); $("toQ").value = ""; $("toClear").hidden = true; setGoLabel();
+  busy(true);
   try {
     const r = await fetch(`${API}/status?lat=${origin.lat}&lon=${origin.lon}&hours=18&cycle=${cyc.cycle}`).then((x) => x.json());
     await mapReady; clearMarkers();
     map.getSource("route").setData(empty);
     map.getSource("area").setData(circle(origin.lat, origin.lon, RADIUS_KM));
-    addMarker(origin.lon, origin.lat, "#22d3ee", origin.label);
+    addMarker(origin.lon, origin.lat, "you", origin.label);
     const c = circle(origin.lat, origin.lon, RADIUS_KM).geometry.coordinates[0];
-    map.fitBounds([[Math.min(...c.map((x) => x[0])), Math.min(...c.map((x) => x[1]))], [Math.max(...c.map((x) => x[0])), Math.max(...c.map((x) => x[1]))]], { padding: 40 });
-    if (r.state === "error") { setHazard([]); $("results").replaceChildren(); $("summary").textContent = ""; banner(r.message, "danger"); return; }
-    if (MSG[r.state]) { setHazard([]); $("results").replaceChildren(); $("summary").textContent = ""; banner(MSG[r.state], "info"); return; }
+    map.fitBounds([[Math.min(...c.map((x) => x[0])), Math.min(...c.map((x) => x[1]))], [Math.max(...c.map((x) => x[0])), Math.max(...c.map((x) => x[1]))]], { padding: pad() });
+    if (r.state === "error") { setHazard([]); $("results").replaceChildren(); $("summary").textContent = ""; showTabs(false); banner(r.message, "danger"); return; }
+    if (r.state === "no_road_forecast") {
+      // inside Georgia but outside the processed basin: no road timing yet, but every statewide live source still runs
+      setHazard([]); $("summary").textContent = ""; $("tRoads").textContent = "";
+      $("results").replaceChildren(Object.assign(document.createElement("div"), { className: "none", textContent: "Road-by-road timing isn't available in this part of Georgia yet. The live checks, cameras and risk score above still cover this area." }));
+      banner(MSG[r.state], "info"); showTabs(true); selectTab("live");
+      runAssess("area"); runPast("area"); return;
+    }
+    if (MSG[r.state]) { setHazard([]); $("results").replaceChildren(); $("summary").textContent = ""; showTabs(false); banner(MSG[r.state], "info"); return; }
     const feats = setHazard(r.segments.map((s) => s.seg_id));
     const streets = new Set(feats.map((f) => f.properties.name || f.properties.seg_id)).size;
+    showTabs(true);
     if (!feats.length) {
       banner(`No flooding is forecast within ${RADIUS_KM} km through ${END()}. This is not a safety guarantee. Conditions change fast; never drive into water. Turn Around Don't Drown.`, "info");
     } else {
-      banner(`${streets} street${streets === 1 ? "" : "s"} within ${RADIUS_KM} km are forecast to flood or turn uncertain by ${END()}. Drag the time bar to see when. Emergency: 911.`, r.state === "flooded" ? "danger" : "warn");
+      banner(`${streets} street${streets === 1 ? "" : "s"} within ${RADIUS_KM} km are forecast to flood or turn uncertain by ${END()}. Change the departure time to see when. Emergency: 911.`, r.state === "flooded" ? "danger" : "warn");
     }
     $("summary").textContent = feats.length ? "Nearest-first by time:" : "";
     cards(r.segments, +$("hour").value);
@@ -586,28 +894,36 @@ async function checkArea() {
     runAssess("area");
     runPast("area");
   } catch (e) { banner("I can't confirm conditions right now, so treat low roads near creeks as impassable. In an emergency call 911.", "danger"); }
-  finally { busy("area", false); }
+  finally { busy(false); }
 }
 
 async function findRoute(full = true) {
-  if (!origin) { banner("Use your location or type a starting place first.", "warn"); return; }
-  if (!dest) { banner("Search a destination first.", "warn"); return; }
-  mode = "route"; busy("go", true);
+  if (!origin) { banner("Use your location or type a starting place first.", "warn"); $("fromQ").focus(); return; }
+  if (!dest) { checkArea(); return; }
+  mode = "route"; busy(true);
   const h = +$("hour").value;
   try {
     const r = await fetch(`${API}/route?from=${origin.lat},${origin.lon}&to=${dest.lat},${dest.lon}&depart_h=${h}&cycle=${cyc.cycle}`).then((x) => x.json());
     lastRoute = r;
     await mapReady; clearMarkers();
     map.getSource("area").setData(empty);
-    addMarker(origin.lon, origin.lat, "#22d3ee", "Start: " + origin.label);
-    addMarker(dest.lon, dest.lat, "#e6edf3", "Destination: " + dest.label);
-    const fit = (coords) => map.fitBounds([[Math.min(...coords.map((x) => x[0])), Math.min(...coords.map((x) => x[1]))], [Math.max(...coords.map((x) => x[0])), Math.max(...coords.map((x) => x[1]))]], { padding: 60, maxZoom: 15 });
+    addMarker(origin.lon, origin.lat, "you", "Start: " + origin.label);
+    addMarker(dest.lon, dest.lat, "dest", "Destination: " + dest.label);
+    const fit = (coords) => full && map.fitBounds([[Math.min(...coords.map((x) => x[0])), Math.min(...coords.map((x) => x[1]))], [Math.max(...coords.map((x) => x[0])), Math.max(...coords.map((x) => x[1]))]], { padding: pad(60), maxZoom: 15 });
     $("directions").hidden = true;
     if (r.state === "error") { routeEmpty(); banner(r.message, "danger"); return; }
+    if (r.state === "no_road_forecast") {
+      // inside Georgia, outside the routing basin: no Noah route, but the live checks still cover the trip and the hand-off still works
+      routeEmpty(); banner(MSG[r.state], "info"); fit([[origin.lon, origin.lat], [dest.lon, dest.lat]]);
+      $("results").replaceChildren(Object.assign(document.createElement("div"), { className: "none", textContent: "Road-by-road timing and detours aren't available in this part of Georgia yet. The live checks and cameras below cover your trip." }));
+      setDirections([]);
+      if (full) { showTabs(true); selectTab("live"); runAssess("route"); }
+      return;
+    }
     if (MSG[r.state]) { routeEmpty(); banner(MSG[r.state], "info"); fit([[origin.lon, origin.lat], [dest.lon, dest.lat]]); return; }
     if (r.state === "no_route") {
       routeEmpty();
-      banner(`No route found that avoids forecast flooding if you leave ${h === 0 ? "now" : "at " + local(hourTime(h))}. Try an earlier time on the time bar, or stay where you are. Never drive into water. Emergency: 911.`, "danger");
+      banner(`No route found that avoids forecast flooding if you leave ${h === 0 ? "now" : "at " + local(hourTime(h))}. Try an earlier departure time, or stay where you are. Never drive into water. Emergency: 911.`, "danger");
       fit([[origin.lon, origin.lat], [dest.lon, dest.lat]]); return;
     }
     map.getSource("route").setData({ type: "Feature", geometry: r.geometry, properties: {} });
@@ -615,6 +931,8 @@ async function findRoute(full = true) {
     fit(r.geometry.coordinates);
     const hit = r.corridor.filter((c) => c.state !== "no_forecast_flooding").length;
     const leave = h === 0 ? "now" : "at " + local(hourTime(h));
+    if (full) showTabs(true);
+    routeSummary(r);
     if (r.avoided.length) {
       banner(`Route found, leaving ${leave}: about ${Math.round(r.minutes)} min. It goes around ${r.avoided.length} road segment${r.avoided.length === 1 ? "" : "s"} forecast to flood. Not a safety guarantee. Never drive into water.`, "warn");
     } else if (hit || feats.length) {
@@ -626,15 +944,15 @@ async function findRoute(full = true) {
     cards(r.corridor, h);
     setDirections(r.geometry.coordinates);
     applyHour();
-    if (full) { runAssess("route"); runPast("route"); } // slider moves only re-route; the full live check runs on a new search
+    if (full) { runAssess("route"); runPast("route"); } // departure-time changes only re-route; the full live check runs on a new search
   } catch (e) { banner("I can't confirm conditions right now, so treat low roads near creeks as impassable. In an emergency call 911.", "danger"); }
-  finally { busy("go", false); }
+  finally { busy(false); }
 }
-function routeEmpty() { assessToken++; $("live").hidden = true; clearCams(); map.getSource("route").setData(empty); setHazard([]); $("results").replaceChildren(); $("summary").textContent = ""; }
+function routeEmpty() { assessToken++; $("live").hidden = true; $("risk").hidden = true; clearCams(); map.getSource("route").setData(empty); setHazard([]); $("results").replaceChildren(); $("summary").textContent = ""; routeSummary(null); showTabs(false); }
 
 function setDirections(coords) {
   // up to 3 waypoints from Noah's route so the hand-off follows the detour (Google mobile web max = 3)
-  const pick = [0.25, 0.5, 0.75].map((f) => coords[Math.floor(f * (coords.length - 1))]).filter(Boolean);
+  const pick = coords.length ? [0.25, 0.5, 0.75].map((f) => coords[Math.floor(f * (coords.length - 1))]).filter(Boolean) : [];
   const ll = (c) => `${c[1].toFixed(5)},${c[0].toFixed(5)}`;
   const o = `${origin.lat},${origin.lon}`, d = `${dest.lat},${dest.lon}`;
   $("gmaps").href = `https://www.google.com/maps/dir/?api=1&origin=${o}&destination=${d}&travelmode=driving&waypoints=${encodeURIComponent(pick.map(ll).join("|"))}`;
@@ -642,13 +960,14 @@ function setDirections(coords) {
   $("directions").hidden = false;
 }
 
-function busy(id, on) {
-  const b = $(id); b.disabled = on;
-  if (on) { b.dataset.t = b.textContent; b.textContent = "Checking…"; } else if (b.dataset.t) b.textContent = b.dataset.t;
+function busy(on) {
+  const b = $("go"); b.disabled = on;
+  if (on) { b.dataset.t = b.innerHTML; b.innerHTML = '<span class="spin"></span>Checking…'; } else if (b.dataset.t) { b.innerHTML = b.dataset.t; icons(); }
 }
+function setGoLabel() { $("goLbl").textContent = dest ? "Find route" : "Check roads"; }
 
 // ---------- search (Photon, Georgia only) ----------
-function wireSearch(inputId, listId, pickedId, onPick) {
+function wireSearch(inputId, listId, onPick) {
   const inp = $(inputId), list = $(listId);
   let timer = null, ctl = null;
   inp.addEventListener("input", () => {
@@ -664,7 +983,7 @@ function wireSearch(inputId, listId, pickedId, onPick) {
           const name = p.name || [p.housenumber, p.street].filter(Boolean).join(" ") || "Place";
           const where = [p.street && p.name ? p.street : null, p.city, p.state].filter(Boolean).join(", ");
           const b = document.createElement("button"); b.type = "button";
-          b.innerHTML = ""; b.append(name); const sm = document.createElement("small"); sm.textContent = where ? " · " + where : ""; b.append(sm);
+          b.innerHTML = '<i data-lucide="map-pin"></i>'; b.append(name); const sm = document.createElement("small"); sm.textContent = where ? " · " + where : ""; b.append(sm);
           b.onclick = () => {
             const [lon, lat] = f.geometry.coordinates;
             onPick({ lat: +lat.toFixed(5), lon: +lon.toFixed(5), label: name + (where ? ", " + where : "") });
@@ -672,29 +991,39 @@ function wireSearch(inputId, listId, pickedId, onPick) {
           };
           return b;
         }));
-        list.hidden = !r.features.length;
+        list.hidden = !r.features.length; icons();
       } catch (e) { if (e.name !== "AbortError") list.hidden = true; }
     }, 300);
   });
   inp.addEventListener("blur", () => window.setTimeout(() => (list.hidden = true), 200));
 }
-function setOrigin(o) { origin = o; $("fromPicked").textContent = "Start: " + o.label; }
-function setDest(d) { dest = d; $("toPicked").textContent = "Destination: " + d.label; }
-wireSearch("fromQ", "fromList", "fromPicked", setOrigin);
-wireSearch("toQ", "toList", "toPicked", (d) => { setDest(d); findRoute(); });
+function setOrigin(o) { origin = o; }
+function setDest(d) { dest = d; $("toClear").hidden = !d; setGoLabel(); }
+wireSearch("fromQ", "fromList", (o) => { setOrigin(o); dest ? findRoute() : checkArea(); });
+wireSearch("toQ", "toList", (d) => { setDest(d); findRoute(); });
+$("toClear").onclick = () => { $("toQ").value = ""; setDest(null); if (origin) checkArea(); };
+
+// places to try (real coordinates; everything shown comes from the live forecast)
+const SAMPLES = [["Midtown Atlanta", "road timing + live checks", 33.7817, -84.3830], ["Alpharetta", "road timing + live checks", 34.0754, -84.2941],
+  ["Savannah", "live checks", 32.0809, -81.0912], ["Macon", "live checks", 32.8407, -83.6324], ["Augusta", "live checks", 33.4735, -82.0105]];
+$("samples").replaceChildren(...SAMPLES.map(([label, sub, lat, lon]) => {
+  const b = document.createElement("button"); b.type = "button"; b.className = "try";
+  b.innerHTML = '<i data-lucide="map-pin"></i>'; b.append(label); const s = document.createElement("small"); s.textContent = " · " + sub; b.append(s);
+  b.onclick = () => { setOrigin({ lat, lon, label }); $("fromQ").value = label; checkArea(); };
+  return b;
+}));
 
 $("locate").onclick = () => {
   if (!navigator.geolocation) { banner("Location isn't available in this browser. Type a place instead.", "warn"); return; }
-  busy("locate", true);
+  $("locate").disabled = true;
   navigator.geolocation.getCurrentPosition(
-    (pos) => { setOrigin({ lat: +pos.coords.latitude.toFixed(5), lon: +pos.coords.longitude.toFixed(5), label: "My location" }); busy("locate", false); checkArea(); },
-    () => { busy("locate", false); banner("Couldn't get your location. Type a place instead.", "warn"); },
+    (pos) => { setOrigin({ lat: +pos.coords.latitude.toFixed(5), lon: +pos.coords.longitude.toFixed(5), label: "My location" }); $("fromQ").value = "My location"; $("locate").disabled = false; dest ? findRoute() : checkArea(); },
+    () => { $("locate").disabled = false; banner("Couldn't get your location. Type a place instead.", "warn"); },
     { enableHighAccuracy: true, timeout: 10000 });
 };
-$("area").onclick = checkArea;
-$("go").onclick = findRoute;
+$("go").onclick = () => (dest ? findRoute() : checkArea());
 
-// ---------- time bar ----------
+// ---------- departure time changes ----------
 $("hour").addEventListener("input", () => {
   applyHour();
   const h = +$("hour").value;
@@ -702,13 +1031,14 @@ $("hour").addEventListener("input", () => {
   if (mode === "area") cards(lastRows, h);
   if (mode === "route") { window.clearTimeout(rerouteTimer); rerouteTimer = window.setTimeout(() => findRoute(false), 450); }
 });
+const playIcon = (on) => { $("play").innerHTML = `<i data-lucide="${on ? "pause" : "play"}"></i>${on ? "Pause" : "Replay"}`; icons(); };
 $("play").onclick = () => {
-  if (playing) { window.clearInterval(playing); playing = null; $("play").textContent = "▶"; return; }
-  $("play").textContent = "❚❚";
+  if (playing) { window.clearInterval(playing); playing = null; playIcon(false); return; }
+  playIcon(true);
   if (+$("hour").value >= 18) $("hour").value = -18;
   playing = window.setInterval(() => {
     const h = +$("hour").value + 1;
-    if (h > 18) { window.clearInterval(playing); playing = null; $("play").textContent = "▶"; return; }
+    if (h > 18) { window.clearInterval(playing); playing = null; playIcon(false); return; }
     $("hour").value = h; $("hour").dispatchEvent(new Event("input"));
   }, 1000);
 };
@@ -717,20 +1047,22 @@ $("play").onclick = () => {
 async function loadCycle(id) {
   cyc = live().find((c) => c.cycle === id) || live().at(-1);
   issue = new Date(cyc.issue_time);
-  $("issued").textContent = `Latest forecast: NOAA National Water Model, issued ${fmtDay.format(issue)}. Updates hourly.`;
+  $("issued").textContent = `Updated ${fmt.format(issue)}`;
   const gj = await fetch(`data/flood_${cyc.cycle}.geojson`).then((r) => r.json());
   flood = new Map(gj.features.map((f) => [f.properties.seg_id, f]));
   $("footer").textContent = "Road-level timing covers metro Atlanta (Upper Chattahoochee). River and creek flooding only. Not a safety guarantee. Never drive into water. Emergency: 911.";
+  setTimeUI(+$("hour").value, "");
   applyHour();
   if (mode === "area") checkArea(); else if (mode === "route") findRoute();
 }
 
 (async () => {
+  icons(); setTimeUI(0, "");
   meta = await fetch("data/cycles.json", { cache: "no-store" }).then((r) => r.json());
   if (!live().length) {
-    $("issued").textContent = "";
+    $("issued").textContent = "No forecast yet";
     banner("No live forecast has been published yet. The forecast pipeline updates hourly; check back shortly. In an emergency call 911.", "warn");
-    for (const id of ["locate", "area", "go"]) $(id).disabled = true;
+    for (const id of ["locate", "go", "leave"]) $(id).disabled = true;
     return;
   }
   const pick = P.get("cycle"); // agent links may pin the cycle they answered from
@@ -739,8 +1071,8 @@ async function loadCycle(id) {
   // C10 links from the agent: ?from=lat,lon&to=lat,lon  or  ?near=lat,lon
   const ll = (s) => { const [lat, lon] = (s || "").split(",").map(Number); return isFinite(lat) && isFinite(lon) ? { lat, lon } : null; };
   const f = ll(P.get("from")), t = ll(P.get("to")), n = ll(P.get("near"));
-  if (f && t) { setOrigin({ ...f, label: "Start" }); setDest({ ...t, label: "Destination" }); await mapReady; findRoute(); }
-  else if (n || f) { setOrigin({ ...(n || f), label: "Selected place" }); await mapReady; checkArea(); }
+  if (f && t) { setOrigin({ ...f, label: "Start" }); $("fromQ").value = "Start"; setDest({ ...t, label: "Destination" }); $("toQ").value = "Destination"; await mapReady; findRoute(); }
+  else if (n || f) { setOrigin({ ...(n || f), label: "Selected place" }); $("fromQ").value = "Selected place"; await mapReady; checkArea(); }
 })();
 </script>
 </body>

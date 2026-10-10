@@ -104,6 +104,9 @@ Every point where the two lanes must connect. Tick each item and note the commit
 - Low spots (C11) feeding the agent/routing as `uncertain` during heavy forecast rain (needs a rainfall forecast, e.g., NWM forcing or MRMS).
 - Pothole detection from camera frames (needs an accuracy test, not a claim). User photos are out of scope.
 - Everything in BL-6 (Priyanshu's roadmap items).
+- **Statewide routing + road timing** (Sat 02:30, Priyanshu): outside HUC8 03130001, `/route` and `/past` return `no_road_forecast` (no graph, no HAND). The map now still runs `/assess` + `/assess/route` there (33 live sources, cameras, risk score, Google/Apple hand-off without Noah waypoints), so every Georgia address gets an answer. Road-by-road timing and detours statewide need more HUC8s processed (R18) and a statewide graph or Valhalla fallback.
+- **More per-request sources** (Sat 02:30): the engine queries 33 live adapters per check (`noah/sources/`); the other sources in `docs/07` are pipeline inputs. If a bigger "sources checked" number matters for the pitch, wire more of 07's feeds as adapters; never inflate the count.
+- **Risk score weights** (`web/index.html` `riskScore()`): a transparent weighted sum over the live signals (road forecast, NWS alerts, NWM rapid-onset, rain, WPC ERO, gauges, incidents, cameras, AI level, area history), capped at 100, bands Low/Elevated/High/Severe. Weights are hand-set; it is labelled "scored by Noah's rules", never as a trained model. Calibrating against Helene/Isaias outcomes is a roadmap item.
 
 ## Resolved
 | # | Resolved | How |
