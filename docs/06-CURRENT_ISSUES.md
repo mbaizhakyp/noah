@@ -7,7 +7,6 @@ _Newest at the top of each table. Tag the owner as M (Margulan) or P (Priyanshu)
 |---|---|---|---|---|
 | B4 | Fri 21:05 | P (or M) | **Camera capture (013 step 1) must be running by Sat 01:00.** GDOT cameras keep no recordings, and Isaias rain begins early Sat. **Key requested Fri ~21:27 ET → Pending Approval (manual review).** Plan: option C (own sidewalk photos during Isaias, J4). If the key arrives, switch to option A and start capture right away; a key by Sat noon still catches the heaviest rain. Cameras are P2, so the demo doesn't depend on them. |
 | B1 | Fri 20:30 | M | **Unknown whether NWM short-range forecast Helene well at feature 2047989.** The replay story depends on it. | Spec 001 + gauge plot by 00:00. Fallback: if no cycle before ~21:00 EDT Sep 26 forecasts > 161 m³/s, replay `analysis_assim` (what actually happened). Pitch it as a road-level timing engine; quote lead time only where it exists. |
-| B2 | Fri 20:30 | M | FIM bucket `noaa-nws-owp-fim` is **Requester Pays**; anonymous access is denied. It needs an AWS account with a card on file. | Create the AWS account now; egress for one HUC8 costs pennies. Fallback: FIMserv-hosted HAND (github.com/sdmlua/fimserve), or build HAND for the HUC10 from a 3DEP DEM with pysheds/WhiteboxTools plus the USGS rating at the gauge. |
 | B3 | Fri 20:30 | P | Photon Spectrum API, account and iMessage line provisioning not yet confirmed. | Go to the Photon booth/mentors first thing. Fallback 1: `imessage-kit` on a team Mac with a spare Apple ID. Fallback 2: Twilio SMS, and drop the Photon challenge (keep Gemini). |
 
 ## Decisions needed (both humans)
@@ -15,6 +14,7 @@ _Newest at the top of each table. Tag the owner as M (Margulan) or P (Priyanshu)
 |---|---|---|---|---|
 | J1 | Fri 21:05 | **Priyanshu's expanded-vision proposal** (`01-PROJECT_OVERVIEW.md`, pushed 19:51 CT): US-wide coverage, potholes, sewer overflow, satellite, CCTV, 3 user types, a database. | Accept the proposal's own "hackathon reality check". **Ship:** the MVP + Isaias bonus (011) + cameras (013) + low spots (012, stretch). **Roadmap slide:** US-wide, business/fleet, county dashboard, satellite, sewer-overflow prediction, potholes (no open Atlanta data found). Keep D4 (Peachtree) and D7 (no DB) for the hackathon. Once agreed, move the proposal under a "Roadmap" heading in 01. | **Last** (Margulan, Oct 9): before the pitch script, Sat 20:00 |
 | J2 | Fri 21:05 | Saved routes + Google/Apple Maps hand-off (BL-3), county stats view (BL-4) | BL-3 is cheap and makes a good demo moment, but only after 14:00 E2E. BL-4 goes to the roadmap. | Sat 14:00 |
+| J9 | Fri 21:50 | **Tiger Data (MLH) suggested by Priyanshu.** It's a hosted time-series Postgres, *not* a replacement for AWS (AWS was only a download step and is no longer needed). It would be a 4th side challenge, which breaks the max-3 rule, so it reopens D2 only by **replacing Replit**. It also adds a database the plan avoids (D7). | Don't add it. Keep Replit (the dispatch board + hosting fit better). Tiger Data goes on the roadmap (hourly forecasts per road segment are a natural time-series store). | Not critical now (Margulan). Decide with J1 at the end. Anything later than Sat 12:00 effectively means no. |
 | J5 | Fri 21:30 | **B2B scope + owner:** BL-8 (dispatch board + barricade list) owned by Margulan Sat afternoon; move 012 (low spots) to the roadmap to make room. | Yes. It's the Replit Small Business entry and the "who pays" answer. | **Sat 12:00** (deferred by Margulan). Spec 014 must be written + approved before the Sat 14:00 build block. Without BL-8 the Replit entry is only "hosted on Replit". |
 | J6 | Fri 21:30 | **Hosting:** Replit hosts API + map + dispatch board (BL-9, Priyanshu) instead of laptop + tunnel + GitHub Pages (changes D8). Where the iMessage relay runs depends on Photon: Spectrum Cloud → Replit is fine; `imessage-kit` → must stay on a Mac. | **Agreed (Margulan, Oct 9)**, pending the Replit booth answers below. Keep laptop + `cloudflared` as the fallback. | Booth answers tonight |
 | J7 | Fri 21:30 | **Live demo setup:** a fixed demo "home" address in the AOI (not anyone's real home), demo origin/destination pairs, which phone texts Noah on stage, which Apple ID/line Noah uses. | Pick 2 addresses along Peachtree Creek that Helene flooded (from 005 street truth) + 1 dry control. Use Priyanshu's or Margulan's phone as the sender. | Sat 14:00 (E2E test uses them) |
@@ -23,11 +23,12 @@ _Newest at the top of each table. Tag the owner as M (Margulan) or P (Priyanshu)
 ## Open risks and unknowns
 | # | Opened | Owner | Issue | Plan |
 |---|---|---|---|---|
+| R15 | Fri 21:45 | M | FIM 4.9 ships `osm_roads_fimpact.csv` + `osm_roads_subset.gpkg` per HUC, so NOAA's framework may already compute which roads an inundation map touches. | Inspect it (spec 002). Pitch line regardless: NOAA maps *where*; Noah adds *when* per road, routing around it, and text delivery. Never claim we're the first to flag roads. |
 | R14 | Fri 21:05 | Both | **Potholes:** no open ATL311 pothole dataset found (raw 311 data appears to come only through open-records requests to OpenRecords-311@atlantaga.gov, ~3 business days). Potholes also barely change flood estimates. | BL-2 research (30 min). Default: roadmap. |
 | R13 | Fri 21:05 | M | **Storm drains / sewers:** no open Atlanta storm-inlet or pipe layer found. Records requests take ~3 business days. Real sewer-overflow feeds exist only for some utilities. | Build 012 (terrain low spots) as the honest stand-in. BL-1 research. Keep "storm-drain flooding is not forecast" in the limits. |
 | R12 | Fri 21:05 | P | **511GA terms** for storing/redisplaying snapshots unverified. Cameras cover GDOT routes only. API limit 10 calls / 60 s. | Read the terms at key signup and record them in spec 013. Frames stay local (gitignored), attributed, deleted after the event. |
 | R11 | Fri 21:05 | M | **Isaias may not flood Peachtree Creek.** The 22Z Oct 9 forecast peaks at ~1,061 cfs, below action stage. Most rain falls after that forecast's window. | Spec 011 decision at Sat 14:00. Helene remains the main demo either way. |
-| R1 | Fri 20:30 | M | Exact FIM4 S3 layout and file names (version folder, branch IDs, `rem_zeroed_masked_<branch>.tif`, catchment raster, `hydroTable_<branch>.csv` columns) are unverified. | Spec 002 starts with `aws s3 ls --request-payer requester`. Record the real paths in spec 002. |
+| R1 | Fri 20:30 | M | FIM layout: **resolved for v4.9** (see spec 002 "Discovered layout"). Still verify `hydrotable.parquet` columns and whether it covers branch 0. | Spec 002 step 3. |
 | R2 | Fri 20:30 | M | FIM4 uses multiple branches (branch 0 + level-path branches). MVP uses one branch per spec 002. | Log which branch was used. Taking the max across branches is the upgrade path. |
 | R3 | Fri 20:30 | M | Culvert crossings: HAND ≈ 0 where streams are burned through road embankments. | Handled by the channel-pixel filter (`02-ARCHITECTURE.md` §2.3). Spot-check 3 crossings on the map. |
 | R4 | Fri 20:30 | M | HAND + synthetic rating curves are weak on small urban creeks. `UNCERTAIN_BAND_M = 0.5` is a heuristic, not calibrated. | State it in Q&A. The uncertain band and "treat as impassable" wording are the mitigation. |
@@ -62,7 +63,7 @@ _Newest at the top of each table. Tag the owner as M (Margulan) or P (Priyanshu)
 - [ ] Each person approves their own specs (`Status: Draft → Approved`): M 001–005, 011 (012 if kept) · P 006–010, 013.
 - [ ] Priyanshu confirms or objects to CC1 (the additive contracts).
 - [ ] J6: ask the Replit booth the questions above (Priyanshu). J5 by Sat 12:00. J1 last.
-- [ ] Accounts: AWS (M), Gemini (P), Photon (P), Replit (P), 511GA (BL-7).
+- [ ] Accounts: Gemini (P), Photon (P), Replit (P), 511GA (BL-7, pending). No AWS needed.
 - [ ] Specs 014 (BL-8) and 015 (BL-9) written + approved before anyone codes them.
 
 ## Contract change proposals
@@ -82,5 +83,6 @@ _Newest at the top of each table. Tag the owner as M (Margulan) or P (Priyanshu)
 ## Resolved
 | # | Resolved | How |
 |---|---|---|
+| B2 | Fri 21:45 | No AWS needed. The same OWP HAND-FIM data (v4.9.9.0) is in the public CIROH bucket `ciroh-owp-hand-fim` (anonymous). NOAA's requester-pays bucket is now only the fallback in spec 002. Disclose the data source (FIMserv / CIROH) in the README. |
 | J4 | Fri 21:45 | Camera fallback if no 511GA key by 00:00 = **option C** (our own sidewalk photos during Isaias). Option B (hand-picked public image URLs) only if both explicitly agree later. Never call `/list/getdata/`. (Margulan) |
 | J3 | Fri 21:30 | Mercedes CV stays dropped. **FINAL:** main track Social Good; side challenges Photon + Gemini + Replit (Margulan, D2). |

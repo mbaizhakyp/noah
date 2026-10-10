@@ -7,7 +7,7 @@ Noah splits into an **offline pipeline** that writes files and a **runtime** tha
 OFFLINE (Python, Margulan)                                RUNTIME (Priyanshu)
                                                           
 NWM short_range .nc (GCS) ──► fetch_nwm ──► nwm/<cycle>.parquet ─┐
-FIM hydroTable (S3, req-pays) ► fetch_hand ► rating.parquet ─────┼─► flood_times ─► web/data/flood_<cycle>.geojson ──┐
+FIM hydroTable (CIROH S3)     ► fetch_hand ► rating.parquet ─────┼─► flood_times ─► web/data/flood_<cycle>.geojson ──┐
 FIM HAND + catchments rasters ─┘                                 │                                                  │
 OSM drive network (OSMnx) ──► build_segments ─► graph.graphml ───┼──────────────────────────────────────────────┐   │
                                              └► seg_hand.parquet ┘                                              ▼   ▼

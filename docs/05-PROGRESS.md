@@ -6,7 +6,7 @@ _Last updated: Fri Oct 9, 2026, 9:30 PM ET (challenges final: Photon + Gemini + 
 | When | Milestone | Status |
 |---|---|---|
 | Fri 20:30 | Hacking starts | ☑ |
-| Fri ~22:00 | Accounts ready: AWS (requester pays), Gemini key, Photon line, Replit (ask the booth about deploy plan/credits), **511GA key check (BL-7)** | ☐ |
+| Fri ~22:00 | Accounts ready (no AWS needed: HAND comes from the public CIROH bucket): Gemini key, Photon line, Replit (ask the booth about deploy plan/credits), **511GA key check (BL-7)** | ☐ |
 | **Sat 00:00** | **GO/NO-GO:** NWM forecast at gauge reach vs observed (spec 001 + quick 005 plot). Spectrum echo bot works on a real phone (spec 008). | ☐ |
 | **Sat 01:00** | **Camera capture running** (013 step 1). Cameras keep no recordings, so Isaias rain starting early Sat is lost if this slips. | ☐ |
 | Sat 03:00 | `graph.graphml` + `aoi.geojson` pushed (003 step 1). Map shows fixture flood roads. | ☐ |
@@ -71,7 +71,7 @@ Each research item has a 30-min time box and produces a written finding in `06-C
 
 ## Plan by person
 ### Margulan
-- **Fri 20:30–00:00:** AWS account → approve 001/002/003 → **001** (Helene cycles) → quick gauge plot (005 part A) → **GO/NO-GO**. Start 002's downloads in the background once AWS is ready.
+- **Fri 20:30–00:00:** approve 001/002/003/005 → **001** (Helene cycles) → quick gauge plot (005 part A) → **GO/NO-GO**. Start 002's downloads (~250 MB, public bucket) in the background.
 - **Sat 00:00–04:00:** **003** step 1 (AOI + graph, push early for Priyanshu) → 002 finish → 003 HAND sampling.
 - **Sat 04:00–08:00:** sleep.
 - **Sat 08:00–12:00:** **004** → real `web/data/` pushed.
@@ -98,6 +98,7 @@ _Append-only. Format: `HH:MM Name — what was done — how verified (command)`.
 - 20:18 — Verified AOI and IDs: HUC10 0313000112 "Peachtree Creek" (338.49 km²), HUC8 03130001; NLDI comid for the gauge = 2047989; NWPS AANG1 thresholds (action 13 / minor 17 / moderate 18 / major 20 ft; 3630 / 5700 / 7000 / 7800 cfs).
 - 20:45 — Live NWM latency measured: cycle t22z (Oct 9) f018 landed in GCS at 23:48Z (~1 h 45 min). — GCS JSON API listing, prefix `nwm.20261009/short_range/nwm.t22z...f018`
 - 20:45 — Isaias check: 20261009T22Z forecast at 2047989 = 1.1 / 1.6 / 4.1 / 17.5 / 30.0 / 25.5 m³/s at f003/6/9/12/15/18 (peak ≈ 1,061 cfs, below action 3,630). Observed 2026-10-09 20:00 EDT: 2.08 ft, 18 cfs. Reading NWM needed `h5py` alongside `h5netcdf`. — `uv run --with xarray --with h5netcdf --with h5py`, `xr.open_dataset(..., engine="h5netcdf")["streamflow"].sel(feature_id=2047989)`
+- 21:45 — HAND data found in a public bucket, no AWS account needed: `s3://ciroh-owp-hand-fim/hand_fim_4_9_9_0/03130001/` (OWP HAND-FIM v4.9.9.0, 461 files, 0.79 GB). Branch 0: HAND 106 MB, catchments 3.7 MB, hydroTable 110.6 MB; HUC-level `hydrotable.parquet` 3.3 MB. — anonymous S3 ListObjectsV2 over HTTPS
 
 ### Priyanshu
 - _(Priyanshu's section: only Priyanshu or Priyanshu's agent edits it)_
