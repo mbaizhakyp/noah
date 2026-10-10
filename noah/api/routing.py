@@ -411,35 +411,42 @@ def route(
         if reason:
             return {"state": reason, **empty, "map_url": None}
 
+    from noah.api import trip  # lazy: trip imports routing
+
     G, ids, xy = graph_for(a, b)
     fresh(cycle)
     fl = flood_state(cycle)
-    limit = depart_h + config.ROUTE_BUFFER_H
     tu = {**fl.t_uncertain, **dict.fromkeys(extra_blocked, -1)}  # live hazards: blocked from now
-    weight = blocked_weight(tu, depart_h)
     src, dst = nearest_node(ids, xy, *a), nearest_node(ids, xy, *b)
-    path = sub = None
+    # spec 019: a road is blocked by the hour the driver reaches it, not the hour they leave
+    path = edges = net = None
     for margin in (config.TRIP_BOX_MARGIN_KM, config.TRIP_BOX_RETRY_KM):
-        sub = G.subgraph(trip_nodes(ids, xy, a, b, margin))
-        path = shortest(sub, src, dst, weight)
-        if path:
+        net = (
+            trip.Net(G, trip_nodes(ids, xy, a, b, margin), tu)
+            if extra_blocked
+            else trip.net_for(cycle, G, ids, xy, [a, b], margin)
+        )
+        dist, pred = trip.td_dijkstra(net, src, depart_h, targets=[dst])
+        if dst in dist:
+            path, keys = trip.path_from(pred, dst)
+            edges = trip.edges_of(G, path, keys)
             break
     url = map_url(cycle, depart_h, a, b)
     fi = flood_index(cycle)
+    _, fpred = trip.td_dijkstra(net, src, depart_h, targets=[dst], ignore_block=True)
+    free, fkeys = trip.path_from(fpred, dst) if dst in fpred else ([], [])
+    fedges = trip.edges_of(G, free, fkeys) if len(free) > 1 else []
     if not path:
         # no way around: still return the usual way and every flagged road it crosses, so the map can
         # show *why* instead of nothing (the state stays no_route; fields are additive, CC8)
-        free = shortest(sub, src, dst, "travel_time") or []
         if len(free) < 2:
             return {"state": "no_route", **empty, "map_url": url}
-        fedges = path_edges(sub, free)
-        uline = path_line(sub, free, fedges)
+        uline = path_line(G, free, fedges)
+        cut_ids = set(trip.blocked_on_path(fedges, tu, depart_h))
         crosses = [
             segment_row(fi, p, depart_h)
             for d in fedges
-            if (p := fi.by_id.get(d.get("seg_id"))) is not None
-            and (t := tu.get(d.get("seg_id"))) is not None
-            and t <= limit
+            if d.get("seg_id") in cut_ids and (p := fi.by_id.get(d.get("seg_id"))) is not None
         ]
         near = fi.tree.query(transform(_to_metric, uline), predicate="dwithin", distance=corridor_m)
         corridor = sorted(
@@ -457,16 +464,10 @@ def route(
             "map_url": url,
         }
 
-    edges = path_edges(sub, path, tu, limit)
-    line = path_line(sub, path, edges)
-    free = shortest(sub, src, dst, "travel_time") or []
-    avoided = sorted(
-        {
-            d["seg_id"]
-            for d in path_edges(sub, free)
-            if (t := tu.get(d.get("seg_id"))) is not None and t <= limit
-        }
-    )
+    line = path_line(G, path, edges)
+    avoided = trip.blocked_on_path(
+        fedges, tu, depart_h
+    )  # fastest way, cut where it reaches each road
     line_m = transform(_to_metric, line)
     near = fi.tree.query(line_m, predicate="dwithin", distance=corridor_m)
     corridor = sorted(
@@ -475,7 +476,7 @@ def route(
     )
     live = sorted(set(avoided) & set(extra_blocked))
     # the usual (fastest) way when it differs: the map draws it dashed so the detour reads as a choice
-    usual = path_line(sub, free, path_edges(sub, free)) if avoided and len(free) > 1 else None
+    usual = path_line(G, free, fedges) if avoided and len(free) > 1 else None
     return {
         "live_blocked": live,
         "state": "route_found",

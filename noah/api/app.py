@@ -18,7 +18,7 @@ from noah import (
     config,
     engine,
 )
-from noah.api import agent, dispatch, past, routing
+from noah.api import agent, dispatch, past, routing, trip
 
 log = logging.getLogger("api")
 ERROR_MESSAGE = (
@@ -87,6 +87,32 @@ def plan(depot: str = Query(), stops: str = Query(), cycle: str | None = None) -
         return routing.plan((d_lon, d_lat), [(lon, lat) for lat, lon in pts], cycle)
     except Exception:  # noqa: BLE001 (any failure -> conservative reply, never a crash)
         return failed("plan")
+
+
+@app.get("/trip")
+def trip_(
+    from_: str = Query(alias="from"),
+    to: str = Query(),
+    stops: str = "",
+    depart_h: float = 0,
+    cycle: str | None = None,
+    corridor_m: int | None = None,
+) -> dict:
+    """Spec 019: origin -> stops -> destination, every road checked at the hour it is reached; the order
+    that keeps the most stops, the stops to skip, and the latest departure. depart_h may be fractional."""
+    try:
+        (a_lat, a_lon), (b_lat, b_lon) = parse_latlon(from_), parse_latlon(to)
+        pts = [parse_latlon(s) for s in stops.split(";") if s.strip()]
+        return trip.trip(
+            (a_lon, a_lat),
+            [(lon, lat) for lat, lon in pts],
+            (b_lon, b_lat),
+            depart_h,
+            cycle,
+            corridor_m,
+        )
+    except Exception:  # noqa: BLE001 (spec 006: any failure -> conservative reply, never a crash)
+        return failed("trip")
 
 
 @app.get("/assess")

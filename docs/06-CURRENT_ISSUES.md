@@ -104,6 +104,9 @@ Every point where the two lanes must connect. Tick each item and note the commit
 | CC1 | Fri 21:05 | M | Additive: C6 `events` + `cycles[].event`; C9 `NOAH_CYCLE`, `beyond_forecast_window` state, `/cameras` endpoints; new C11 (low spots), C12 (camera assessments); §5 rows for low spot, camera water, beyond window. Already written into `02-ARCHITECTURE.md`. Nothing existing was renamed or removed. | M ☑ · P ☐ (Priyanshu: confirm or object before building 006/009) |
 
 ## Parking lot (good ideas, not now)
+- (spec 019) `t_clear` (hour a road is forecast back below flood level) as an additive C5 field (Margulan): then Noah can say "or wait until 6 PM". Until then never promise "leave later".
+- (spec 019) **Before the demo:** re-pick the saved Delivery stops (`web/data/places.json`) against the newest run so the current order loses a stop and the best order keeps all of them; today's 11Z run flags all three since 7 AM.
+- (spec 019) Warm `/trip` for the demo route before judging (first call on a new box is ~9 s, then ~1 s).
 - (spec 018) One `/assess/route` per trip corridor instead of one per leg; the page currently fans out N legs at once and merges.
 - (spec 018) Serve `camera_watch` / `route_watch` verdicts to the camera adapter so a cold search never shows "AI check still running".
 - Live mode on today's NWM cycle beyond the Isaias bonus (the code path is the same; set `NOAH_CYCLE` to latest).

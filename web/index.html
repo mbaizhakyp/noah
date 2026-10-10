@@ -383,7 +383,7 @@
           <h3>Stops: which get cut off first</h3>
           <div class="leaveby" id="planHead"></div>
           <div id="planRows"></div>
-          <button id="reorder" class="tb" type="button" hidden><i data-lucide="list-ordered"></i>Reorder stops: earliest cut first</button>
+          <button id="reorder" class="tb" type="button" hidden><i data-lucide="list-ordered"></i><span id="reorderLbl">Reorder stops</span></button>
         </div>
 
         <div id="risk" class="risk" hidden>
@@ -682,7 +682,6 @@ function setHazard(segIds) {
 // ---------- staged reveal: live checks first, then the route draws itself, then roads light up in forecast order ----------
 const CORRIDOR_M = 3000; // the map asks for flagged roads this far around the route (the API default is 1 km)
 const REDUCED_MOTION = matchMedia("(prefers-reduced-motion: reduce)").matches;
-const CHECK_WAIT_MS = 8000; // longest we hold the route for the live checks
 const sleep = (ms) => new Promise((r) => window.setTimeout(r, ms));
 const easeOut = (k) => 1 - Math.pow(1 - k, 3);
 let hazardAnim = 0, searchSeq = 0, routeCtl = null;
@@ -1090,13 +1089,15 @@ $("pastHour").addEventListener("input", () => showPastHour(+$("pastHour").value)
 document.querySelectorAll("#tabs button").forEach((b) => (b.onclick = () => selectTab(b.dataset.tab)));
 // ---------- stop plan: which stops get cut off first, and the latest departure that makes them all ----------
 let lastLegs = [], lastPlan = null, planToken = 0;
-const VERDICT = { go_before: "Cut from", hold: "Forecast cut already, since", no_forecast_flooding: "Reachable through", out_of_coverage: "Outside Georgia", no_road_forecast: "No road timing here yet" };
+const VERDICT = { go_before: "Cut from", hold: "Cut before you'd get there, from", no_forecast_flooding: "Reachable through", out_of_coverage: "Outside Georgia", no_road_forecast: "No road timing here yet" };
+const USE_TRIP = true; // spec 019: /trip routes the whole run time-aware; false = the old per-leg /route + /plan
+const tripUrl = () => `${API}/trip?from=${origin.lat},${origin.lon}&to=${dest.lat},${dest.lon}&stops=${stopPlaces().map((p) => `${p.lat},${p.lon}`).join(";")}&depart_h=${(depMin() / 60).toFixed(3)}&cycle=${cyc.cycle}&corridor_m=${CORRIDOR_M}`;
 async function runPlan() {
   const token = ++planToken; lastPlan = null; $("plan").hidden = true;
   const pts = [...stopPlaces(), dest].filter(Boolean);
-  if (!origin || !pts.length) return;
+  if (!origin || !dest) return;
   try {
-    const r = await fetch(`${API}/plan?depot=${origin.lat},${origin.lon}&stops=${pts.map((p) => `${p.lat},${p.lon}`).join(";")}&cycle=${cyc.cycle}`).then((x) => x.json());
+    const r = await fetch(tripUrl()).then((x) => x.json());
     if (token !== planToken) return;
     if (r.state !== "ok") return;
     lastPlan = { ...r, pts };
@@ -1106,43 +1107,49 @@ async function runPlan() {
 function renderPlan() {
   const p = lastPlan; if (!p) { $("leaveBy").textContent = "Add a destination or stops to see your leave-by time."; $("hour").style.setProperty("--cutpct", "100%"); return; }
   const n = nowMin(), m = depMin();
-  // arrival at stop k = sum of the leg minutes up to it, in the order the stops are visited now
-  // a leg with no route has no minutes: fall back to the plan's own depot-to-stop travel time (a lower bound)
-  let cum = 0, broken = false;
-  const arrival = lastLegs.map((l) => { if (l.minutes == null) broken = true; return broken ? null : (cum += l.minutes); });
-  const rows = p.stops.map((s, i) => ({ ...s, place: p.pts[i], arrive: arrival[i] ?? s.minutes ?? null }));
-  let leaveBy = null, blocker = null;
-  for (const s of rows) {
-    if (s.cut_h == null) continue;
-    const latest = Math.floor((s.cut_h * 60 - (s.arrive || 0)) / STEP_MIN) * STEP_MIN; // leave by then to arrive before the cut
-    if (leaveBy === null || latest < leaveBy) { leaveBy = latest; blocker = s; }
-  }
   const timeOf = (hh) => fmtHour.format(hourTime(hh)), minOf = (mm) => fmtMin.format(minTime(mm));
+  const name = (i) => (p.pts[i]?.label || "").split(",")[0];
+  const nStops = p.stops.length, destI = nStops; // p.pts = [...stops, destination]
+  const cur = p.current || {}, best = p.best || {}, lb = p.leave_by_min || {};
+  const held = p.stops.filter((s) => s.state === "hold");
+  const leaveBy = lb.current; // latest departure (minutes after the issue time) that still reaches every stop reached now; null = leaving now already loses one
+  const saves = best.differs && nStops > 1 && best.reached === cur.reached && best.minutes < cur.minutes - 2 ? Math.round(cur.minutes - best.minutes) : 0;
   let head;
-  if (leaveBy === null) head = `No stop is forecast to be cut off through ${timeOf(18)}.`;
-  else if (leaveBy < n) head = `<b>No departure makes every stop in this order.</b> ${blocker.place.label.split(",")[0]} is forecast cut from ${timeOf(blocker.cut_h)} and takes ${Math.round(blocker.arrive)} min to reach.`;
-  else head = `<b>Leave by ${minOf(leaveBy)}</b> to reach every stop before its roads are forecast to flood.${m > leaveBy ? ` Leaving ${minOf(m)} is too late for ${blocker.place.label.split(",")[0]}.` : ""}`;
+  if (!nStops) {
+    head = p.dest?.state === "hold" ? `<b>No departure reaches ${name(destI)} before its roads are forecast cut.</b>`
+      : leaveBy == null || leaveBy >= MAX_MIN ? `No road on the way to ${name(destI)} is forecast cut through ${timeOf(18)}.`
+      : `<b>Leave by ${minOf(leaveBy)}</b> to reach ${name(destI)} before its roads are forecast to flood.${m > leaveBy ? ` Leaving ${minOf(m)} is too late.` : ""}`;
+  } else if (best.differs && best.reached > cur.reached) {
+    head = `<b>Reorder to reach ${best.reached} of ${nStops} stops.</b> This order reaches ${cur.reached}: ${held.map((s) => `${name(s.i)} is forecast cut ${s.cut_h * 60 <= m ? "since" : "from"} ${timeOf(s.cut_h)}`).join("; ")}.`;
+  } else if (held.length) {
+    head = `<b>${held.length} stop${held.length === 1 ? "" : "s"} can't be reached in time in any order:</b> ${held.map((s) => `${name(s.i)} (cut ${s.cut_h * 60 <= m ? "since" : "from"} ${timeOf(s.cut_h)})`).join(", ")}. The route skips ${held.length === 1 ? "it" : "them"}.`;
+  } else if (leaveBy != null && leaveBy < MAX_MIN) {
+    head = `<b>Leave by ${minOf(leaveBy)}</b> to reach every stop before its roads are forecast to flood.${m > leaveBy ? ` Leaving ${minOf(m)} is too late.` : ""}`;
+  } else head = `No stop is forecast to be cut off through ${timeOf(18)}.`;
+  if (saves) head += ` A different order saves about ${saves} min.`;
   $("planHead").innerHTML = head;
-  $("leaveBy").textContent = leaveBy === null ? `No stop is forecast cut through ${timeOf(18)}.` : leaveBy < n ? "No departure time makes every stop." : `Leave by ${minOf(leaveBy)} to make every stop.`;
-  $("hour").style.setProperty("--cutpct", leaveBy === null ? "100%" : `${Math.max(0, Math.min(100, ((leaveBy - n) / Math.max(1, MAX_MIN - n)) * 100))}%`);
-  $("planRows").replaceChildren(...rows.map((s, i) => {
+  $("leaveBy").textContent = held.length ? `${held.length} stop${held.length === 1 ? "" : "s"} forecast cut before you could get there.` : leaveBy == null ? "Leaving now already loses a stop." : leaveBy >= MAX_MIN ? `No stop is forecast cut through ${timeOf(18)}.` : `Leave by ${minOf(leaveBy)} to make every stop.`;
+  $("hour").style.setProperty("--cutpct", leaveBy == null ? "0%" : `${Math.max(0, Math.min(100, ((leaveBy - n) / Math.max(1, MAX_MIN - n)) * 100))}%`);
+  const rows = [...p.stops.map((s) => ({ ...s, label: name(s.i) })), { ...(p.dest || {}), i: destI, label: name(destI) }];
+  $("planRows").replaceChildren(...rows.map((s, k) => {
     const row = document.createElement("div"); row.className = "prow";
-    const num = document.createElement("span"); num.className = "pnum"; num.textContent = letterOf(i + 1);
-    const name = document.createElement("span"); name.className = "pname"; name.textContent = s.place.label.split(",")[0];
-    const sm = document.createElement("small"); sm.textContent = s.arrive != null ? `arrive ~${Math.round(s.arrive)} min after leaving` : ""; name.append(sm);
+    const num = document.createElement("span"); num.className = "pnum"; num.textContent = letterOf(k + 1);
+    const nm = document.createElement("span"); nm.className = "pname"; nm.textContent = s.label;
+    const sm = document.createElement("small"); sm.textContent = s.arrive_min != null ? `arrive ~${Math.round(s.arrive_min)} min after leaving` : s.state === "hold" ? "skipped on this run" : ""; nm.append(sm);
     const v = document.createElement("span"); v.className = "pv " + s.state;
-    v.textContent = s.state === "go_before" || s.state === "hold" ? `${VERDICT[s.state]} ${timeOf(s.cut_h)}` : s.state === "no_forecast_flooding" ? `${VERDICT[s.state]} ${timeOf(18)}` : VERDICT[s.state] || s.state;
-    row.append(num, name, v); return row;
+    v.textContent = s.state === "hold" && s.cut_h != null ? `${s.cut_h * 60 <= m ? "Forecast cut since" : VERDICT.hold} ${timeOf(s.cut_h)}` : s.state === "go_before" && s.cut_h != null ? `${VERDICT[s.state]} ${timeOf(s.cut_h)}` : s.state === "no_forecast_flooding" ? `${VERDICT[s.state]} ${timeOf(18)}` : VERDICT[s.state] || s.state;
+    row.append(num, nm, v); return row;
   }));
-  const current = rows.map((_, i) => i), suggested = p.order.filter((i) => i < stops.length); // destination stays last
-  const differs = suggested.some((v, i) => v !== current[i]) && stops.length > 1;
-  $("reorder").hidden = !differs;
+  const better = best.differs && nStops > 1 && (best.reached > cur.reached || saves > 0);
+  $("reorder").hidden = !better;
+  if (better) $("reorderLbl").textContent = best.reached > cur.reached ? `Reorder stops: reach ${best.reached} of ${nStops}` : `Reorder stops: save about ${saves} min`;
   $("plan").hidden = false;
 }
 $("reorder").onclick = () => {
   if (!lastPlan) return;
-  const order = lastPlan.order.filter((i) => i < stops.length);
-  stops = order.map((i) => stops[i]); renderStops(); findRoute();
+  const items = stops.filter((s) => s.place), empty = stops.filter((s) => !s.place);
+  const best = lastPlan.order.filter((i) => i < items.length), rest = items.map((_, i) => i).filter((i) => !best.includes(i));
+  stops = [...best, ...rest].map((i) => items[i]).concat(empty); renderStops(); findRoute();
 };
 
 function routeSummary(r) {
@@ -1244,14 +1251,12 @@ async function checkArea() {
     setHazard([]); $("why").hidden = true;
     const feats = tierFeats(r.segments.map((s) => flood.get(s.seg_id)).filter(Boolean), []);
     const streets = new Set(feats.map((f) => f.properties.name || f.properties.seg_id)).size;
-    // live checks run first; the roads light up once they are in (or after CHECK_WAIT_MS)
-    stage(`Checking ${feats.length ? feats.length + " flagged road segments, " : ""}live sources and traffic cameras within ${RADIUS_KM} km…`);
-    const checks = runAssess("area"); runPast("area");
-    await Promise.race([checks, sleep(CHECK_WAIT_MS)]);
-    if (seq !== searchSeq) return;
+    // spec 019: draw first; the live checks and cameras overlay when they land
+    runAssess("area"); runPast("area");
     applyHour();
-    await revealHazard(feats);
     showTabs(true);
+    await revealHazard(feats);
+    if (seq !== searchSeq) return;
     if (!feats.length) {
       banner(`No flooding is forecast within ${RADIUS_KM} km through ${END()}. This is not a safety guarantee. Conditions change fast; never drive into water. Turn Around Don't Drown.`, "info");
     } else {
@@ -1273,11 +1278,22 @@ async function findRoute(full = true) {
   routeCtl?.abort(); routeCtl = new AbortController(); const signal = routeCtl.signal;
   routedH = h;
   try {
-    // one /route per leg (start → stops → destination), joined into one answer
-    const legs = await Promise.all(legPairs().map(([a, b]) =>
-      fetch(`${API}/route?from=${a.lat},${a.lon}&to=${b.lat},${b.lon}&depart_h=${h}&cycle=${cyc.cycle}&corridor_m=${CORRIDOR_M}`, { signal }).then((x) => x.json())));
-    if (seq !== searchSeq) return;
-    const r = legs.length === 1 ? legs[0] : combineLegs(legs);
+    let r, legs;
+    if (USE_TRIP && stopPlaces().length) {
+      // spec 019: one /trip for the whole run; each leg is routed at the hour it actually starts, and a stop
+      // that can't be reached before its roads are forecast cut is skipped (the plan card says which and when)
+      const t = await fetch(tripUrl(), { signal }).then((x) => x.json());
+      if (seq !== searchSeq) return;
+      if (t.state === "ok") { r = t.route; legs = t.legs; lastPlan = { ...t, pts: [...stopPlaces(), dest] }; }
+      else { r = { state: t.state, message: t.message, corridor: [], avoided: [] }; legs = []; lastPlan = null; }
+    } else {
+      // one /route per leg (start → stops → destination), joined into one answer
+      lastPlan = null;
+      legs = await Promise.all(legPairs().map(([a, b]) =>
+        fetch(`${API}/route?from=${a.lat},${a.lon}&to=${b.lat},${b.lon}&depart_h=${h}&cycle=${cyc.cycle}&corridor_m=${CORRIDOR_M}`, { signal }).then((x) => x.json())));
+      if (seq !== searchSeq) return;
+      r = legs.length === 1 ? legs[0] : combineLegs(legs);
+    }
     lastRoute = r; lastLegs = legs;
     await mapReady; clearMarkers();
     map.getSource("area").setData(empty);
@@ -1319,7 +1335,7 @@ async function findRoute(full = true) {
         fit(r.usual_geometry.coordinates);
         $("minutes").textContent = Math.round(r.usual_minutes || 0); $("via").textContent = `Usual way, forecast cut by flooding${first?.name ? " at " + first.name : ""}. Not a route Noah can recommend.`; $("routeSum").hidden = false;
       } else fit([[origin.lon, origin.lat], [dest.lon, dest.lat]]);
-      if (full) { showTabs(true); runPlan(); const checks = runAssess("route"); runPast("route"); await Promise.race([checks, sleep(CHECK_WAIT_MS)]); if (seq !== searchSeq) return; await revealHazard(feats); } else setHazard((r.corridor || []).map((c) => c.seg_id));
+      if (full) { showTabs(true); if (!lastPlan) runPlan(); else renderPlan(); runAssess("route"); runPast("route"); await revealHazard(feats); if (seq !== searchSeq) return; } else setHazard((r.corridor || []).map((c) => c.seg_id));
       banner(`No route avoids forecast flooding if you leave ${leave}.${why} Try an earlier departure time, or stay where you are. Never drive into water. Emergency: 911.`, "danger");
       $("summary").textContent = feats.length ? `Flood-forecast roads within ${CORRIDOR_M / 1000} km of the usual way:` : "";
       cards(r.corridor || [], tripH());
@@ -1331,13 +1347,11 @@ async function findRoute(full = true) {
     $("legUsual").hidden = !ghost.length;
     fit([...r.geometry.coordinates, ...ghost.flat()]);
     if (full) {
-      // live checks first, then the usual way (dashed), then Noah's route draws itself, then flagged roads light up
-      stage(`Route found. Checking live sources and traffic cameras along it${feats.length ? ` and ${feats.length} flagged road segments within ${CORRIDOR_M / 1000} km` : ""}…`);
-      const checks = runAssess("route"); runPast("route");
-      await Promise.race([checks, sleep(CHECK_WAIT_MS)]);
-      if (seq !== searchSeq) return; // a newer search took over while we waited
+      // spec 019: the route is on screen first; live checks and cameras run meanwhile and overlay when they land
+      runAssess("route"); runPast("route");
       map.getSource("usual").setData(usual);
       await drawLine("route", r.geometry.coordinates);
+      if (seq !== searchSeq) return; // a newer search took over while the line drew
       markCuts(r.avoided, h);
       applyHour();
       await revealHazard(feats);
@@ -1359,11 +1373,13 @@ async function findRoute(full = true) {
     } else {
       banner(`No flooding is forecast on this route through ${END()}. About ${Math.round(r.minutes)} min. This is not a safety guarantee. Conditions change fast; never drive into water. Turn Around Don't Drown.`, "info");
     }
+    const skipped = (r.skipped || []).map((i) => (stopPlaces()[i]?.label || "").split(",")[0]).filter(Boolean);
+    if (skipped.length) banner(`${$("banner").textContent} Skips ${skipped.join(" and ")}: forecast cut before you would get there (see the stops plan).`, "danger");
     $("summary").textContent = feats.length ? `Flagged roads within ${CORRIDOR_M / 1000} km of this route. Bold on the map = on or next to the route.` : "";
     cards(r.corridor, tripH()); // the list and the map agree: everything forecast under during the drive
     setDirections(r.geometry.coordinates);
     applyHour();
-    if (full || !lastPlan) runPlan(); else renderPlan();
+    if (!lastPlan) runPlan(); else renderPlan();
   } catch (e) { if (e.name === "AbortError" || seq !== searchSeq) return; banner("I can't confirm conditions right now, so treat low roads near creeks as impassable. In an emergency call 911.", "danger"); }
   finally { if (seq === searchSeq) busy(false); }
 }
