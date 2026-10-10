@@ -1,6 +1,9 @@
 # data: rasters, NetCDF, interim tables — regenerate with the pipeline
-data/
-!data/README.md
+/data/
+!/data/README.md
+
+# OSMnx HTTP cache
+cache/
 
 # secrets
 .env

@@ -1,0 +1,178 @@
+{
+ "gauge": {
+  "usgs": "02336300",
+  "nws_lid": "AANG1",
+  "feature_id": 2047989
+ },
+ "thresholds_ft": {
+  "action": 13,
+  "minor": 17,
+  "moderate": 18,
+  "major": 20
+ },
+ "thresholds_cfs": {
+  "action": 3630,
+  "minor": 5700,
+  "moderate": 7000,
+  "major": 7800
+ },
+ "observed": {
+  "minor_cross_utc": "2024-09-27T01:15:00Z",
+  "peak_stage_ft": 23.75,
+  "peak_utc": "2024-09-27T12:15:00Z"
+ },
+ "cycles": [
+  {
+   "cycle": "20240926T12Z",
+   "fcst_peak_cms": 680.5,
+   "fcst_peak_utc": "2024-09-27T05:00:00Z",
+   "fcst_minor_cross_utc": "2024-09-27T02:00:00Z"
+  },
+  {
+   "cycle": "20240926T13Z",
+   "fcst_peak_cms": 315.7,
+   "fcst_peak_utc": "2024-09-27T06:00:00Z",
+   "fcst_minor_cross_utc": "2024-09-27T05:00:00Z"
+  },
+  {
+   "cycle": "20240926T14Z",
+   "fcst_peak_cms": 230.9,
+   "fcst_peak_utc": "2024-09-27T05:00:00Z",
+   "fcst_minor_cross_utc": "2024-09-27T03:00:00Z"
+  },
+  {
+   "cycle": "20240926T15Z",
+   "fcst_peak_cms": 300.4,
+   "fcst_peak_utc": "2024-09-27T04:00:00Z",
+   "fcst_minor_cross_utc": "2024-09-27T03:00:00Z"
+  },
+  {
+   "cycle": "20240926T16Z",
+   "fcst_peak_cms": 191.5,
+   "fcst_peak_utc": "2024-09-27T10:00:00Z",
+   "fcst_minor_cross_utc": "2024-09-27T06:00:00Z"
+  },
+  {
+   "cycle": "20240926T17Z",
+   "fcst_peak_cms": 253.2,
+   "fcst_peak_utc": "2024-09-27T11:00:00Z",
+   "fcst_minor_cross_utc": "2024-09-27T08:00:00Z"
+  },
+  {
+   "cycle": "20240926T18Z",
+   "fcst_peak_cms": 364.9,
+   "fcst_peak_utc": "2024-09-27T11:00:00Z",
+   "fcst_minor_cross_utc": "2024-09-27T08:00:00Z"
+  },
+  {
+   "cycle": "20240926T19Z",
+   "fcst_peak_cms": 273.0,
+   "fcst_peak_utc": "2024-09-27T13:00:00Z",
+   "fcst_minor_cross_utc": "2024-09-27T09:00:00Z"
+  },
+  {
+   "cycle": "20240926T20Z",
+   "fcst_peak_cms": 316.8,
+   "fcst_peak_utc": "2024-09-27T12:00:00Z",
+   "fcst_minor_cross_utc": "2024-09-27T08:00:00Z"
+  },
+  {
+   "cycle": "20240926T21Z",
+   "fcst_peak_cms": 285.4,
+   "fcst_peak_utc": "2024-09-27T14:00:00Z",
+   "fcst_minor_cross_utc": "2024-09-27T12:00:00Z"
+  },
+  {
+   "cycle": "20240926T22Z",
+   "fcst_peak_cms": 442.9,
+   "fcst_peak_utc": "2024-09-27T12:00:00Z",
+   "fcst_minor_cross_utc": "2024-09-27T08:00:00Z"
+  },
+  {
+   "cycle": "20240926T23Z",
+   "fcst_peak_cms": 218.7,
+   "fcst_peak_utc": "2024-09-27T08:00:00Z",
+   "fcst_minor_cross_utc": "2024-09-27T05:00:00Z"
+  },
+  {
+   "cycle": "20240927T00Z",
+   "fcst_peak_cms": 247.3,
+   "fcst_peak_utc": "2024-09-27T06:00:00Z",
+   "fcst_minor_cross_utc": "2024-09-27T05:00:00Z"
+  },
+  {
+   "cycle": "20240927T01Z",
+   "fcst_peak_cms": 221.0,
+   "fcst_peak_utc": "2024-09-27T06:00:00Z",
+   "fcst_minor_cross_utc": "2024-09-27T03:00:00Z"
+  },
+  {
+   "cycle": "20240927T02Z",
+   "fcst_peak_cms": 271.0,
+   "fcst_peak_utc": "2024-09-27T08:00:00Z",
+   "fcst_minor_cross_utc": "2024-09-27T03:00:00Z"
+  },
+  {
+   "cycle": "20240927T03Z",
+   "fcst_peak_cms": 276.7,
+   "fcst_peak_utc": "2024-09-27T07:00:00Z",
+   "fcst_minor_cross_utc": "2024-09-27T04:00:00Z"
+  },
+  {
+   "cycle": "20240927T04Z",
+   "fcst_peak_cms": 270.2,
+   "fcst_peak_utc": "2024-09-27T07:00:00Z",
+   "fcst_minor_cross_utc": "2024-09-27T05:00:00Z"
+  },
+  {
+   "cycle": "20240927T05Z",
+   "fcst_peak_cms": 321.0,
+   "fcst_peak_utc": "2024-09-27T06:00:00Z",
+   "fcst_minor_cross_utc": "2024-09-27T06:00:00Z"
+  },
+  {
+   "cycle": "20240927T06Z",
+   "fcst_peak_cms": 397.3,
+   "fcst_peak_utc": "2024-09-27T07:00:00Z",
+   "fcst_minor_cross_utc": "2024-09-27T07:00:00Z"
+  },
+  {
+   "cycle": "20240927T07Z",
+   "fcst_peak_cms": 450.8,
+   "fcst_peak_utc": "2024-09-27T08:00:00Z",
+   "fcst_minor_cross_utc": "2024-09-27T08:00:00Z"
+  },
+  {
+   "cycle": "20240927T08Z",
+   "fcst_peak_cms": 433.5,
+   "fcst_peak_utc": "2024-09-27T09:00:00Z",
+   "fcst_minor_cross_utc": "2024-09-27T09:00:00Z"
+  },
+  {
+   "cycle": "20240927T09Z",
+   "fcst_peak_cms": 410.6,
+   "fcst_peak_utc": "2024-09-27T10:00:00Z",
+   "fcst_minor_cross_utc": "2024-09-27T10:00:00Z"
+  },
+  {
+   "cycle": "20240927T10Z",
+   "fcst_peak_cms": 387.7,
+   "fcst_peak_utc": "2024-09-27T11:00:00Z",
+   "fcst_minor_cross_utc": "2024-09-27T11:00:00Z"
+  },
+  {
+   "cycle": "20240927T11Z",
+   "fcst_peak_cms": 505.6,
+   "fcst_peak_utc": "2024-09-27T12:00:00Z",
+   "fcst_minor_cross_utc": "2024-09-27T12:00:00Z"
+  },
+  {
+   "cycle": "20240927T12Z",
+   "fcst_peak_cms": 537.7,
+   "fcst_peak_utc": "2024-09-27T13:00:00Z",
+   "fcst_minor_cross_utc": "2024-09-27T13:00:00Z"
+  }
+ ],
+ "first_warning_cycle": "20240926T12Z",
+ "lead_time_h": 13.2
+}
