@@ -146,14 +146,16 @@ def cameras(ctx: Ctx) -> list[dict]:
             }.get(b, "info")
             seen = {
                 "none": "no water on the road seen",
-                "cant_tell": "can't tell from the image",
+                "cant_tell": "camera feed unavailable"
+                if res.get("blank")
+                else "can't tell from the image",
                 "possible_water": "possible water near the road, not confirmed",
             }.get(b, f"water on the road around {b.replace('_', ' ')} level (confirmed twice)")
             out.append(
                 signal(
                     "Traffic cameras",
                     "observation",
-                    f"Camera {w['title']}: {seen}",
+                    f"Camera {res.get('label') or w['title']}: {seen}",
                     detail=f"{res.get('note') or ''} (AI check of the current snapshot, confidence {res['confidence']}). Webcams provided by Windy.com.".strip(),
                     severity=sev,
                     lat=loc["latitude"],
@@ -162,7 +164,9 @@ def cameras(ctx: Ctx) -> list[dict]:
                     extra={
                         "camera": {
                             "cam_id": w["webcamId"],
-                            "name": w["title"],
+                            "lat": loc["latitude"],
+                            "lon": loc["longitude"],
+                            "name": res.get("label") or w["title"],
                             "bucket": b,
                             "confidence": res["confidence"],
                             "reference_object": res.get("reference_object"),

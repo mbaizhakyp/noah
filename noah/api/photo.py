@@ -22,7 +22,8 @@ Rain-wet pavement, shine, and reflections of street lights or headlights are NOT
 At night or in low light, report water only if you see a clear water surface: an edge where water meets dry road,
 ripples, splashing, or a lane visibly covered; otherwise use "none" or "cant_tell".
 Only report what is visible. Reply as JSON:
-{"bucket": "...", "reference_object": str or null, "confidence": "low|med|high", "note": "max 15 words"}"""
+{"bucket": "...", "reference_object": str or null, "confidence": "low|med|high", "note": "max 15 words",
+ "label": "the location text printed on the image (e.g. a camera name or street names), copied exactly; null if no text is readable. Never guess a label."}"""
 
 
 SKEPTIC = """
@@ -75,8 +76,31 @@ def classify_url(image_url: str, detail: str = "low", skeptic: bool = False) -> 
     return out
 
 
+def blank_feed(image_url: str) -> bool:
+    """True if the camera image is flat (feed down / placeholder). Checked in memory; nothing is stored."""
+    try:
+        from io import BytesIO
+
+        from PIL import Image, ImageStat
+
+        img = Image.open(BytesIO(httpx.get(image_url, timeout=10).content)).convert("L")
+        return ImageStat.Stat(img).stddev[0] < 4
+    except Exception:  # noqa: BLE001 (if we can't tell, let the AI check decide)
+        return False
+
+
 def verified(image_url: str) -> dict:
     """Two-step check. Water must be seen twice (second look: high detail, skeptical) to count as confirmed."""
+    if blank_feed(image_url):
+        return {
+            "bucket": "cant_tell",
+            "reference_object": None,
+            "confidence": "high",
+            "note": "camera feed unavailable (blank image)",
+            "label": None,
+            "verified": None,
+            "blank": True,
+        }
     first = classify_url(image_url)
     if first["bucket"] not in WET:
         return {**first, "verified": None}
@@ -84,7 +108,12 @@ def verified(image_url: str) -> dict:
     if second["bucket"] in WET:
         order = list(BUCKETS)
         bucket = min(first["bucket"], second["bucket"], key=order.index)  # agree on the lower depth
-        return {**second, "bucket": bucket, "verified": True}
+        return {
+            **second,
+            "bucket": bucket,
+            "verified": True,
+            "label": first.get("label") or second.get("label"),
+        }
     return {
         **first,
         "verified": False,

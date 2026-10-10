@@ -66,3 +66,16 @@ def test_camera_water_needs_two_agreeing_checks(monkeypatch):
     )
     r = photo.verified("http://x")
     assert r["verified"] is True and r["bucket"] == "curb"  # agree on the lower depth
+
+
+def test_blank_camera_feed_is_cant_tell_without_ai(monkeypatch):
+    from noah.api import photo
+
+    monkeypatch.setattr(photo, "blank_feed", lambda url: True)
+    monkeypatch.setattr(
+        photo,
+        "classify_url",
+        lambda *a, **k: (_ for _ in ()).throw(AssertionError("AI must not run")),
+    )
+    r = photo.verified("http://x")
+    assert r["bucket"] == "cant_tell" and r["label"] is None and r["blank"]

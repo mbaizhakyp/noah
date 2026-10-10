@@ -76,6 +76,16 @@
   footer { color: var(--muted); font-size: 12px; margin-top: 16px; }
   .mapwrap { position: relative; height: 100%; }
   .cam img { width: 100%; max-width: 260px; border-radius: 6px; display: block; margin-top: 6px; }
+  .cammark { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 15px; background: #121821; border: 3px solid var(--slate); cursor: pointer; box-shadow: 0 1px 6px #0008; }
+  .cammark.wet { border-color: var(--red); } .cammark.maybe { border-color: var(--amber); }
+  .camcard { display: grid; grid-template-columns: 120px 1fr; gap: 10px; align-items: start; }
+  .camcard img { width: 120px; height: 67px; object-fit: cover; border-radius: 6px; background: #000; }
+  .src { display: flex; justify-content: space-between; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--line); cursor: pointer; }
+  .src .n { font-weight: 600; } .src .c { color: var(--muted); white-space: nowrap; }
+  .src.fail .n { color: #fecaca; }
+  .sig { color: var(--muted); font-size: 12px; padding: 4px 0 6px 10px; border-left: 2px solid var(--line); margin: 2px 0 6px; }
+  .sig b { color: var(--text); font-weight: 600; }
   .cam a { color: var(--cyan); }
   .maplibregl-popup-content { background: var(--panel); color: var(--text); border: 1px solid var(--line); }
   .maplibregl-popup-tip { display: none; }
@@ -130,6 +140,17 @@
       <div class="note">Google and Apple Maps choose their own roads between Noah's points. Check the red and amber roads here before you go.</div>
     </div>
     <div id="results"></div>
+
+    <div id="live" class="section" hidden>
+      <h2>Live checks</h2>
+      <div id="liveStatus" class="summary"></div>
+      <div id="liveNote" class="note"></div>
+      <h2 id="camHead" hidden>Traffic cameras</h2>
+      <div id="camList"></div>
+      <div id="camCredit" class="note" hidden>Snapshots taken when you searched and checked for water by AI. Water counts only if a second, stricter look agrees.
+        Webcams provided by <a href="https://www.windy.com" target="_blank" rel="noopener">Windy.com</a> · <a href="https://www.windy.com/webcams/add" target="_blank" rel="noopener">add a webcam</a></div>
+      <details id="srcBox" style="margin-top:12px"><summary id="srcSum">Sources checked</summary><div id="srcList"></div></details>
+    </div>
 
     <footer id="footer"></footer>
   </aside>
@@ -251,27 +272,121 @@ function addMarker(lon, lat, color, text, size = 14) {
   markers.push(m.addTo(map));
 }
 
-// ---------- cameras (spec 013: present only when the API returns them) ----------
+// ---------- cameras + sources (spec 013/015: from /assess, run in the background) ----------
+let camMarkers = [], assessToken = 0;
+const CAM_LABEL = {
+  none: "No water seen", cant_tell: "Can't tell (dark, blocked or feed unavailable)", possible_water: "Possible water, not confirmed",
+  curb: "Water at curb level (confirmed)", half_tire: "Water about half a tire deep (confirmed)",
+  door_sill_or_above: "Deep water, door-sill level (confirmed)",
+};
+const camClass = (b) => (["curb", "half_tire", "door_sill_or_above"].includes(b) ? "wet" : b === "possible_water" ? "maybe" : "");
+function clearCams() { camMarkers.forEach((m) => m.remove()); camMarkers = []; }
+
+function camBox(c) {
+  const box = document.createElement("div"); box.className = "cam";
+  const t = document.createElement("div");
+  t.innerHTML = "";
+  const b = document.createElement("b"); b.textContent = c.name || "Traffic camera";
+  t.append(b, document.createElement("br"), `${CAM_LABEL[c.bucket] || c.bucket} · checked ${local(new Date(c.checked_utc))}`);
+  if (camClass(c.bucket) === "wet") t.append(document.createElement("br"), "Treat nearby roads as impassable.");
+  const a = document.createElement("a"); a.href = c.page_url; a.target = "_blank"; a.rel = "noopener";
+  const img = document.createElement("img"); img.src = c.image_url; img.alt = `Live snapshot: ${c.name}`;
+  a.append(img);
+  const cr = document.createElement("div"); cr.className = "note";
+  cr.innerHTML = 'Webcams provided by <a href="https://www.windy.com" target="_blank" rel="noopener">Windy.com</a>';
+  box.append(t, a, cr);
+  return box;
+}
+
 function drawCameras(cams) {
+  clearCams();
   for (const c of cams || []) {
-    const el = document.createElement("div");
-    el.textContent = "📷"; el.style.cssText = "font-size:18px;cursor:pointer";
-    const box = document.createElement("div"); box.className = "cam";
-    const wet = ["curb", "half_tire", "door_sill_or_above"].includes(c.bucket);
-    const line = document.createElement("div");
-    line.textContent = `${c.name || "Traffic camera"}: ${wet ? `shows water around ${c.bucket.replaceAll("_", " ")} level` : c.bucket === "none" ? "no water seen" : "can't tell"}` +
-      (c.ts_utc ? ` (${local(new Date(c.ts_utc))})` : "") + (wet ? ". Treat nearby roads as impassable." : "");
-    const btn = document.createElement("button"); btn.className = "secondary"; btn.textContent = "View camera"; btn.style.marginTop = "6px";
-    btn.onclick = () => {
-      const a = document.createElement("a"); a.href = c.page_url; a.target = "_blank"; a.rel = "noopener";
-      const img = document.createElement("img"); img.src = c.image_url; img.alt = "Current camera snapshot";
-      a.append(img);
-      const credit = document.createElement("div"); credit.className = "note";
-      credit.innerHTML = 'Webcams provided by <a href="https://www.windy.com" target="_blank" rel="noopener">Windy.com</a> · <a href="https://www.windy.com/webcams/add" target="_blank" rel="noopener">add a webcam</a>';
-      btn.replaceWith(a, credit);
-    };
-    box.append(line, btn);
-    markers.push(new maplibregl.Marker({ element: el }).setLngLat([c.lon, c.lat]).setPopup(new maplibregl.Popup({ offset: 12 }).setDOMContent(box)).addTo(map));
+    if (c.lat == null) continue;
+    const el = document.createElement("div"); el.className = "cammark " + camClass(c.bucket); el.textContent = "📷";
+    el.title = `${c.name}: ${CAM_LABEL[c.bucket] || c.bucket}`;
+    camMarkers.push(new maplibregl.Marker({ element: el }).setLngLat([c.lon, c.lat])
+      .setPopup(new maplibregl.Popup({ offset: 16, maxWidth: "290px" }).setDOMContent(camBox(c))).addTo(map));
+  }
+  $("camHead").hidden = $("camCredit").hidden = !(cams || []).length;
+  $("camList").replaceChildren(...(cams || []).map((c) => {
+    const card = document.createElement("div"); card.className = "card camcard";
+    const a = document.createElement("a"); a.href = c.page_url; a.target = "_blank"; a.rel = "noopener";
+    const img = document.createElement("img"); img.src = c.image_url; img.alt = `Live snapshot: ${c.name}`; img.loading = "lazy";
+    a.append(img);
+    const txt = document.createElement("div");
+    const top = document.createElement("div"); top.className = "name"; top.textContent = c.name || "Traffic camera";
+    const st = document.createElement("div"); st.className = "detail";
+    st.textContent = `${CAM_LABEL[c.bucket] || c.bucket}. ${(c.distance_m / 1000).toFixed(1)} km ${mode === "route" ? "from your route" : "away"} · ${local(new Date(c.checked_utc))}`;
+    txt.append(top, st);
+    card.append(a, txt);
+    card.onclick = (e) => { if (e.target.tagName !== "IMG") map.flyTo({ center: [c.lon, c.lat], zoom: 15 }); };
+    return card;
+  }));
+}
+
+function renderSources(r) {
+  const bySrc = new Map();
+  for (const s of r.signals || []) {
+    const key = s.source.startsWith("NWS flood reports here before") ? "NWS flood reports here before (2005-2026)" : s.source;
+    (bySrc.get(key) || bySrc.set(key, []).get(key)).push(s);
+  }
+  const rows = [];
+  for (const o of r.sources_ok || []) {
+    const sigs = bySrc.get(o.source) || [...bySrc.entries()].find(([k]) => o.source.startsWith(k))?.[1] || [];
+    const row = document.createElement("div");
+    const head = document.createElement("div"); head.className = "src";
+    const n = document.createElement("span"); n.className = "n"; n.textContent = "✓ " + o.source;
+    const c = document.createElement("span"); c.className = "c"; c.textContent = o.signals ? `${o.signals} finding${o.signals === 1 ? "" : "s"}` : "nothing found";
+    head.append(n, c);
+    const body = document.createElement("div"); body.hidden = true;
+    for (const s of sigs.slice(0, 8)) {
+      const d = document.createElement("div"); d.className = "sig";
+      const b = document.createElement("b"); b.textContent = s.title;
+      d.append(b, document.createElement("br"), s.detail || "");
+      if (s.url) { const a = document.createElement("a"); a.href = s.url; a.target = "_blank"; a.rel = "noopener"; a.textContent = " source ↗"; a.style.color = "var(--cyan)"; d.append(a); }
+      body.append(d);
+    }
+    head.onclick = () => (body.hidden = !body.hidden);
+    row.append(head, body); rows.push(row);
+  }
+  for (const f of r.sources_failed || []) {
+    const head = document.createElement("div"); head.className = "src fail";
+    const n = document.createElement("span"); n.className = "n"; n.textContent = "✗ " + f.source;
+    const c = document.createElement("span"); c.className = "c"; c.textContent = f.error;
+    head.append(n, c); rows.push(head);
+  }
+  $("srcList").replaceChildren(...rows);
+  const nOk = (r.sources_ok || []).length, nFail = (r.sources_failed || []).length;
+  $("srcSum").textContent = `Sources checked: ${nOk + nFail} (${nOk} answered${nFail ? `, ${nFail} unavailable` : ""}) · ${(r.signals || []).length} findings`;
+}
+
+async function runAssess(kind) {
+  const token = ++assessToken;
+  $("live").hidden = false; $("liveNote").textContent = ""; clearCams();
+  $("camList").replaceChildren(); $("camHead").hidden = $("camCredit").hidden = true; $("srcList").replaceChildren();
+  $("srcSum").textContent = "Sources checked";
+  $("liveStatus").textContent = "Checking live sources and traffic cameras along " + (kind === "route" ? "your route…" : "your area…");
+  const url = kind === "route"
+    ? `${API}/assess/route?from=${origin.lat},${origin.lon}&to=${dest.lat},${dest.lon}&depart_h=${+$("hour").value}&cycle=${cyc.cycle}`
+    : `${API}/assess?lat=${origin.lat}&lon=${origin.lon}&cycle=${cyc.cycle}`;
+  try {
+    const r = await fetch(url).then((x) => x.json());
+    if (token !== assessToken) return; // a newer search started
+    if (r.state === "error") { $("liveStatus").textContent = r.message; return; }
+    const nOk = (r.sources_ok || []).length;
+    const cached = (r.sources_ok || []).filter((x) => x.cached).length;
+    $("liveStatus").textContent = `${nOk} live sources answered ${cached === nOk ? "(from the last few minutes)" : `in ${r.took_s} s`} · ${(r.cameras || []).length} camera${(r.cameras || []).length === 1 ? "" : "s"} checked.`;
+    drawCameras(r.cameras);
+    renderSources(r);
+    const rt = r.route;
+    if (kind === "route" && rt?.live_blocked?.length && rt.geometry) { // live hazards forced a detour
+      lastRoute = rt;
+      map.getSource("route").setData({ type: "Feature", geometry: rt.geometry, properties: {} });
+      setDirections(rt.geometry.coordinates);
+      $("liveNote").textContent = `Re-routed around live hazards: ${(rt.live_hazards_considered || []).join("; ")}. About ${Math.round(rt.minutes)} min.`;
+    }
+  } catch (e) {
+    if (token === assessToken) $("liveStatus").textContent = "Live checks are unavailable right now. The forecast above still applies.";
   }
 }
 
@@ -346,13 +461,13 @@ async function checkArea() {
     }
     $("summary").textContent = feats.length ? "Nearest-first by time:" : "";
     cards(r.segments, +$("hour").value);
-    drawCameras(r.cameras);
     applyHour();
+    runAssess("area");
   } catch (e) { banner("I can't confirm conditions right now, so treat low roads near creeks as impassable. In an emergency call 911.", "danger"); }
   finally { busy("area", false); }
 }
 
-async function findRoute() {
+async function findRoute(full = true) {
   if (!origin) { banner("Use your location or type a starting place first.", "warn"); return; }
   if (!dest) { banner("Search a destination first.", "warn"); return; }
   mode = "route"; busy("go", true);
@@ -388,12 +503,12 @@ async function findRoute() {
     $("summary").textContent = feats.length ? "Flood-forecast roads within 1 km of your route:" : "";
     cards(r.corridor, h);
     setDirections(r.geometry.coordinates);
-    drawCameras(r.cameras);
     applyHour();
+    if (full) runAssess("route"); // slider moves only re-route; the full live check runs on a new search
   } catch (e) { banner("I can't confirm conditions right now, so treat low roads near creeks as impassable. In an emergency call 911.", "danger"); }
   finally { busy("go", false); }
 }
-function routeEmpty() { map.getSource("route").setData(empty); setHazard([]); $("results").replaceChildren(); $("summary").textContent = ""; }
+function routeEmpty() { assessToken++; $("live").hidden = true; clearCams(); map.getSource("route").setData(empty); setHazard([]); $("results").replaceChildren(); $("summary").textContent = ""; }
 
 function setDirections(coords) {
   // up to 3 waypoints from Noah's route so the hand-off follows the detour (Google mobile web max = 3)
@@ -461,7 +576,7 @@ $("go").onclick = findRoute;
 $("hour").addEventListener("input", () => {
   applyHour();
   if (mode === "area") cards(lastRows, +$("hour").value);
-  if (mode === "route") { window.clearTimeout(rerouteTimer); rerouteTimer = window.setTimeout(findRoute, 450); }
+  if (mode === "route") { window.clearTimeout(rerouteTimer); rerouteTimer = window.setTimeout(() => findRoute(false), 450); }
 });
 $("play").onclick = () => {
   if (playing) { window.clearInterval(playing); playing = null; $("play").textContent = "▶"; return; }
