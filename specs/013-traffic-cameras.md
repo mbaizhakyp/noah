@@ -24,13 +24,14 @@ Background capture or monitoring. Recording or storing images. Video. Pothole de
 - **Terms:** show the credit "Webcams provided by Windy.com" with links, link each displayed image to its webcam page, and use images only through API URLs at original size or smaller. Storing images isn't addressed, so we never store them.
 
 ## Behavior
-1. **`cameras_near(lat, lon, radius_km)`**: one Windy `nearby` call. Returns active cameras with `cam_id, name, lat, lon, image_url, page_url`. Cache the camera *list* per ~1 km grid cell for 10 minutes; image URLs expire after that anyway.
+1. **`cameras_near(lat, lon, radius_km)`**: one Windy `nearby` call (`include=location,images,urls`). Returns active cameras with `cam_id, name, lat, lon, image_url, page_url` (`page_url` = `urls.detail`). Cache the camera *list* per ~1 km grid cell for 10 minutes; image URLs expire after that anyway.
 2. **`check(cam)`**: fetch the current snapshot bytes in memory → `photo.classify(bytes)` (010) → `{bucket, confidence, reference_object}`. Discard the bytes. Cache the *result* per `cam_id` for **10 minutes**, so many users near the same camera cost one Gemini call.
 3. **In `/status`**: pick the `MAX_CAMS_STATUS = 5` cameras nearest the user within `ALERT_RADIUS_KM`. Check them in parallel (thread pool, 8 s total timeout) and add `"cameras": [{cam_id, name, lat, lon, distance_m, ts_utc, bucket, confidence, image_url, page_url}]`.
 4. **In `/route`**: cameras within `CORRIDOR_BUFFER_M` of the route line, at most `MAX_CAMS_ROUTE = 8`, spread along the route (nearest to evenly spaced points). Same check, same fields, under `"cameras"`.
 5. **Override rule:** a `bucket ≥ curb` result upgrades C4/C5 segments within 100 m of that camera to `flooded` **for that response**, and the reply uses the §5 "camera water" wording. Never downgrade: a dry camera never clears a forecast flag.
 6. **Failure:** if Windy, the snapshot or Gemini fails or times out, that camera returns `bucket: "cant_tell"` and the response still returns on time. Cameras never block a forecast answer.
-7. **Map (009):** camera markers for the cameras in the response only. The popup shows the snapshot (linked to its webcam page), the result and its time, and "Webcams provided by Windy.com".
+7. **Map (009):** camera markers for the cameras in the response only. The popup shows the water result and its time, plus a **"View camera" button that shows the current snapshot only when the user taps it** (still image, no video, no time-lapse player). The snapshot is fetched fresh at tap time (URLs expire in 10 min), links to the camera's Windy page (required by Windy's terms), and carries "Webcams provided by Windy.com".
+   - Decided (Priyanshu, Sat 00:05): **snapshots only**. Windy also offers an embeddable 24 h time-lapse player (`player.day`, verified embeddable), but we don't use it. Windy's camera page can't be embedded (`frame-ancestors`), so it opens in a new tab. Windy lists these cameras' provider as `511ga.org`: they're GDOT cameras, used under Windy's terms.
 8. **Log** each check (cam_id, time, bucket, confidence; no image) to C12 for the demo stats and backtesting.
 
 ## Acceptance criteria
@@ -38,7 +39,7 @@ Background capture or monitoring. Recording or storing images. Video. Pothole de
 - [ ] `/route` returns ≤ 8 corridor cameras, each within 1 km of the route line (checked by a script).
 - [ ] With Windy unreachable (bad key in env), `/status` still returns the forecast answer and cameras show `cant_tell`.
 - [ ] No image files anywhere: `find . -name '*.jpg' -o -name '*.png' -newer specs/013-traffic-cameras.md` (excluding `web/` assets) is empty, and nothing camera-related is in git.
-- [ ] The map popup shows the snapshot, the result, the time and the Windy credit, and links to the webcam page.
+- [ ] The map popup shows the result and time. Tapping "View camera" shows the current snapshot with the Windy credit, and the image links to the webcam page.
 
 ## Test
 `tests/test_cameras.py` (no network):

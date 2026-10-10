@@ -36,7 +36,7 @@ A single static `web/index.html`.
 9. **Scenario switch** (spec 011): if C6 has more than one `events` entry, show a small dropdown ("Helene 2024 / Isaias 2026") that reloads with that event's `demo_cycle`. Hidden if there's only one event.
 10. **Optional layers** (each only if its source exists; a toggle in the legend; off by default on mobile):
     - Low spots (C11, spec 012): dotted violet `#a78bfa` lines, popup with the §5 low-spot text.
-    - Cameras (the `cameras` field of the `/status` or `/route` response, spec 013): markers for those cameras only. The popup shows the snapshot taken when the user asked, its assessment and time, and the credit "Webcams provided by Windy.com" (image links to its webcam page). Needs `api` in the URL.
+    - Cameras (the `cameras` field of the `/status` or `/route` response, spec 013): markers for those cameras only. The popup shows the water result and time, plus a **"View camera" button that loads the current snapshot only on tap** (still image, no video), linked to the camera's Windy page, its assessment and time, and the credit "Webcams provided by Windy.com" (image links to its webcam page). Needs `api` in the URL.
 
 ## Acceptance criteria
 - [ ] Open `web/index.html` via `python -m http.server -d web` → fixture roads change color as the slider moves.
