@@ -656,6 +656,9 @@ function setMode(m) {
   document.querySelectorAll("#legend [data-mode]").forEach((row) => (row.hidden = row.dataset.mode !== m));
   map.getCanvas().style.cursor = is("site") ? "crosshair" : "";
   if (is("site")) { closeWhy(); $("capBig").textContent = "Where to put the next branch"; $("capSmall").textContent = "Click the map to test a location against every storm Noah recorded. Blue pins are rarely cut off; red pins often are."; }
+  document.querySelector(".command").hidden = is("site");  // Site check reads every recorded storm, not one forecast
+  const want = SCENARIO[m];
+  if (want && curScen && want !== curScen) { showScenario(want); run(); return; }
   if (data) render(hourNow());
 }
 
@@ -703,16 +706,20 @@ async function run() {
   const body = { cycle: $("cycle").value, stops, depot: { label: $("depotLabel").value, lat: +$("depotLat").value, lon: +$("depotLon").value } };
   $("run").disabled = true; $("run").textContent = "Checking…";
   try {
-    const res = await fetch(`${API}/dispatch`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-    const d = await res.json();
-    if (!res.ok) throw new Error((d.detail || "The check failed") + ". Fix the depot or stops and try again.");
+    const key = JSON.stringify(body);
+    if (!memo.has(key)) {  // switching tabs re-runs the same check: answer it from the page after the first time
+      const res = await fetch(`${API}/dispatch`, { method: "POST", headers: { "Content-Type": "application/json" }, body: key });
+      const r = await res.json();
+      if (!res.ok) throw new Error((r.detail || "The check failed") + ". Fix the depot or stops and try again.");
+      memo.set(key, { d: r, gj: await fetch(`data/flood_${r.cycle}.geojson`).then((x) => x.json()) });
+    }
+    const { d, gj } = memo.get(key);
     await layersReady;
     data = d; city = null; highlighted = null; closeWhy();  // drop the previous run's city data before anything renders
-    const gj = await fetch(`data/flood_${d.cycle}.geojson`).then((r) => r.json());
     flood = gj.features; map.getSource("flood").setData(gj);
     cityStats(flood);
     const live = liveCycles.has(d.cycle);
-    $("eyebrow").textContent = live ? `NOAA forecast Noah ran live · issued ${fmtDay.format(new Date(d.issue_time))}` : `Recorded storm · Hurricane Helene · forecast issued ${fmtDay.format(new Date(d.issue_time))}, 2024`;
+    $("eyebrow").textContent = live ? `Hurricane Isaias · forecast Noah ran live · issued ${fmtDay.format(new Date(d.issue_time))}` : `Recorded storm · Hurricane Helene · forecast issued ${fmtDay.format(new Date(d.issue_time))}, 2024`;
     $("eyebrowBox").classList.toggle("backup", !live);
     $("tStart").textContent = fmtHour.format(atHour(0)); $("tEnd").textContent = fmtHour.format(atHour(18));
     $("results").replaceChildren(...d.stops.map((s, i) => {
@@ -771,29 +778,43 @@ $("tabSite").onclick = () => setMode("site");
 $("siteDepot").onclick = () => testSite(+$("depotLat").value, +$("depotLon").value);
 $("whyClose").onclick = closeWhy;
 $("run").onclick = run;
-$("cycle").onchange = run;
+$("cycle").onchange = () => { scen[curScen].pick = $("cycle").value; useSample($("cycle").value); run(); };
+
+// One storm per tab (J24): City replays Hurricane Helene's recorded day; Deliveries uses this weekend's Isaias runs, which
+// Noah ran live (Saturday 4 AM = Maya's morning: 2 stops already cut, the rest before noon). Site check uses every storm.
+const SCENARIO = { city: "helene", fleet: "isaias", site: null };
+const ISAIAS_END = "20261011T00Z", ISAIAS_PICK = "20261010T08Z";
+let scen = {}, curScen = null, sample = null;
+const memo = new Map();  // check body -> { dispatch answer, flood geojson }
+function showScenario(key) {
+  const sc = scen[key]; curScen = key;
+  $("cycle").replaceChildren(...sc.list.map((c) => { const o = el("option", null, sc.f.format(new Date(c.issue_time)) + sc.suffix); o.value = c.cycle; o.selected = c.cycle === sc.pick; return o; }));
+  useSample(sc.pick);
+}
+// one story per storm (J22): Helene uses the iPad's Buckhead run, Isaias uses Maya's north stops
+function useSample(cyc) {
+  const sm = liveCycles.has(cyc) || !sample.helene ? sample : sample.helene;
+  $("business").textContent = sm.business + " · sample stops on public streets";
+  $("depotLabel").value = sm.depot.label; $("depotLat").value = sm.depot.lat; $("depotLon").value = sm.depot.lon;
+  $("stops").value = sm.stops.map((x) => `${x.label}, ${x.lat}, ${x.lon}`).join("\n");
+}
 
 (async () => {
-  const [cycles, sample] = await Promise.all([fetch("data/cycles.json").then((r) => r.json()), fetch("data/dispatch_sample.json").then((r) => r.json())]);
-  const live = cycles.cycles.filter((c) => c.event === "live").sort((a, b) => b.cycle.localeCompare(a.cycle));
-  liveCycles = new Set(live.map((c) => c.cycle));
-  const backup = cycles.cycles.filter((c) => c.event === "helene");
-  const pick = Q.get("cycle") || (live[0] || {}).cycle || cycles.demo_cycle;
-  const group = (label, list, f, suffix) => {
-    const g = el("optgroup"); g.label = label;
-    g.append(...list.map((c) => { const o = el("option", null, f.format(new Date(c.issue_time)) + suffix); o.value = c.cycle; o.selected = c.cycle === pick; return o; }));
-    return g;
+  const [cycles, smp] = await Promise.all([fetch("data/cycles.json").then((r) => r.json()), fetch("data/dispatch_sample.json").then((r) => r.json())]);
+  sample = smp;
+  liveCycles = new Set(cycles.cycles.filter((c) => c.event === "live").map((c) => c.cycle));
+  const runs = (ev, keep) => cycles.cycles.filter((c) => c.event === ev && keep(c.cycle)).sort((a, b) => a.cycle.localeCompare(b.cycle));
+  scen = {
+    helene: { list: runs("helene", () => true), f: fmtDay, suffix: " · Helene", pick: cycles.events.helene.demo_cycle },
+    isaias: { list: runs("live", (c) => c < ISAIAS_END), f: fmt, suffix: " · Isaias", pick: ISAIAS_PICK },
   };
-  $("cycle").replaceChildren(...[live.length && group("Live forecast", live, fmt, " · live"), backup.length && group("Backup: Hurricane Helene 2024", backup, fmtDay, " · Helene")].filter(Boolean));
-  // one story per storm (J22): Helene uses the iPad's Buckhead run, the live storm uses Maya's north stops
-  const useSample = (cyc) => {
-    const sm = liveCycles.has(cyc) || !sample.helene ? sample : sample.helene;
-    $("business").textContent = sm.business + " · sample stops on public streets";
-    $("depotLabel").value = sm.depot.label; $("depotLat").value = sm.depot.lat; $("depotLon").value = sm.depot.lon;
-    $("stops").value = sm.stops.map((s) => `${s.label}, ${s.lat}, ${s.lon}`).join("\n");
-  };
-  useSample(pick);
-  $("cycle").onchange = () => { useSample($("cycle").value); run(); };
+  const q = Q.get("cycle");
+  for (const sc of Object.values(scen)) {
+    if (sc.list.some((c) => c.cycle === q)) sc.pick = q;
+    if (!sc.list.some((c) => c.cycle === sc.pick)) sc.pick = (sc.list.at(-1) || {}).cycle;
+  }
+  if (q && !Q.get("mode") && scen.isaias.list.some((c) => c.cycle === q)) mode = "fleet";
+  showScenario(SCENARIO[mode] || "helene");
   setMode(mode);
   run();
 })();

@@ -7,8 +7,9 @@ _Locked Sat Oct 10, 15:30 ET (J22, J23). **Margulan presents alone** with three 
 Tagline: *Know before the water does.*
 
 Two storms, one honest frame:
-- **Hurricane Helene (Sep 26, 2024), recorded:** the day you live through on the iPad and the laptop. It's the run that plays out like a real day (roads open in the morning, cut by evening) and it's validated. **Say "recorded" out loud**; the screens say it too.
-- **Hurricane Isaias (this weekend), live:** proof that Noah runs for real. It forecast the creek peaks 11–13 h ahead and texted unprompted on Saturday.
+- **Hurricane Helene (Sep 26, 2024), recorded:** the day you live through on the iPad and the laptop's **City** tab. It's the run that plays out like a real day (roads open in the morning, cut by evening) and it's validated. **Say "recorded" out loud**; the screens say it too.
+- **Hurricane Isaias (this weekend), live:** proof that Noah runs for real: the phone's alert thread and the laptop's **Deliveries** tab (Saturday 4 AM forecast). It forecast the creek peaks 11–13 h ahead and texted unprompted on Saturday.
+- **Each console tab offers only its storm's forecasts** (J24): City = Helene runs (opens on Thu 8 AM), Deliveries = Isaias runs (opens on Sat 4 AM), Site check = every recorded storm.
 
 ## Before judging (T-30 min)
 | # | Step | Command / action |
@@ -17,7 +18,7 @@ Two storms, one honest frame:
 | 2 | Demo server on Helene (iPad + console + demo chat answers) | `caffeinate -i scripts/demo_mode.sh` → `:8100` |
 | 3 | iMessage answers from the same storm: restart the relay against the demo server | `cd bot && API_BASE=http://localhost:8100 npm start` |
 | 4 | Tunnel for the iPad, then reopen the home-screen icon (re-add it if the address changed) | `ssh -R 80:localhost:8100 nokey@localhost.run` → `https://….lhr.life/ipad/` |
-| 5 | Laptop tabs open: `localhost:8100/dispatch.html?cycle=20240926T12Z` (City), slides | — |
+| 5 | Laptop: open `localhost:8100/dispatch.html` (City, Helene), click **Deliveries** once and back to **City** so both are loaded (switches are then instant); slides in another tab | — |
 | 6 | Phone: Noah thread open, scrolled to Saturday's alerts (don't delete them); "alerts on" already set | — |
 | 7 | Check the iPad works on **cellular** (venue Wi-Fi isolates devices) | — |
 | 8 | "Text Noah" card printed and its QR tested once with an iPhone camera (opens Messages to Noah with a question typed in) | `docs/text-noah-card.html` → print at 100% |
@@ -32,8 +33,9 @@ They score: people and places that get overlooked (access, safety, mobility), po
 | 0:00–0:20 | Hook | Slide | "This weekend Hurricane Isaias hit Atlanta. Peachtree Creek went from 19 to 3,750 cubic feet per second overnight. More than half of flood drownings happen in a car, and some people can't stay home." |
 | 0:20–0:35 | The gap | Slide | "Warnings cover whole counties. Map apps react after a road is reported closed. And NOAA's road data covers major roads only, not the side streets where people live." |
 | 0:35–1:30 | **A day in a flood**, judge holds the iPad | iPad | "This is Hurricane Helene, recorded, so you can live a whole day of it. It's 9 AM." Tap **Work**, slide *Leaving* to 7 PM: "Route around 12 flooded roads… and your own street floods by then: stop at the corner." Tap **Home**: "Leave by 7:55 PM." Tap **Deliveries**: "Maya delivers for a pharmacy: leave by 7:30 PM to reach all 6 stops, and a better order saves 7 minutes." |
-| 1:30–1:55 | **Noah texts first** | Phone | "This weekend Noah ran live. Saturday morning, nobody asked, it texted me:" read one real alert (e.g. *"Chamblee: … forecast cut by flooding from ~Sat 8 AM at Bradford Square NE (new)"*). "No app. A text works on any phone, and iMessage even goes via satellite when towers are down." |
-| 1:55–2:30 | **For cities and businesses** | Laptop | City tab: "Same storm, for a city: by 2 AM, 10 schools, a hospital, an urgent care and a police station are cut off from every open road." Tap a red road: "Why? The creek overtops it, and it floods in every storm we recorded: fix it first." One **Site check** click: "And where a business should open its next branch." |
+| 1:30–1:50 | **Noah texts first** (Isaias, live) | Phone | "This weekend Noah ran live. At 6 AM Saturday, nobody asked, it texted me:" read the **5:59 AM** alert (Sat 4 AM forecast): *"Mechanicsville: North Shallowford Rd → Graves Rd: now cut from ~Sat 4 AM at Graves Rd … Habersham: I 85 Access Rd → Northcrest Way: now cut from ~Sat 1 PM at Northcrest Way"*. "No app. A text works on any phone, and iMessage even goes via satellite when towers are down." |
+| 1:50–2:05 | **Same morning, for a business** | Laptop, **Deliveries** tab (Isaias, Sat 4 AM) | "Same forecast, for a pharmacy with 8 stops: two were already cut at 4 AM, so hold them; Northcrest Way has to go before noon; the other five show no forecast flooding." |
+| 2:05–2:30 | **For a city** | Laptop, **City** tab (Helene) | "And for a city, back to Helene: by 2 AM, 10 schools, a hospital, an urgent care and a police station are cut off from every open road." Tap a red road: "Why? The creek overtops it, and it floods in every storm we recorded: fix it first." (Site check and the vulnerable-neighborhoods line are Q&A material.) |
 | 2:30–3:00 | **Proof + close** | Slide | "Helene: NOAA's 8 AM forecast gave 13.2 hours of warning before Peachtree Creek hit flood stage; Noah said Windsor Parkway would flood at 10 PM, the city closed it at 10:15. Isaias, live this weekend: Noah's Friday-night forecast called Saturday's peaks on Peachtree Creek, the Chattahoochee and Nancy Creek within about 10%, 11 to 13 hours ahead. Noah. Know before the water does." |
 
 **Q&A**
