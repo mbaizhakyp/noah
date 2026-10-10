@@ -934,8 +934,8 @@ function mergeAssess(list) {
     road_forecast: { ...(ok[0].road_forecast || {}), state: rfState, segments: segs, flagged_roads: ok.reduce((n, r) => n + (r.road_forecast?.flagged_roads || 0), 0) },
     signals: uniq(ok.flatMap((r) => r.signals || []), (s) => s.source + "|" + s.title),
     cameras: uniq(ok.flatMap((r) => r.cameras || []), (c) => c.image_url || c.name),
-    sources_ok: uniq(ok.flatMap((r) => r.sources_ok || []), (s) => s.source),
-    sources_failed: uniq(ok.flatMap((r) => r.sources_failed || []), (s) => s.source),
+    sources_ok: uniq(ok.flatMap((r) => r.sources_ok || []), (s) => s.source.split(" (")[0]), // one row per source, not per leg
+    sources_failed: uniq(ok.flatMap((r) => r.sources_failed || []), (s) => s.source.split(" (")[0]),
     took_s: Math.max(...ok.map((r) => r.took_s || 0)),
     route: null,
   };
