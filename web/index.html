@@ -450,6 +450,43 @@
 <script>
 const P = new URLSearchParams(location.search);
 const API = (P.get("api") || location.origin).replace(/\/$/, "");
+// Spec 020: a page built with window.NOAH_SNAPSHOT answers every API call from recorded files (web/demo):
+// a frozen run, a fixed clock, no live calls. Answers are matched by path + parameters; a departure time
+// that was not recorded uses the nearest recorded one.
+let snap = null;
+const snapNum = (x) => (x == null ? NaN : parseFloat(x));
+function snapSame(a, b) {
+  if (a === b) return true;
+  if (a == null || b == null) return false;
+  const as = String(a).split(/[;,]/), bs = String(b).split(/[;,]/);
+  return as.length === bs.length && as.every((x, i) => { const na = snapNum(x), nb = snapNum(bs[i]); return isFinite(na) && isFinite(nb) ? Math.abs(na - nb) < 1e-4 : x === bs[i]; });
+}
+function snapLookup(rel) {
+  const [path, q = ""] = rel.split("?"); const p = Object.fromEntries(new URLSearchParams(q));
+  let best = null, bestD = Infinity;
+  for (const e of snap.responses) {
+    if (e.path !== path) continue;
+    let ok = true, d = 0;
+    for (const k of new Set([...Object.keys(p), ...Object.keys(e.p)])) {
+      if (k === "depart_h") { d = Math.abs(snapNum(p[k] ?? 0) - snapNum(e.p[k] ?? 0)); continue; }
+      if (!snapSame(p[k], e.p[k])) { ok = false; break; }
+    }
+    if (ok && d < bestD) { best = e; bestD = d; }
+  }
+  return best?.file || null;
+}
+async function loadSnapshot() {
+  if (!window.NOAH_SNAPSHOT) return;
+  try { snap = await fetch(window.NOAH_SNAPSHOT, { cache: "no-store" }).then((r) => r.json()); }
+  catch (e) { console.warn("snapshot not available, running live", e); snap = null; return; }
+  const base = window.NOAH_SNAPSHOT.replace(/index\.json$/, "");
+  const live = window.fetch.bind(window);
+  window.fetch = (url, opts) => {
+    const u = String(url);
+    if (u.startsWith(API + "/")) { const f = snapLookup(u.slice(API.length)); if (f) return live(base + f, opts); }
+    return live(url, opts);
+  };
+}
 const GA_BBOX = "-85.61,30.35,-80.75,35.01";
 const RADIUS_KM = 5;
 const $ = (id) => document.getElementById(id);
@@ -492,6 +529,9 @@ mapReady.then(() => {
   // spec 019: a stop reached from the nearest open road gets a dotted last bit from that road to the pin
   map.addSource("access", { type: "geojson", data: empty });
   map.addLayer({ id: "access", type: "line", source: "access", layout: { "line-cap": "round" }, paint: { "line-color": BLUE, "line-width": 2.5, "line-dasharray": [0.3, 1.6], "line-opacity": 0.8 } });
+  map.addSource("all", { type: "geojson", data: empty }); // every flagged road in scope (snapshot pages draw them on load)
+  map.addLayer({ id: "all-uncertain", type: "line", source: "all", layout: { "line-cap": "butt" }, paint: { "line-color": AMBER, "line-width": 2.5, "line-dasharray": [1.6, 1.2], "line-opacity": 0.45 } });
+  map.addLayer({ id: "all-flooded", type: "line", source: "all", layout: { "line-cap": "round" }, paint: { "line-color": FLOOD, "line-width": 3, "line-opacity": 0.45 } });
   map.addSource("hazard", { type: "geojson", data: empty });
   // uncertain = dashed amber, flooded = solid red: two signals per state, never colour alone (projectors, colour-blind drivers).
   // Two tiers: roads on or next to the route (near) at full strength; the rest of the corridor dimmed.
@@ -539,7 +579,7 @@ const fmtClock = new Intl.DateTimeFormat("en-US", { ...tz, hour: "numeric" });
 const fmtMin = new Intl.DateTimeFormat("en-US", { ...tz, hour: "numeric", minute: "2-digit" });
 const MAX_MIN = 18 * 60, STEP_MIN = 5;
 const minTime = (m) => new Date(issue.getTime() + m * 60e3);
-const nowMin = () => (issue ? Math.max(0, Math.min(MAX_MIN, Math.ceil((Date.now() - issue.getTime()) / 60e3 / STEP_MIN) * STEP_MIN)) : 0);
+const nowMin = () => (snap ? snap.now_min : issue ? Math.max(0, Math.min(MAX_MIN, Math.ceil((Date.now() - issue.getTime()) / 60e3 / STEP_MIN) * STEP_MIN)) : 0);
 const nowH = () => Math.floor(nowMin() / 60);
 const depMin = () => +$("hour").value; // departure, minutes after the forecast's issue time
 const depH = () => Math.min(18, Math.floor(depMin() / 60)); // the forecast hour the trip starts in; routing adds its own 1 h buffer
@@ -607,6 +647,7 @@ function applyHour() {
   const fl = ["<=", tf, h], un = ["all", ["<=", ["to-number", ["get", "t_uncertain"]], h], [">", tf, h]];
   map.setFilter("flooded", ["all", NEAR, fl]); map.setFilter("flooded-casing", ["all", NEAR, fl]); map.setFilter("flooded-far", ["all", FAR, fl]);
   map.setFilter("uncertain", ["all", NEAR, un]); map.setFilter("uncertain-far", ["all", FAR, un]);
+  if (map.getLayer("all-flooded")) { map.setFilter("all-flooded", fl); map.setFilter("all-uncertain", un); }
   let count = "";
   if (mode) {
     const n = new Set(shown.filter((f) => stateAt(f.properties, h) !== "no_forecast_flooding").map((f) => f.properties.name || f.properties.seg_id)).size;
@@ -674,6 +715,12 @@ async function runPast(kind) {
   catch (e) { if (token === pastToken) $("pastBox").hidden = true; }
 }
 
+function showAllRoads() { // the whole forecast in scope, dimmed; a search draws its own roads bold on top
+  map.getSource("all").setData({ type: "FeatureCollection", features: [...flood.values()] });
+  const xs = [], ys = [];
+  for (const f of flood.values()) { const c = f.geometry.coordinates[0]; xs.push(c[0]); ys.push(c[1]); }
+  if (xs.length) map.fitBounds([[Math.min(...xs), Math.min(...ys)], [Math.max(...xs), Math.max(...ys)]], { padding: pad(40), duration: 0 });
+}
 function setHazard(segIds) {
   const feats = segIds.map((id) => flood.get(id)).filter(Boolean);
   hazardAnim++; // cancel a reveal in progress
@@ -1528,6 +1575,7 @@ $("addStop").onclick = () => {
 // ---------- saved places: Home / Work / Delivery route (web/data/places.json; a localStorage copy wins when present) ----------
 let places = null;
 async function loadPlaces() {
+  if (snap?.places) { places = snap.places; $("places").hidden = false; return; }
   try { places = JSON.parse(localStorage.getItem("noah.places") || "null"); } catch (e) { places = null; }
   if (!places) { try { places = await fetch("data/places.json", { cache: "no-store" }).then((r) => r.json()); } catch (e) { places = null; } }
   $("places").hidden = !places;
@@ -1596,7 +1644,7 @@ $("play").onclick = () => {
 
 // ---------- forecast cycle ----------
 async function loadCycle(id) {
-  cyc = live().find((c) => c.cycle === id) || live().at(-1);
+  cyc = (snap ? meta.cycles || [] : live()).find((c) => c.cycle === id) || live().at(-1); // a snapshot may pin any run on file
   issue = new Date(cyc.issue_time);
   $("issued").textContent = `Updated ${fmt.format(issue)}`;
   const gj = await fetch(`data/flood_${cyc.cycle}.geojson`).then((r) => r.json());
@@ -1609,6 +1657,7 @@ async function loadCycle(id) {
 
 (async () => {
   icons(); setTimeUI(0, "");
+  await loadSnapshot();
   loadPlaces();
   meta = await fetch("data/cycles.json", { cache: "no-store" }).then((r) => r.json());
   if (!live().length) {
@@ -1617,9 +1666,10 @@ async function loadCycle(id) {
     for (const id of ["locate", "go", "leave"]) $(id).disabled = true;
     return;
   }
-  const pick = P.get("cycle"); // agent links may pin the cycle they answered from
+  const pick = snap?.cycle || P.get("cycle"); // agent links may pin the cycle they answered from
   if (P.get("t")) $("hour").value = Math.max(0, Math.min(18, +P.get("t"))) * 60;
   await loadCycle(pick);
+  if (snap) { $("hour").value = snap.now_min; setTimeUI(depH(), ""); await mapReady; showAllRoads(); applyHour(); return; }
   // C10 links from the agent: ?from=lat,lon&to=lat,lon  or  ?near=lat,lon
   const ll = (s) => { const [lat, lon] = (s || "").split(",").map(Number); return isFinite(lat) && isFinite(lon) ? { lat, lon } : null; };
   const f = ll(P.get("from")), t = ll(P.get("to")), n = ll(P.get("near"));

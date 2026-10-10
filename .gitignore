@@ -25,3 +25,6 @@ bot/dist/
 .DS_Store
 .idea/
 .vscode/
+
+# demo snapshot: ~80 MB of recorded answers + camera images, regenerate with `uv run python -m noah.api.demo record` (spec 020)
+/web/demo/snapshot/
