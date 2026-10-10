@@ -301,7 +301,6 @@
             <a id="gmaps" target="_blank" rel="noopener">Google Maps <i data-lucide="external-link"></i></a>
             <a id="amaps" target="_blank" rel="noopener">Apple Maps <i data-lucide="external-link"></i></a>
           </div>
-          <div class="note">Google and Apple Maps choose their own roads between Noah's points. Check the red and amber roads here before you go.</div>
         </div>
 
         <div id="risk" class="risk" hidden>
@@ -358,7 +357,6 @@
           <div class="summary" id="srcSum">Sources checked</div><div id="srcList"></div>
         </section>
 
-        <footer id="footer"></footer>
       </div>
     </div>
   </aside>
@@ -986,9 +984,22 @@ async function findRoute(full = true) {
     map.setPaintProperty("route", "line-color", BLUE); map.setPaintProperty("route", "line-dasharray", null);
     if (MSG[r.state]) { routeEmpty(); banner(MSG[r.state], "info"); fit([[origin.lon, origin.lat], [dest.lon, dest.lat]]); return; }
     if (r.state === "no_route") {
+      // every way is forecast cut: show the usual way dashed, the roads that cut it, and the flagged roads around it
       routeEmpty();
-      banner(`No route found that avoids forecast flooding if you leave ${h === 0 ? "now" : "at " + local(hourTime(h))}. Try an earlier departure time, or stay where you are. Never drive into water. Emergency: 911.`, "danger");
-      fit([[origin.lon, origin.lat], [dest.lon, dest.lat]]); return;
+      const feats = (r.corridor || []).map((c) => flood.get(c.seg_id)).filter(Boolean);
+      const first = (r.crosses || [])[0];
+      const leave = h === 0 ? "now" : "at " + local(hourTime(h));
+      const why = first ? ` The usual way (dashed grey) is cut by ${r.crosses.length} road${r.crosses.length === 1 ? "" : "s"} forecast to flood, first ${first.name || "an unnamed road"}${first.eta_utc ? " from around " + local(new Date(first.eta_utc)) : ""}.` : "";
+      if (r.usual_geometry) {
+        map.getSource("usual").setData({ type: "Feature", geometry: r.usual_geometry, properties: {} });
+        fit(r.usual_geometry.coordinates);
+        $("minutes").textContent = Math.round(r.usual_minutes || 0); $("via").textContent = `Usual way, forecast cut by flooding${first?.name ? " at " + first.name : ""}. Not a route Noah can recommend.`; $("routeSum").hidden = false;
+      } else fit([[origin.lon, origin.lat], [dest.lon, dest.lat]]);
+      if (full) { showTabs(true); const checks = runAssess("route"); runPast("route"); await Promise.race([checks, sleep(CHECK_WAIT_MS)]); if (lastRoute !== r) return; await revealHazard(feats); } else setHazard((r.corridor || []).map((c) => c.seg_id));
+      banner(`No route avoids forecast flooding if you leave ${leave}.${why} Try an earlier departure time, or stay where you are. Never drive into water. Emergency: 911.`, "danger");
+      $("summary").textContent = feats.length ? `Flood-forecast roads within ${CORRIDOR_M / 1000} km of the usual way:` : "";
+      cards(r.corridor || [], h);
+      return;
     }
     const feats = r.corridor.map((c) => flood.get(c.seg_id)).filter(Boolean);
     const usual = r.usual_geometry ? { type: "Feature", geometry: r.usual_geometry, properties: {} } : empty;
@@ -1138,7 +1149,6 @@ async function loadCycle(id) {
   $("issued").textContent = `Updated ${fmt.format(issue)}`;
   const gj = await fetch(`data/flood_${cyc.cycle}.geojson`).then((r) => r.json());
   flood = new Map(gj.features.map((f) => [f.properties.seg_id, f]));
-  $("footer").textContent = "Road-by-road timing covers metro Atlanta and the ring of river basins around it (Lanier, Etowah, Sweetwater, Flint, Yellow and South rivers, Mulberry). River and creek flooding only. Not a safety guarantee. Never drive into water. Emergency: 911.";
   setTimeUI(+$("hour").value, "");
   applyHour();
   if (mode === "area") checkArea(); else if (mode === "route") findRoute();

@@ -140,6 +140,12 @@ class FloodIndex:
     geoms_m: np.ndarray
     tree: shapely.STRtree
 
+    @property
+    def by_id(self) -> dict:
+        if not hasattr(self, "_by_id"):
+            self._by_id = {p["seg_id"]: p for p in self.props}
+        return self._by_id
+
 
 def _basins_mtime() -> float:
     p = config.BASINS_GEOJSON
@@ -341,8 +347,37 @@ def route(
         if path:
             break
     url = map_url(cycle, depart_h, a, b)
+    fi = flood_index(cycle)
     if not path:
-        return {"state": "no_route", **empty, "map_url": url}
+        # no way around: still return the usual way and every flagged road it crosses, so the map can
+        # show *why* instead of nothing (the state stays no_route; fields are additive, CC8)
+        free = shortest(sub, src, dst, "travel_time") or []
+        if len(free) < 2:
+            return {"state": "no_route", **empty, "map_url": url}
+        fedges = path_edges(sub, free)
+        uline = path_line(sub, free, fedges)
+        crosses = [
+            segment_row(fi, p, depart_h)
+            for d in fedges
+            if (p := fi.by_id.get(d.get("seg_id"))) is not None
+            and (t := tu.get(d.get("seg_id"))) is not None
+            and t <= limit
+        ]
+        near = fi.tree.query(transform(_to_metric, uline), predicate="dwithin", distance=corridor_m)
+        corridor = sorted(
+            (segment_row(fi, fi.props[i], depart_h) for i in near),
+            key=lambda r: (-SEVERITY[r["state"]], r["eta_utc"] or ""),
+        )
+        return {
+            "state": "no_route",
+            **empty,
+            "corridor": corridor,
+            "corridor_m": corridor_m,
+            "usual_geometry": shapely.geometry.mapping(uline),
+            "usual_minutes": round(sum(float(d.get("travel_time", 0)) for d in fedges) / 60, 1),
+            "crosses": sorted(crosses, key=lambda r: r["eta_utc"] or ""),
+            "map_url": url,
+        }
 
     edges = path_edges(sub, path, tu, limit)
     line = path_line(sub, path, edges)
@@ -354,7 +389,6 @@ def route(
             if (t := tu.get(d.get("seg_id"))) is not None and t <= limit
         }
     )
-    fi = flood_index(cycle)
     line_m = transform(_to_metric, line)
     near = fi.tree.query(line_m, predicate="dwithin", distance=corridor_m)
     corridor = sorted(
