@@ -1,0 +1,15 @@
+{
+  "_about": "Saved places for the map's Home / Work / Delivery chips (spec 009). Chosen Sat Oct 10 ~05:00 ET by scoring public places against the live forecast run 20261010T06Z: Home = richest 5 km area check (107 flagged segments, 12 named streets), Work = the commute that detours from 6 AM, Delivery = four stops with four different cut-off verdicts, 30 live cameras along the way. Re-score before the demo: python noah/api/places.py --score (todo) or the API calls in docs/05 (Sat 05:00 entry).",
+  "home": { "label": "Home · Morrow (Southlake)", "lat": 33.583, "lon": -84.34 },
+  "work": { "label": "Work · Southern Regional Medical Center, Riverdale", "lat": 33.566, "lon": -84.401 },
+  "delivery": {
+    "label": "Delivery route · south side",
+    "depot": { "label": "Hartsfield-Jackson cargo (depot)", "lat": 33.6407, "lon": -84.4277 },
+    "stops": [
+      { "label": "Browns Mill Rd, Atlanta", "lat": 33.6887, "lon": -84.37648 },
+      { "label": "Jonesboro Rd, south Fulton", "lat": 33.55139, "lon": -84.48569 },
+      { "label": "Turner Church Rd, McDonough", "lat": 33.47472, "lon": -84.13707 }
+    ],
+    "destination": { "label": "Arrowhead Blvd, Jonesboro", "lat": 33.57811, "lon": -84.38275 }
+  }
+}

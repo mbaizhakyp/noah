@@ -57,6 +57,10 @@
   .pin { width: 10px; height: 10px; border-radius: 50%; border: 2.5px solid var(--blue); flex: none; position: relative; z-index: 1; background: #fff; }
   .pin.b { border-radius: 2px; border-color: var(--ink); }
   .pin.s { border-color: var(--ink-3); width: 9px; height: 9px; }
+  .places { display: flex; gap: 6px; padding: 10px 16px 0; }
+  .place { display: inline-flex; align-items: center; gap: 6px; border: 1.5px solid var(--line-2); background: #fff; color: var(--ink); border-radius: 999px; padding: 0 12px 0 10px; min-height: 34px; font-weight: 700; font-size: 13px; cursor: pointer; }
+  .place:hover { border-color: var(--blue); color: var(--blue-ink); }
+  .place .lucide { width: 15px; height: 15px; }
   .tripactions { display: flex; gap: 4px; padding: 6px 12px 0; }
   .tb { border: 0; background: transparent; color: var(--blue-ink); font-weight: 700; font-size: 13px; display: inline-flex; gap: 6px; align-items: center; min-height: 34px; padding: 0 8px; border-radius: 8px; cursor: pointer; }
   .tb:hover { background: var(--blue-soft); } .tb:disabled { opacity: .45; cursor: default; background: transparent; }
@@ -279,6 +283,11 @@
       <div class="updated" id="updated" title="Road forecasts come from the NOAA National Water Model and refresh every hour."><i></i><span id="issued">Loading…</span></div>
     </div>
     <div class="tag">Get home around the floods. Routes that skip roads forecast to go under.</div>
+    <div class="places" id="places" hidden>
+      <button class="place" data-place="home" type="button"><i data-lucide="house"></i>Home</button>
+      <button class="place" data-place="work" type="button"><i data-lucide="briefcase"></i>Work</button>
+      <button class="place" data-place="delivery" type="button"><i data-lucide="truck"></i>Delivery route</button>
+    </div>
 
     <div class="trip">
       <div class="field search">
@@ -1046,19 +1055,19 @@ function cards(rows, h) {
   };
   // named streets first (people navigate by them); unnamed lanes stay on the map and are counted
   const all = [...byName.values()].sort((a, b) => Math.min(a.tu, a.tf ?? 99) - Math.min(b.tu, b.tf ?? 99) || (a.d || 0) - (b.d || 0));
-  const named = all.filter((x) => x.name), unnamed = all.length - named.length;
-  const list = named.slice(0, 40);
-  $("tRoads").textContent = named.length || "";
+  // every road drawn on the map gets a row: named streets first, then unnamed ramps and service lanes
+  const named = all.filter((x) => x.name), unnamedRows = all.filter((x) => !x.name);
+  const list = [...named, ...unnamedRows].slice(0, 60);
+  $("tRoads").textContent = all.length || "";
   const more = document.createElement("div"); more.className = "note";
-  more.textContent = [named.length > 40 ? `+${named.length - 40} more named streets on the map.` : "",
-    unnamed ? `${unnamed} unnamed road${unnamed === 1 ? "" : "s"} (driveways, service lanes) shown on the map only.` : ""].filter(Boolean).join(" ");
+  more.textContent = all.length > 60 ? `+${all.length - 60} more on the map.` : "";
   const out = list.map((g) => {
     const s = streetState(g, h);
     const c = document.createElement("div"); c.className = "card s-" + s; c.tabIndex = 0;
     const st = document.createElement("span"); st.className = "st"; st.innerHTML = `<i data-lucide="${STATE_ICON[s]}"></i>`;
     const body = document.createElement("div");
     const top = document.createElement("div"); top.className = "top";
-    const n = document.createElement("span"); n.className = "name"; n.textContent = g.name || "Unnamed road";
+    const n = document.createElement("span"); n.className = "name"; n.textContent = g.name || "Unnamed road (ramp or service lane)";
     const b = document.createElement("span"); b.className = "badge b-" + s;
     b.textContent = { flooded: "Do not cross", uncertain: "Uncertain", no_forecast_flooding: "Later" }[s];
     top.append(n, b);
@@ -1350,6 +1359,25 @@ $("addStop").onclick = () => {
   if (stops.length >= MAX_STOPS) return;
   const s = { id: "stop" + (++stopSeq), place: null, text: "" }; stops.push(s); renderStops(); $(s.id + "Q").focus();
 };
+// ---------- saved places: Home / Work / Delivery route (web/data/places.json; a localStorage copy wins when present) ----------
+let places = null;
+async function loadPlaces() {
+  try { places = JSON.parse(localStorage.getItem("noah.places") || "null"); } catch (e) { places = null; }
+  if (!places) { try { places = await fetch("data/places.json", { cache: "no-store" }).then((r) => r.json()); } catch (e) { places = null; } }
+  $("places").hidden = !places;
+}
+document.querySelectorAll(".place").forEach((b) => (b.onclick = () => {
+  if (!places) return;
+  const k = b.dataset.place, p = places[k]; if (!p) return;
+  if (k === "home") { setOrigin(p); $("fromQ").value = p.label; stops = []; renderStops(); dest ? findRoute() : checkArea(); }
+  else if (k === "work") { if (!origin && places.home) { setOrigin(places.home); $("fromQ").value = places.home.label; } setDest(p); $("toQ").value = p.label; findRoute(); }
+  else if (k === "delivery") {
+    setOrigin(p.depot); $("fromQ").value = p.depot.label;
+    stops = (p.stops || []).map((s) => ({ id: "stop" + (++stopSeq), place: s, text: s.label })); renderStops();
+    setDest(p.destination); $("toQ").value = p.destination.label; findRoute();
+  }
+}));
+
 $("swap").onclick = () => {
   const o = origin, d = dest, oq = $("fromQ").value, dq = $("toQ").value;
   setOrigin(d); setDest(o); $("fromQ").value = dq; $("toQ").value = oq;
@@ -1415,6 +1443,7 @@ async function loadCycle(id) {
 
 (async () => {
   icons(); setTimeUI(0, "");
+  loadPlaces();
   meta = await fetch("data/cycles.json", { cache: "no-store" }).then((r) => r.json());
   if (!live().length) {
     $("issued").textContent = "No forecast yet";
