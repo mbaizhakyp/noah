@@ -65,7 +65,7 @@ Personas below are **examples** (not real people): Jordan, a nurse who works at 
 3. *"Can I drive home from work at 6 PM?"* → typing indicator → route answer with the street and time (tool use: geocoding, forecast, routing, live sources).
 4. *"Is Northside Drive near Peachtree Creek going to flood?"* → understands "street near landmark"; separates the street from nearby roads with distances; names a traffic camera that saw water (AI-checked twice).
 5. *"Is it safe to drive on Collier Road?"* → guardrail: never says "safe"; gives the forecast, "never drive into water", 911.
-6. **Noah texts first (spec 017, built Sat 04:45):** *"alerts on"* → Noah watches 11 routes; when a new hourly forecast cuts one, or a camera on it sees water, Noah texts unprompted (with the camera photo). Show the real alert thread from Saturday.
+6. **Noah texts first (spec 017, built Sat 04:30):** *"alerts on"* → Noah watches 11 routes; when a new hourly forecast cuts one, or a camera on it sees water, Noah texts unprompted (with the camera photo). Show the real alert thread from Saturday.
 
 **Under the hood (one slide):** iPhone → Spectrum Cloud iMessage line → `spectrum-ts` relay (open source, TypeScript, typing indicator via `space.responding`) → Noah agent (Azure OpenAI tool calling) → NOAA forecast + 33 live sources. Never silent: if anything fails or takes > 45 s, Noah sends the safety message. Privacy: no message content logged.
 **Close:** "The agent lives where people already are, and it speaks up before the water does."
