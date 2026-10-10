@@ -278,6 +278,8 @@
   .wrow { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-top: 1px solid var(--line); font-size: 14px; font-weight: 600; }
   .wrow i { width: 12px; height: 12px; border-radius: 50%; flex: none; }
   .wrow.s-flooded i { background: var(--flood); } .wrow.s-uncertain i { background: var(--amber); }
+  .pv.street { color: var(--flood-ink); } /* the stop's own street is forecast impassable: reach the corner, never drive onto it */
+  .cutlab.s-skip i { background: var(--flood); } .cutlab.s-skip span { color: var(--flood-ink); border: 1.5px solid var(--flood); }
 
   @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 
@@ -858,6 +860,19 @@ function markCuts(avoided, h) {
     markers.push(m.addTo(map));
   }
 }
+function markSkipped() { // a stop the run cannot reach in time gets a red ✕ with the hour, on the map where the judge looks (I19 P0-3)
+  const p = lastPlan; if (!p) return;
+  const m = depMin();
+  const rows = [...p.stops.map((s) => ({ ...s, place: p.pts[s.i] })), ...(p.dest?.state === "hold" ? [{ ...p.dest, place: p.pts[p.stops.length] }] : [])];
+  for (const s of rows) {
+    if (s.state !== "hold" || !s.place) continue;
+    const el = document.createElement("div"); el.className = "cutlab s-skip";
+    const dot = document.createElement("i"); const txt = document.createElement("span");
+    txt.textContent = `✕ ${s.cut_h == null ? "not in time after the stops before it" : `cut ${s.cut_h * 60 <= m ? "since" : "from"} ${fmtClock.format(hourTime(s.cut_h))}`}`;
+    el.append(dot, txt);
+    markers.push(new maplibregl.Marker({ element: el, className: "mk-cut", anchor: "left", offset: [14, -22] }).setLngLat([s.place.lon, s.place.lat]).addTo(map));
+  }
+}
 function renderWhy(avoided) {
   const cuts = cutStreets(avoided);
   $("why").hidden = !cuts.length;
@@ -1198,8 +1213,11 @@ function renderPlan() {
     const nm = document.createElement("span"); nm.className = "pname"; nm.textContent = s.label;
     const acc = (lastLegs || []).find((l) => l.to === k + 1)?.access_m;
     const sm = document.createElement("small"); sm.textContent = s.arrive_min != null ? `arrive ~${Math.round(s.arrive_min)} min after leaving${acc > 60 ? `, nearest open road ${acc} m away` : ""}` : s.state === "hold" ? "skipped on this run" : ""; nm.append(sm);
-    const v = document.createElement("span"); v.className = "pv " + s.state;
-    v.textContent = s.state === "hold" ? (s.cut_h == null ? "Not reachable in time after the stops before it" : `${s.cut_h * 60 <= m ? "Forecast cut since" : VERDICT.hold} ${timeOf(s.cut_h)}`) : s.state === "go_before" && s.cut_h != null ? `${VERDICT[s.state]} ${timeOf(s.cut_h)}` : s.state === "no_forecast_flooding" ? `${VERDICT[s.state]} ${timeOf(18)}` : VERDICT[s.state] || s.state;
+    const st = s.street, stOn = st && st.state_at_arrival !== "no_forecast_flooding", stLater = st && !stOn && st.t_uncertain != null;
+    const v = document.createElement("span"); v.className = "pv " + (stOn && s.state !== "hold" ? "street" : s.state);
+    v.textContent = s.state === "hold" ? (s.cut_h == null ? "Not reachable in time after the stops before it" : `${s.cut_h * 60 <= m ? "Forecast cut since" : VERDICT.hold} ${timeOf(s.cut_h)}`)
+      : stOn ? `${st.name || "Its street"} forecast ${st.state_at_arrival === "flooded" ? "under" : "uncertain"} ${st.t_uncertain * 60 <= m ? "since" : "from"} ${timeOf(st.t_uncertain)} · stop at the corner`
+      : stLater ? `${VERDICT[s.state] || ""} ${s.state === "no_forecast_flooding" ? timeOf(18) : timeOf(s.cut_h)} · its street turns ${st.t_flood != null ? "under" : "uncertain"} ${timeOf(st.t_uncertain)}`.trim() : s.state === "go_before" && s.cut_h != null ? `${VERDICT[s.state]} ${timeOf(s.cut_h)}` : s.state === "no_forecast_flooding" ? `${VERDICT[s.state]} ${timeOf(18)}` : VERDICT[s.state] || s.state;
     row.append(num, nm, v); return row;
   }));
   const better = best.differs && nStops > 0 && (bestTot > curTot || gained.length || saves > 0);
@@ -1410,21 +1428,21 @@ async function findRoute(full = true) {
     const usual = ghost.length ? { type: "Feature", geometry: { type: "MultiLineString", coordinates: ghost }, properties: {} } : empty;
     const accessFeat = r.access_lines?.length ? { type: "Feature", geometry: { type: "MultiLineString", coordinates: r.access_lines }, properties: {} } : empty;
     $("legUsual").hidden = !ghost.length;
-    fit([...r.geometry.coordinates, ...ghost.flat()]);
+    fit([...r.geometry.coordinates, ...ghost.flat(), ...[origin, ...stopPlaces(), dest].filter(Boolean).map((p) => [p.lon, p.lat])]); // every stop stays in frame, skipped ones included (I19 P0-3)
     if (full) {
       // spec 019: the route is on screen first; live checks and cameras run meanwhile and overlay when they land
       runAssess("route"); runPast("route");
       map.getSource("usual").setData(usual); map.getSource("access").setData(accessFeat);
       await drawLine("route", r.geometry.coordinates);
       if (seq !== searchSeq) return; // a newer search took over while the line drew
-      markCuts(r.avoided, h);
+      markCuts(r.avoided, h); markSkipped();
       applyHour();
       await revealHazard(feats);
     } else { // departure-time change: redraw at once
       map.getSource("usual").setData(usual); map.getSource("access").setData(accessFeat);
       map.getSource("route").setData({ type: "Feature", geometry: r.geometry, properties: {} });
       hazardAnim++; map.getSource("hazard").setData({ type: "FeatureCollection", features: feats }); shown = feats;
-      markCuts(r.avoided, h);
+      markCuts(r.avoided, h); markSkipped();
     }
     renderWhy(r.avoided);
     const hit = r.corridor.filter((c) => c.state !== "no_forecast_flooding").length;

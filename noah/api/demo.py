@@ -43,35 +43,26 @@ FINE_H = (
 
 
 def demo_places() -> dict:
-    """Home / Work from the live places file; Delivery = the pharmacy run over the streets of
-    web/data/dispatch_sample.json (014): Woodward Way, Windsor Parkway and friends."""
+    """Home / Work from the live places file; Delivery = the pharmacy run over the Buckhead streets
+    that flooded in the chosen run (the 014 sample as of Sat 11:30, pinned here so later edits to
+    dispatch_sample.json cannot change what was recorded)."""
     base = json.loads((WEB / "data" / "places.json").read_text())
-    sample = json.loads((WEB / "data" / "dispatch_sample.json").read_text())
-    S = {s["id"]: s for s in sample["stops"]}
-
-    def p(sid, label=None):
-        q = S[sid]
-        return {"label": label or q["label"], "lat": q["lat"], "lon": q["lon"]}
-
+    pt = lambda label, lat, lon: {"label": label, "lat": lat, "lon": lon}
     return {
         "home": base["home"],
         "work": base["work"],
         "delivery": {
             "label": "Delivery route · Buckhead",
-            "depot": {
-                "label": "Peachtree Rd NE, Buckhead (depot)",
-                "lat": sample["depot"]["lat"],
-                "lon": sample["depot"]["lon"],
-            },
+            "depot": pt("Peachtree Rd NE, Buckhead (depot)", 33.83991, -84.3792),
             "stops": [
-                p("S1", "Woodward Way NW, Atlanta"),
-                p("S3", "Hanover West Ct NW, Atlanta"),
-                p("S4", "Peachtree Battle Cir NW, Atlanta"),
-                p("S5", "Bohler Rd NW, Atlanta"),
-                p("S2", "Windsor Pkwy NE, Brookhaven"),
-                p("S7", "Caldwell Rd NE, Atlanta"),
+                pt("Woodward Way NW, Atlanta", 33.8214, -84.41226),
+                pt("Hanover West Ct NW, Atlanta", 33.82242, -84.43179),
+                pt("Peachtree Battle Cir NW, Atlanta", 33.82259, -84.41893),
+                pt("Bohler Rd NW, Atlanta", 33.82133, -84.42926),
+                pt("Windsor Pkwy NE, Brookhaven", 33.88506, -84.36256),
+                pt("Caldwell Rd NE, Atlanta", 33.86417, -84.33391),
             ],
-            "destination": p("S9", "Fairwood Ln NE, Atlanta"),
+            "destination": pt("Fairwood Ln NE, Atlanta", 33.84091, -84.30568),
         },
     }
 
@@ -97,13 +88,23 @@ def build() -> Path:
 
 
 class Recorder:
-    def __init__(self, api: str = API):
+    def __init__(self, api: str = API, refresh: set[str] | None = None):
+        """refresh: paths to call again even if recorded (e.g. {"/trip"} after a trip change);
+        every other recorded answer on disk is kept."""
         self.client = httpx.Client(base_url=api, timeout=180)
         self.entries: list[dict] = []
         self.seen: dict[str, str] = {}
         self.images: dict[str, str] = {}
         (SNAP / "r").mkdir(parents=True, exist_ok=True)
         (SNAP / "img").mkdir(parents=True, exist_ok=True)
+        idx = SNAP / "index.json"
+        if idx.exists():
+            for e in json.loads(idx.read_text()).get("responses", []):
+                if e["path"] in (refresh or set()) or not (SNAP / e["file"]).exists():
+                    continue
+                self.seen[f"{e['path']}?{urlencode(e['p'])}"] = e["file"]
+                self.entries.append(e)
+            log.info("kept %d recorded answers from disk", len(self.entries))
 
     def get(self, path: str, params: dict) -> dict:
         q = urlencode(params)
@@ -250,9 +251,9 @@ def record_trip_family(
             rec.get("/past/route", {"from": ll(origin), "to": ll(dest), "cycle": CYCLE})
 
 
-def record(api: str = API, corridor_m: int = 3000) -> None:
+def record(api: str = API, corridor_m: int = 3000, refresh: set[str] | None = None) -> None:
     places = demo_places()
-    rec = Recorder(api)
+    rec = Recorder(api, refresh)
     d = places["delivery"]
     record_trip_family(rec, d["depot"], d["stops"], d["destination"], corridor_m)
     # Home chip: the 5 km area check; Work chip: the commute
@@ -272,11 +273,12 @@ def main() -> None:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("what", choices=["build", "record", "all"])
     p.add_argument("--api", default=API)
+    p.add_argument("--refresh", default="", help="comma-separated paths to call again, e.g. /trip")
     a = p.parse_args()
     if a.what in ("build", "all"):
         build()
     if a.what in ("record", "all"):
-        record(a.api)
+        record(a.api, refresh={x for x in a.refresh.split(",") if x})
 
 
 if __name__ == "__main__":

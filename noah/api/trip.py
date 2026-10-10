@@ -336,10 +336,36 @@ def _solve(pts, reasons, depart_h, cycle, fi, corridor_m, margin_km) -> dict:
                 return h
         return None
 
+    def own_street(j: int) -> dict | None:
+        """The flagged segment the stop sits on (within 60 m), if any: the stop may be reached from the
+        corner by open roads, but its own street is forecast impassable from this hour (I19 P0-5)."""
+        if j not in covered:
+            return None
+        near = fi.tree.query(
+            transform(routing._to_metric, Point(*pts[j])), predicate="dwithin", distance=60
+        )
+        best = min(
+            (fi.props[k] for k in near),
+            key=lambda q: q["t_uncertain"] if q["t_uncertain"] is not None else 99,
+            default=None,
+        )
+        if best is None:
+            return None
+        t_arr = cur_sim["arrive"].get(j)
+        h_arr = bucket(depart_h + t_arr / 3600) if t_arr is not None else bucket(depart_h)
+        return {
+            "name": best["name"],
+            "seg_id": best["seg_id"],
+            "t_uncertain": best["t_uncertain"],
+            "t_flood": best["t_flood"],
+            "state_at_arrival": routing.seg_state(best["t_uncertain"], best["t_flood"], h_arr),
+        }
+
     def row(j: int) -> dict:
         cut = cut_hour(j)
         reached = j in want_cur
         return {
+            "street": own_street(j),
             "state": reasons[j]
             or (
                 "hold"

@@ -1,15 +1,53 @@
 {
-  "_about": "Saved places for the map's Home / Work / Delivery chips (spec 009). Chosen Sat Oct 10 ~05:00 ET by scoring public places against the live forecast run 20261010T06Z: Home = richest 5 km area check (107 flagged segments, 12 named streets), Work = the commute that detours from 6 AM, Delivery = four stops with four different cut-off verdicts, 30 live cameras along the way. Re-score before the demo: python noah/api/places.py --score (todo) or the API calls in docs/05 (Sat 05:00 entry).",
-  "home": { "label": "Home · Morrow (Southlake)", "lat": 33.583, "lon": -84.34 },
-  "work": { "label": "Work · Southern Regional Medical Center, Riverdale", "lat": 33.566, "lon": -84.401 },
-  "delivery": {
-    "label": "Delivery route · south side",
-    "depot": { "label": "Hartsfield-Jackson cargo (depot)", "lat": 33.6407, "lon": -84.4277 },
-    "stops": [
-      { "label": "Browns Mill Rd, Atlanta", "lat": 33.6887, "lon": -84.37648 },
-      { "label": "Jonesboro Rd, south Fulton", "lat": 33.55139, "lon": -84.48569 },
-      { "label": "Turner Church Rd, McDonough", "lat": 33.47472, "lon": -84.13707 }
-    ],
-    "destination": { "label": "Arrowhead Blvd, Jonesboro", "lat": 33.57811, "lon": -84.38275 }
+ "_about": "Saved places for the map's Home / Work / Delivery chips (spec 009). Chosen Sat Oct 10 ~05:00 ET by scoring public places against the live forecast run 20261010T06Z: Home = richest 5 km area check (107 flagged segments, 12 named streets), Work = the commute that detours from 6 AM, Delivery = four stops with four different cut-off verdicts, 30 live cameras along the way. Re-score before the demo: python noah/api/places.py --score (todo) or the API calls in docs/05 (Sat 05:00 entry). Delivery re-pointed Sat 11:55 to Maya's north stops (I17a, Margulan's list).",
+ "home": {
+  "label": "Home \u00b7 Morrow (Southlake)",
+  "lat": 33.583,
+  "lon": -84.34
+ },
+ "work": {
+  "label": "Work \u00b7 Southern Regional Medical Center, Riverdale",
+  "lat": 33.566,
+  "lon": -84.401
+ },
+ "delivery": {
+  "label": "Delivery route \u00b7 Maya (north)",
+  "depot": {
+   "label": "Maya's pharmacy (example), Chamblee",
+   "lat": 33.8876,
+   "lon": -84.3058
+  },
+  "stops": [
+   {
+    "label": "Northcrest Way, Doraville",
+    "lat": 33.89489,
+    "lon": -84.25161
+   },
+   {
+    "label": "Graves Rd, Norcross",
+    "lat": 33.90696,
+    "lon": -84.22585
+   },
+   {
+    "label": "Kingsport Dr NE, Sandy Springs",
+    "lat": 33.90907,
+    "lon": -84.38329
+   },
+   {
+    "label": "McLendon Dr, Clarkston",
+    "lat": 33.8224,
+    "lon": -84.2618
+   },
+   {
+    "label": "Hammond Dr, Dunwoody",
+    "lat": 33.91934,
+    "lon": -84.34777
+   }
+  ],
+  "destination": {
+   "label": "Maya's pharmacy (example), Chamblee",
+   "lat": 33.8876,
+   "lon": -84.3058
   }
+ }
 }
