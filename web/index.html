@@ -1116,11 +1116,11 @@ function combineLegs(legs) {
 }
 
 function setDirections(coords) {
-  // waypoints: the stops themselves, else up to 3 points sampled from Noah's route so the hand-off follows the detour
-  // (Google mobile web accepts at most 3)
+  // waypoints: the stops themselves (Google Maps on desktop takes up to 9), else up to 3 points sampled from
+  // Noah's route so the hand-off follows the detour
   const ll = (c) => `${c[1].toFixed(5)},${c[0].toFixed(5)}`;
   const picked = stopPlaces();
-  const pick = picked.length ? picked.slice(0, 3).map((s) => [s.lon, s.lat])
+  const pick = picked.length ? picked.slice(0, 9).map((s) => [s.lon, s.lat])
     : coords.length ? [0.25, 0.5, 0.75].map((f) => coords[Math.floor(f * (coords.length - 1))]).filter(Boolean) : [];
   const o = `${origin.lat},${origin.lon}`, d = `${dest.lat},${dest.lon}`;
   $("gmaps").href = `https://www.google.com/maps/dir/?api=1&origin=${o}&destination=${d}&travelmode=driving&waypoints=${encodeURIComponent(pick.map(ll).join("|"))}`;
@@ -1184,7 +1184,7 @@ wireSearch("toQ", "toList", (d) => { setDest(d); findRoute(); });
 $("toClear").onclick = () => { $("toQ").value = ""; setDest(null); if (origin) checkArea(); };
 
 // ---------- stops and swap ----------
-const MAX_STOPS = 3;
+const MAX_STOPS = 9; // laptop demo: Google Maps desktop takes 9 waypoints; each stop is one more /route leg
 let stops = [], stopSeq = 0; // { id, place|null, text }
 function renderStops() {
   $("stops").replaceChildren(...stops.map((s, i) => {
