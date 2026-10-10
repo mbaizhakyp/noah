@@ -8,7 +8,6 @@ Writes: C7 web/data/aoi.geojson, C4 data/interim/graph.graphml,
 """
 
 import argparse
-import json
 import logging
 import shutil
 
@@ -19,7 +18,6 @@ import pandas as pd
 import rasterio
 import shapely
 from rasterio.windows import from_bounds
-from shapely.geometry import shape
 
 from noah import config
 
@@ -37,7 +35,7 @@ def aoi_polygon():
     src = config.DATA_INTERIM / "aoi.geojson"
     if not src.exists():
         raise SystemExit(f"{src} missing: run fetch_hand (spec 002) first, it fetches the HUC10")
-    return shape(json.loads(src.read_text())["features"][0]["geometry"])
+    return config.aoi_union(src.read_text())
 
 
 def truthy_tag(v) -> bool:

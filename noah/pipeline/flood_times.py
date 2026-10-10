@@ -54,7 +54,10 @@ def flood_times(
     """C3 rows (+ uncertain_q column) and one cycle's C1 -> per segment t_uncertain, t_flood (-1 = never)."""
     rows = c3
     if base_q is not None:
-        wet = rows.threshold_q_cms.to_numpy() <= rows.feature_id.map(base_q).fillna(-1).to_numpy()
+        wet = (
+            rows.threshold_q_cms.to_numpy()
+            <= rows.feature_id.map(base_q).fillna(-1).to_numpy() * config.BASELINE_GUARD_FACTOR
+        )
         if wet.any():
             log.info("baseline guard: dropping %d rows wet at low flow", int(wet.sum()))
         rows = rows[~wet]

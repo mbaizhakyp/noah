@@ -13,11 +13,21 @@ DATA_INTERIM = ROOT / "data" / "interim"
 WEB_DATA = ROOT / "web" / "data"
 
 # Coverage
-AOI_HUC10 = "0313000112"  # Peachtree Creek
+AOI_HUC10 = "0313000112"  # Peachtree Creek = Helene validation site (spec 005)
+VALIDATION_HUC10 = AOI_HUC10
+# Road-level coverage (CC6, decided Fri 23:25): the metro-Atlanta HUC10s of HUC8 03130001.
+# The other 8 HUC10s (Lake Lanier, north Georgia mountains) are rural; roadmap.
+AOI_HUC10S = [
+    "0313000112",  # Peachtree Creek
+    "0313000111",  # Sope Creek-Chattahoochee River (Sandy Springs, Marietta, Roswell)
+    "0313000110",  # Big Creek (Alpharetta, Roswell): Isaias live story
+    "0313000109",  # Suwanee Creek-Chattahoochee River (Johns Creek, Duluth)
+]
 HUC8 = "03130001"  # Upper Chattahoochee
 WBD_HUC10_URL = (
     "https://hydro.nationalmap.gov/arcgis/rest/services/wbd/MapServer/5/query"
-    f"?where=huc10%3D%27{AOI_HUC10}%27&outFields=huc10,name&returnGeometry=true&outSR=4326&f=geojson"
+    "?where=huc10%20IN%20(" + "%2C".join(f"%27{h}%27" for h in AOI_HUC10S) + ")"
+    "&outFields=huc10,name,areasqkm&returnGeometry=true&outSR=4326&f=geojson"
 )
 
 # Gauge: Peachtree Creek at Atlanta
@@ -116,6 +126,9 @@ FIM_FILES = {
 
 # Flood logic
 UNCERTAIN_BAND_M = 0.5  # heuristic, see 06-CURRENT_ISSUES R4
+BASELINE_GUARD_FACTOR = (
+    1.5  # roads wet within 1.5x low flow = artifact (regulated Chattahoochee), R19
+)
 MIN_ROAD_HAND_M = (
     0.3  # NOAA thresholds below this = road at channel level (culvert/crossing artifact), R3
 )
@@ -129,6 +142,17 @@ CORRIDOR_BUFFER_M = 1000  # /route: every flagged segment within this distance o
 TRIP_BOX_MARGIN_KM = 5  # /route searches a bbox around origin + destination plus this margin
 TRIP_BOX_RETRY_KM = 15  # one retry with a wider box before answering no_route
 METRIC_CRS = "EPSG:5070"  # CONUS Albers, metres
+
+
+def aoi_union(geojson_text: str):
+    """Union of all AOI features (one per HUC10) as a shapely geometry."""
+    import json
+
+    import shapely
+    from shapely.geometry import shape
+
+    return shapely.union_all([shape(f["geometry"]) for f in json.loads(geojson_text)["features"]])
+
 
 # Runtime (env)
 GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "")

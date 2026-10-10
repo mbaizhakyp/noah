@@ -21,7 +21,7 @@ import pandas as pd
 import shapely
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from shapely.geometry import Point, shape
+from shapely.geometry import Point
 
 from noah import config
 
@@ -76,9 +76,7 @@ def graph_state():
     G = load_graph()
     ids = np.array(list(G.nodes))
     xy = np.array([(G.nodes[n]["x"], G.nodes[n]["y"]) for n in ids])
-    aoi = shape(
-        json.loads((config.WEB_DATA / "aoi.geojson").read_text())["features"][0]["geometry"]
-    )
+    aoi = config.aoi_union((config.WEB_DATA / "aoi.geojson").read_text())
     edges = ox.graph_to_gdfs(G, nodes=False).reset_index()[["u", "v", "seg_id", "geometry"]]
     tree = shapely.STRtree(edges.geometry.values)
     log.info("graph loaded: %d nodes, %d edges", len(G), G.number_of_edges())
@@ -275,6 +273,20 @@ def dispatch(req: DispatchRequest) -> dict:
             400, "depot is outside Noah's coverage (Peachtree Creek watershed, Atlanta)"
         )
     src = nearest_node(ids, xy, req.depot.lon, req.depot.lat)
+    # Search only the trip box (depot + covered stops + margin), like /route: keeps big graphs fast.
+    pts = [(req.depot.lon, req.depot.lat)] + [
+        (s.lon, s.lat) for s in req.stops if aoi.contains(Point(s.lon, s.lat))
+    ]
+    lons, lats = zip(*pts)
+    m_lat = config.TRIP_BOX_MARGIN_KM / 111.0
+    m_lon = m_lat / np.cos(np.radians(np.mean(lats)))
+    inbox = (
+        (xy[:, 0] >= min(lons) - m_lon)
+        & (xy[:, 0] <= max(lons) + m_lon)
+        & (xy[:, 1] >= min(lats) - m_lat)
+        & (xy[:, 1] <= max(lats) + m_lat)
+    )
+    G = G.subgraph(ids[inbox])
     reach = reach_by_hour(G, src, fl.t_uncertain)
     dist0, paths0 = nx.single_source_dijkstra(G, src, weight=blocked_weight(fl.t_uncertain, 0))
     free = None  # unconstrained shortest paths, only needed to show where a held route is cut

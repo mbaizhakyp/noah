@@ -45,8 +45,17 @@ def aoi_geometry(client: httpx.Client) -> dict:
     out = config.DATA_INTERIM / "aoi.geojson"
     if not out.exists():
         out.parent.mkdir(parents=True, exist_ok=True)
-        out.write_text(client.get(config.WBD_HUC10_URL).raise_for_status().text)
-    return json.loads(out.read_text())["features"][0]["geometry"]
+        gj = client.get(config.WBD_HUC10_URL).raise_for_status().json()
+        for f in gj["features"]:
+            f["properties"]["huc8"] = (
+                config.HUC8
+            )  # routing.coverage() reads features with huc8 (I13)
+        if len(gj["features"]) != len(config.AOI_HUC10S):
+            raise SystemExit(
+                f"WBD returned {len(gj['features'])} HUC10s, expected {len(config.AOI_HUC10S)}"
+            )
+        out.write_text(json.dumps(gj))
+    return mapping(config.aoi_union(out.read_text()))
 
 
 def hydroid_prefix() -> int:
