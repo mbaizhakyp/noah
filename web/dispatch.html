@@ -121,8 +121,8 @@
       <div style="margin:8px 0"><button id="csv" class="secondary">Download CSV</button></div>
       <table><thead><tr><th>Street</th><th>Floods from</th><th>Length</th></tr></thead><tbody id="barrBody"></tbody></table>
     </section>
-    <footer>Forecast replay of Hurricane Helene (Sep 26–27, 2024) from NOAA National Water Model forecasts.
-      River and creek flooding only. Not a safety guarantee. Never drive into water. Emergency: 911.</footer>
+    <footer>Forecasts from the NOAA National Water Model, updated hourly. River and creek flooding only.
+      Not a safety guarantee. Never drive into water. Emergency: 911.</footer>
   </aside>
   <div class="mapwrap">
     <div id="map"></div>
@@ -381,11 +381,18 @@ $("cycle").onchange = run;
 
 (async () => {
   const [cycles, sample] = await Promise.all([fetch("data/cycles.json").then((r) => r.json()), fetch("data/dispatch_sample.json").then((r) => r.json())]);
-  const pick = new URLSearchParams(location.search).get("cycle") || cycles.demo_cycle;
-  $("cycle").replaceChildren(...cycles.cycles.filter((c) => c.event === "helene").map((c) => {
-    const o = document.createElement("option"); o.value = c.cycle;
-    o.textContent = fmtDay.format(new Date(c.issue_time)) + " (Helene replay)"; o.selected = c.cycle === pick; return o;
-  }));
+  // Live runs first (newest on top); Helene kept as a labeled backup (D5).
+  const live = cycles.cycles.filter((c) => c.event === "live").sort((a, b) => b.cycle.localeCompare(a.cycle));
+  const backup = cycles.cycles.filter((c) => c.event === "helene");
+  const pick = new URLSearchParams(location.search).get("cycle") || (live[0] || {}).cycle || cycles.demo_cycle;
+  const group = (label, list, suffix) => {
+    const g = document.createElement("optgroup"); g.label = label;
+    g.append(...list.map((c) => { const o = document.createElement("option"); o.value = c.cycle;
+      o.textContent = fmtDay.format(new Date(c.issue_time)) + suffix; o.selected = c.cycle === pick; return o; }));
+    return g;
+  };
+  $("cycle").replaceChildren(...[live.length && group("Live forecast", live, " (live)"),
+    backup.length && group("Backup: Hurricane Helene 2024", backup, " (Helene)")].filter(Boolean));
   $("business").textContent = sample.business + " · sample stops on public streets";
   $("depotLabel").value = sample.depot.label; $("depotLat").value = sample.depot.lat; $("depotLon").value = sample.depot.lon;
   $("stops").value = sample.stops.map((s) => `${s.label}, ${s.lat}, ${s.lon}`).join("\n");

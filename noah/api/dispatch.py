@@ -50,8 +50,10 @@ def cycles_meta() -> dict:
 
 
 def active_cycle() -> str:
-    """I6: env NOAH_CYCLE, else C6 demo_cycle."""
-    return os.environ.get("NOAH_CYCLE") or cycles_meta()["demo_cycle"]
+    """I6: env NOAH_CYCLE, else the newest live cycle (D5/J10), else C6 demo_cycle (Helene backup)."""
+    meta = cycles_meta()
+    live = sorted(c["cycle"] for c in meta["cycles"] if c.get("event") == "live")
+    return os.environ.get("NOAH_CYCLE") or (live[-1] if live else meta["demo_cycle"])
 
 
 @dataclass

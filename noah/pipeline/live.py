@@ -7,6 +7,7 @@ LIVE_KEEP cycles and prunes older live files.
 
 Run: uv run python -m noah.pipeline.live --once        (one pass)
      uv run python -m noah.pipeline.live --every 900   (check every 15 min; new cycles land hourly)
+     Saturday (Isaias): add --keep 48 so the morning runs + their C1 inputs aren't pruned (BL-15/16/18)
 """
 
 import argparse
@@ -94,7 +95,7 @@ def write_json_atomic(path, obj, **kw) -> None:
     os.replace(tmp, path)
 
 
-def run_once(client, pool, inputs: dict) -> str | None:
+def run_once(client, pool, inputs: dict, keep: int = LIVE_KEEP) -> str | None:
     cycle = latest_published(client)
     if not cycle:
         log.warning("no fully published NWM cycle in the last 6 h")
@@ -109,7 +110,7 @@ def run_once(client, pool, inputs: dict) -> str | None:
     flows = pd.read_parquet(fetch_nwm.OUT_DIR / f"{cycle}.parquet")
     segs = flood_times.flood_times(inputs["c3"], flows, inputs["base_q"])
     write_json_atomic(out, flood_times.to_geojson(segs, inputs["edges"]), separators=(",", ":"))
-    c6, dropped = update_c6(c6, cycle)
+    c6, dropped = update_c6(c6, cycle, keep)
     write_json_atomic(C6_PATH, c6, indent=1)
     for old in dropped:
         for f in (config.WEB_DATA / f"flood_{old}.geojson", fetch_nwm.OUT_DIR / f"{old}.parquet"):
@@ -132,12 +133,18 @@ def main() -> None:
     g = p.add_mutually_exclusive_group(required=True)
     g.add_argument("--once", action="store_true")
     g.add_argument("--every", type=int, help="seconds between checks")
+    p.add_argument(
+        "--keep",
+        type=int,
+        default=LIVE_KEEP,
+        help="live cycles to keep (Isaias Saturday: 48, so the 8 AM run + validation inputs survive; BL-15)",
+    )
     a = p.parse_args()
     with httpx.Client(timeout=120, follow_redirects=True) as client, ThreadPoolExecutor(8) as pool:
         inputs = load_inputs(client, pool)
         while True:
             try:
-                run_once(client, pool, inputs)
+                run_once(client, pool, inputs, a.keep)
             except Exception:
                 log.exception("live pass failed")
             if a.once:
