@@ -236,9 +236,9 @@
   /* ---------- map chrome ---------- */
   .caption { position: absolute; z-index: 2; top: 16px; left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; border-radius: 8px; padding: 7px 12px; font-size: 13px; font-weight: 600; white-space: nowrap; box-shadow: var(--shadow); }
   .caption.past { background: var(--ink-2); }
-  .legend { position: absolute; z-index: 2; right: 16px; bottom: 28px; background: #fff; border-radius: 8px; box-shadow: var(--shadow); padding: 8px 12px; font-size: 12px; color: var(--ink-2); display: grid; gap: 4px; }
-  .legend span { display: inline-flex; align-items: center; gap: 8px; }
-  .sw { width: 18px; height: 4px; border-radius: 2px; display: inline-block; }
+  .legend { position: absolute; z-index: 2; right: 16px; bottom: 28px; background: #fff; border-radius: 10px; box-shadow: var(--shadow); padding: 10px 14px; font-size: 13.5px; font-weight: 600; color: var(--ink); display: grid; gap: 6px; }
+  .legend span { display: inline-flex; align-items: center; gap: 10px; }
+  .sw { width: 22px; height: 5px; border-radius: 2.5px; display: inline-block; }
   .maplibregl-popup-content { background: #fff; color: var(--ink); border-radius: 10px; padding: 12px 14px; box-shadow: var(--shadow); font: 14px/1.45 "Overpass", sans-serif; }
   .maplibregl-popup-tip { display: none; }
   .maplibregl-popup-close-button { font-size: 18px; color: var(--ink-3); right: 4px; top: 2px; }
@@ -253,7 +253,26 @@
   .cutmark { width: 22px; height: 22px; border-radius: 50%; background: var(--flood); color: #fff; border: 2px solid #fff; display: grid; place-items: center; box-shadow: 0 2px 8px rgba(20,20,20,.35); cursor: pointer; }
   .cutmark .lucide { width: 14px; height: 14px; stroke-width: 3; }
   .maplibregl-marker.mk-pin { z-index: 3; } .maplibregl-marker.mk-cut { z-index: 2; }
-  .legend .cutkey { width: 14px; height: 14px; border-radius: 50%; background: var(--flood); color: #fff; font: 800 10px/14px "Overpass", sans-serif; text-align: center; display: inline-block; }
+  /* teardrop stop pins with the letter and the stop's name beside them */
+  .pinm { position: relative; width: 30px; height: 38px; cursor: pointer; }
+  .pinm b { position: absolute; left: 0; top: 0; width: 30px; height: 30px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); background: #fff; border: 2.5px solid var(--ink); box-shadow: 0 2px 8px rgba(20,20,20,.35); }
+  .pinm span { position: absolute; left: 36px; top: 3px; white-space: nowrap; font: 800 13px/1.2 "Overpass", sans-serif; color: var(--ink);
+    text-shadow: 0 0 3px #fff, 0 0 3px #fff, 0 0 6px #fff, 0 1px 0 #fff, 0 -1px 0 #fff, 1px 0 0 #fff, -1px 0 0 #fff; }
+  .pinm i { position: absolute; left: 0; top: 0; width: 30px; height: 30px; display: grid; place-items: center; font: 800 13px/1 "Overpass", sans-serif; color: var(--ink); font-style: normal; }
+  .pinm.start b { background: var(--blue); border-color: #fff; } .pinm.start i { color: #fff; }
+  .pinm.end b { background: var(--ink); border-color: #fff; } .pinm.end i { color: #fff; }
+  /* named cut labels: a red dot on the road and the street + hour beside it */
+  .cutlab { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+  .cutlab i { width: 14px; height: 14px; border-radius: 50%; background: var(--flood); border: 2.5px solid #fff; box-shadow: 0 1px 4px rgba(20,20,20,.4); flex: none; }
+  .cutlab span { font: 700 12.5px/1.2 "Overpass", sans-serif; color: var(--flood-ink); white-space: nowrap; background: rgba(255,255,255,.92); border-radius: 6px; padding: 2px 7px; box-shadow: 0 1px 4px rgba(20,20,20,.2); }
+  /* cameras recede unless they show water */
+  .camdot { width: 11px; height: 11px; border-radius: 50%; background: #fff; border: 2.5px solid #8a9096; box-shadow: 0 1px 3px rgba(20,20,20,.3); cursor: pointer; }
+  .camdot.maybe { width: 16px; height: 16px; border-color: var(--amber); background: var(--amber-soft); }
+  .why { margin-top: 12px; }
+  .why h3 { margin: 0 0 2px; font-size: 14px; font-weight: 700; }
+  .wrow { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-top: 1px solid var(--line); font-size: 14px; font-weight: 600; }
+  .wrow i { width: 12px; height: 12px; border-radius: 50%; flex: none; }
+  .wrow.s-flooded i { background: var(--flood); } .wrow.s-uncertain i { background: var(--amber); }
 
   @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 
@@ -278,11 +297,10 @@
     <div class="caption" id="caption" aria-live="polite" hidden></div>
     <div class="legend">
       <span><i class="sw" style="background:var(--blue)"></i>Noah's route</span>
-      <span id="legUsual" hidden><i class="sw" style="background:repeating-linear-gradient(90deg,#5f6368 0 4px,transparent 4px 7px)"></i>Fastest way, cut by flooding</span>
-      <span id="legCut" hidden><i class="cutkey">×</i>Where it is cut, and from when</span>
-      <span><i class="sw" style="background:var(--flood)"></i>Do not cross (forecast flooded)</span>
-      <span><i class="sw" style="background:repeating-linear-gradient(90deg,var(--amber) 0 5px,transparent 5px 8px)"></i>Uncertain: treat as impassable</span>
-      <span id="legPast" hidden><i class="sw" style="background:repeating-linear-gradient(90deg,var(--flood) 0 2px,transparent 2px 5px)"></i>Past hours: NOAA estimate (dotted)</span>
+      <span><i class="sw" style="background:var(--flood)"></i>Do not cross</span>
+      <span><i class="sw" style="background:repeating-linear-gradient(90deg,var(--amber) 0 5px,transparent 5px 8px)"></i>Uncertain</span>
+      <span id="legUsual" hidden><i class="sw" style="background:repeating-linear-gradient(90deg,#4b4f58 0 4px,transparent 4px 7px)"></i>Stretch it skips</span>
+      <span id="legPast" hidden><i class="sw" style="background:repeating-linear-gradient(90deg,var(--flood) 0 2px,transparent 2px 5px)"></i>Past estimate</span>
     </div>
   </div>
 
@@ -348,7 +366,11 @@
         </div>
 
         <div id="verdict" class="notice" hidden role="status"><i data-lucide="info" id="vIcon"></i><div id="banner"></div></div>
-        <div id="routeSum" class="sum" hidden><div class="min"><span id="minutes">–</span><small>min</small></div><div class="via" id="via"></div></div>
+        <div id="routeSum" class="sum" hidden><div class="min"><span id="minutes">–</span><small>min</small></div><div class="via"><span id="via"></span> <span id="tripRoads"></span></div></div>
+        <div id="why" class="why" hidden>
+          <h3>Why this route</h3>
+          <div id="whyRows"></div>
+        </div>
         <div id="directions" hidden>
           <div class="go">
             <a id="gmaps" target="_blank" rel="noopener">Google Maps <i data-lucide="external-link"></i></a>
@@ -434,6 +456,7 @@ const fmt = new Intl.DateTimeFormat("en-US", { ...tz, weekday: "short", hour: "n
 const fmtDay = new Intl.DateTimeFormat("en-US", { ...tz, weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 const fmtHour = new Intl.DateTimeFormat("en-US", { ...tz, weekday: "short", hour: "numeric" });
 const BLUE = "#2240ff", FLOOD = "#e5322d", AMBER = "#f2a100";
+const NEAR = ["==", ["get", "near"], true], FAR = ["!=", ["get", "near"], true];
 const icons = () => window.lucide && lucide.createIcons();
 
 let meta = null, cyc = null, issue = null, flood = new Map();
@@ -459,22 +482,25 @@ mapReady.then(() => {
   map.addLayer({ id: "area-fill", type: "fill", source: "area", paint: { "fill-color": BLUE, "fill-opacity": 0.06 } });
   map.addLayer({ id: "area-line", type: "line", source: "area", paint: { "line-color": BLUE, "line-opacity": 0.8, "line-width": 2, "line-dasharray": [2, 2] } });
   map.addSource("route", { type: "geojson", data: empty });
-  map.addLayer({ id: "route-casing", type: "line", source: "route", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": "#ffffff", "line-width": 10 } });
-  map.addLayer({ id: "route", type: "line", source: "route", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": BLUE, "line-width": 6 } });
+  map.addLayer({ id: "route-casing", type: "line", source: "route", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": "#ffffff", "line-width": 11 } });
+  map.addLayer({ id: "route", type: "line", source: "route", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": BLUE, "line-width": 7 } });
   // the fastest way, when Noah's route leaves it: drawn over the route so the shared part reads as both and the detour stands out
   map.addSource("usual", { type: "geojson", data: empty });
-  map.addLayer({ id: "usual", type: "line", source: "usual", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": "#5f6368", "line-width": 3, "line-dasharray": [1.5, 2] } });
+  map.addLayer({ id: "usual", type: "line", source: "usual", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": "#4b4f58", "line-width": 4, "line-dasharray": [1.2, 1.6] } });
   map.addSource("hazard", { type: "geojson", data: empty });
-  // uncertain = dashed amber, flooded = solid red: two signals per state, never colour alone (projectors, colour-blind drivers)
-  map.addLayer({ id: "uncertain", type: "line", source: "hazard", layout: { "line-cap": "butt" }, paint: { "line-color": AMBER, "line-width": 4, "line-dasharray": [1.6, 1.2] } });
-  map.addLayer({ id: "flooded-casing", type: "line", source: "hazard", layout: { "line-cap": "round" }, paint: { "line-color": "#ffffff", "line-width": 7 } });
-  map.addLayer({ id: "flooded", type: "line", source: "hazard", layout: { "line-cap": "round" }, paint: { "line-color": FLOOD, "line-width": 4.5 } });
+  // uncertain = dashed amber, flooded = solid red: two signals per state, never colour alone (projectors, colour-blind drivers).
+  // Two tiers: roads on or next to the route (near) at full strength; the rest of the corridor dimmed.
+  map.addLayer({ id: "uncertain-far", type: "line", source: "hazard", filter: FAR, layout: { "line-cap": "butt" }, paint: { "line-color": AMBER, "line-width": 2.5, "line-dasharray": [1.6, 1.2], "line-opacity": 0.4 } });
+  map.addLayer({ id: "flooded-far", type: "line", source: "hazard", filter: FAR, layout: { "line-cap": "round" }, paint: { "line-color": FLOOD, "line-width": 3, "line-opacity": 0.4 } });
+  map.addLayer({ id: "uncertain", type: "line", source: "hazard", filter: NEAR, layout: { "line-cap": "butt" }, paint: { "line-color": AMBER, "line-width": 5, "line-dasharray": [1.6, 1.2] } });
+  map.addLayer({ id: "flooded-casing", type: "line", source: "hazard", filter: NEAR, layout: { "line-cap": "round" }, paint: { "line-color": "#ffffff", "line-width": 9 } });
+  map.addLayer({ id: "flooded", type: "line", source: "hazard", filter: NEAR, layout: { "line-cap": "round" }, paint: { "line-color": FLOOD, "line-width": 5.5 } });
   map.addSource("past", { type: "geojson", data: empty }); // NOAA hour-0 estimate for past hours
   map.addLayer({ id: "past-uncertain", type: "line", source: "past", filter: ["==", ["get", "state"], "uncertain"],
     layout: { visibility: "none" }, paint: { "line-color": AMBER, "line-width": 4, "line-dasharray": [0.5, 1.4], "line-opacity": 0.85 } }); // past = dotted
   map.addLayer({ id: "past-flooded", type: "line", source: "past", filter: ["==", ["get", "state"], "flooded"],
     layout: { visibility: "none" }, paint: { "line-color": FLOOD, "line-width": 4.5, "line-dasharray": [0.5, 1.4], "line-opacity": 0.85 } });
-  for (const id of ["uncertain", "flooded"]) {
+  for (const id of ["uncertain", "flooded", "uncertain-far", "flooded-far"]) {
     map.on("click", id, (e) => {
       const p = e.features[0].properties;
       const el = document.createElement("div");
@@ -544,8 +570,9 @@ function setTimeUI(h, countTxt) { // h = forecast hour drawn on the map; the lab
   const cap = $("caption");
   cap.hidden = !countTxt && m <= nowMin();
   cap.className = "caption";
-  const win = mode === "route" && h > depH() ? `roads forecast to go under by ${fmtClock.format(hourTime(h))}, during this trip` : `roads as forecast for ${fmtClock.format(hourTime(h))}`;
-  cap.textContent = (m <= nowMin() && h === depH() ? "Now" : m <= nowMin() ? `Leaving now · ${win}` : `Leaving ${fmtMin.format(minTime(m))} · ${win}`) + (countTxt ? `  —  ${countTxt}` : "");
+  cap.textContent = m <= nowMin() ? "Leaving now" : `Leaving ${fmtMin.format(minTime(m))}`;
+  cap.hidden = !mode;
+  if (mode === "route") $("tripRoads").textContent = countTxt ? `${countTxt} (through ${fmtClock.format(hourTime(h))}).` : "";
 }
 $("leave").onclick = () => {
   const open = $("timePop").hidden; $("timePop").hidden = !open; $("leave").setAttribute("aria-expanded", open);
@@ -557,7 +584,7 @@ document.addEventListener("keydown", (e) => { if (e.key === "Escape") { $("timeP
 
 function pastMode(on) {
   if (!map.getLayer("flooded")) return;
-  for (const id of ["flooded", "flooded-casing", "uncertain"]) map.setLayoutProperty(id, "visibility", on ? "none" : "visible");
+  for (const id of ["flooded", "flooded-casing", "uncertain", "flooded-far", "uncertain-far"]) map.setLayoutProperty(id, "visibility", on ? "none" : "visible");
   for (const id of ["past-flooded", "past-uncertain"]) map.setLayoutProperty(id, "visibility", on ? "visible" : "none");
   $("legPast").hidden = !on;
 }
@@ -572,8 +599,9 @@ function applyHour() {
   const h = tripH();
   pastMode(false);
   const tf = ["coalesce", ["to-number", ["get", "t_flood"]], 99];
-  map.setFilter("flooded", ["<=", tf, h]); map.setFilter("flooded-casing", ["<=", tf, h]);
-  map.setFilter("uncertain", ["all", ["<=", ["to-number", ["get", "t_uncertain"]], h], [">", tf, h]]);
+  const fl = ["<=", tf, h], un = ["all", ["<=", ["to-number", ["get", "t_uncertain"]], h], [">", tf, h]];
+  map.setFilter("flooded", ["all", NEAR, fl]); map.setFilter("flooded-casing", ["all", NEAR, fl]); map.setFilter("flooded-far", ["all", FAR, fl]);
+  map.setFilter("uncertain", ["all", NEAR, un]); map.setFilter("uncertain-far", ["all", FAR, un]);
   let count = "";
   if (mode) {
     const n = new Set(shown.filter((f) => stateAt(f.properties, h) !== "no_forecast_flooding").map((f) => f.properties.name || f.properties.seg_id)).size;
@@ -708,30 +736,78 @@ function clearMarkers() { markers.forEach((m) => m.remove()); markers = []; }
 const letterOf = (i) => String.fromCharCode(65 + i); // A, B, C…
 function addMarker(lon, lat, kind, text, letter) {
   const el = document.createElement("div");
-  if (letter) { el.className = "pm" + (kind === "you" ? " start" : kind === "dest" ? " end" : ""); el.textContent = letter; }
-  else el.className = kind;
-  const m = new maplibregl.Marker({ element: el, className: "mk-pin" }).setLngLat([lon, lat]); // pins sit above camera markers
+  if (letter) { // teardrop pin with the letter and the stop's short name beside it
+    el.className = "pinm" + (kind === "you" ? " start" : kind === "dest" ? " end" : "");
+    const b = document.createElement("b"); // the teardrop shape
+    const l = document.createElement("i"); l.textContent = letter; // the letter, unrotated
+    const n = document.createElement("span"); n.textContent = (text || "").split(": ").pop().split(",")[0];
+    el.append(b, l, n);
+  } else el.className = kind;
+  const m = new maplibregl.Marker({ element: el, className: "mk-pin", anchor: letter ? "bottom" : "center" }).setLngLat([lon, lat]); // pins sit above camera markers
   if (text) m.setPopup(new maplibregl.Popup({ offset: 16 }).setText(text));
   markers.push(m.addTo(map));
 }
-// × markers where the fastest way is cut: one per street among the avoided segments, with the hour it goes under
-function markCuts(avoided, h) {
+// ----- route legibility: show the difference, not the alternative -----
+const key5 = (c) => c[0].toFixed(5) + "," + c[1].toFixed(5);
+const mPerLat = 110540, mPerLon = (lat) => 111320 * Math.cos((lat * Math.PI) / 180);
+// the stretches of the fastest way that Noah's route does not share (same road graph, so shared parts have identical vertices)
+function ghostParts(route, usual) {
+  if (!usual || !route) return [];
+  const on = new Set(route.map(key5));
+  const parts = []; let cur = [];
+  usual.forEach((c, i) => {
+    if (!on.has(key5(c))) { if (!cur.length && i > 0) cur.push(usual[i - 1]); cur.push(c); }
+    else if (cur.length) { cur.push(c); parts.push(cur); cur = []; }
+  });
+  if (cur.length > 1) parts.push(cur);
+  return parts.filter((pt) => pt.length > 1);
+}
+function nearLines(pt, lines, maxM) {
+  const kx = mPerLon(pt[1]);
+  for (const line of lines) for (const c of line) { const dx = (c[0] - pt[0]) * kx, dy = (c[1] - pt[1]) * mPerLat; if (dx * dx + dy * dy <= maxM * maxM) return true; }
+  return false;
+}
+// copies of the flagged segments with `near` = touches the route or the skipped stretch (150 m); no lines = everything near
+function tierFeats(feats, lines, maxM = 150) {
+  return feats.map((f) => {
+    const c = f.geometry.coordinates, mid = c[Math.floor(c.length / 2)];
+    const near = !lines.length || nearLines(mid, lines, maxM) || nearLines(c[0], lines, maxM) || nearLines(c[c.length - 1], lines, maxM);
+    return { ...f, properties: { ...f.properties, near } };
+  });
+}
+// the roads that cut the fastest way, one per street, earliest first: the map labels them by name and hour
+function cutStreets(avoided) {
   const byName = new Map();
   for (const id of avoided || []) {
     const f = flood.get(id); if (!f) continue;
-    const key = f.properties.name || id;
-    const t = f.properties.t_flood != null ? +f.properties.t_flood : +f.properties.t_uncertain;
-    if (!byName.has(key) || t < byName.get(key).t) byName.set(key, { f, t });
+    const p = f.properties, key = p.name || id;
+    const t = p.t_flood != null && p.t_flood !== "null" ? +p.t_flood : +p.t_uncertain;
+    if (!byName.has(key) || t < byName.get(key).t) byName.set(key, { f, t, flooded: p.t_flood != null && p.t_flood !== "null", name: p.name });
   }
-  for (const { f, t } of [...byName.values()].slice(0, 8)) {
-    const c = f.geometry.coordinates, [lon, lat] = c[Math.floor(c.length / 2)];
-    const el = document.createElement("div"); el.className = "cutmark"; el.innerHTML = '<i data-lucide="x"></i>';
-    const m = new maplibregl.Marker({ element: el, className: "mk-cut" }).setLngLat([lon, lat]);
-    m.setPopup(new maplibregl.Popup({ offset: 14 }).setText(`Fastest way cut here: ${roadSentence(f.properties, Math.max(h, t))}`));
+  return [...byName.values()].sort((a, b) => a.t - b.t);
+}
+const cutText = (c) => `${c.name || "Unnamed road"} · ${c.flooded ? "under" : "uncertain"} from ${fmtClock.format(hourTime(c.t))}`;
+function markCuts(avoided, h) {
+  const pinPts = [origin, ...stopPlaces(), dest].filter(Boolean).map((p) => [p.lon, p.lat]);
+  for (const c of cutStreets(avoided).slice(0, 5)) {
+    const g = c.f.geometry.coordinates, [lon, lat] = g[Math.floor(g.length / 2)];
+    if (nearLines([lon, lat], [pinPts], 250)) continue; // a stop on the cut street already carries its name; the Why list has the hour
+    const el = document.createElement("div"); el.className = "cutlab";
+    const dot = document.createElement("i"); const txt = document.createElement("span"); txt.textContent = cutText(c);
+    el.append(dot, txt);
+    const m = new maplibregl.Marker({ element: el, className: "mk-cut", anchor: "left", offset: [-7, 0] }).setLngLat([lon, lat]);
+    m.setPopup(new maplibregl.Popup({ offset: 14 }).setText(`Fastest way cut here. ${roadSentence(c.f.properties, Math.max(h, c.t))}`));
     markers.push(m.addTo(map));
   }
-  icons();
-  $("legCut").hidden = !byName.size; $("legUsual").hidden = !byName.size;
+}
+function renderWhy(avoided) {
+  const cuts = cutStreets(avoided);
+  $("why").hidden = !cuts.length;
+  $("whyRows").replaceChildren(...cuts.slice(0, 6).map((c) => {
+    const row = document.createElement("div"); row.className = "wrow " + (c.flooded ? "s-flooded" : "s-uncertain");
+    const dot = document.createElement("i"); const t = document.createElement("span"); t.textContent = cutText(c);
+    row.append(dot, t); return row;
+  }));
 }
 function relabelPins() { // A start, B… stops, last letter destination; the plan rows and map pins use the same letters
   $("pinFrom").textContent = "A";
@@ -768,8 +844,9 @@ function drawCameras(cams) {
   clearCams();
   for (const c of cams || []) {
     if (c.lat == null) continue;
-    const el = document.createElement("div"); el.className = "cammark " + camClass(c.bucket);
-    el.innerHTML = '<i data-lucide="video"></i>';
+    const cls = camClass(c.bucket);
+    const el = document.createElement("div"); el.className = cls === "wet" ? "cammark wet" : "camdot " + cls;
+    if (cls === "wet") el.innerHTML = '<i data-lucide="video"></i>';
     el.title = `${c.name}: ${CAM_LABEL[c.bucket] || c.bucket}`;
     camMarkers.push(new maplibregl.Marker({ element: el }).setLngLat([c.lon, c.lat])
       .setPopup(new maplibregl.Popup({ offset: 16, maxWidth: "290px" }).setDOMContent(camBox(c))).addTo(map));
@@ -1156,8 +1233,8 @@ async function checkArea() {
       runAssess("area"); runPast("area"); return;
     }
     if (MSG[r.state]) { setHazard([]); $("results").replaceChildren(); $("summary").textContent = ""; showTabs(false); banner(MSG[r.state], "info"); return; }
-    setHazard([]);
-    const feats = r.segments.map((s) => flood.get(s.seg_id)).filter(Boolean);
+    setHazard([]); $("why").hidden = true;
+    const feats = tierFeats(r.segments.map((s) => flood.get(s.seg_id)).filter(Boolean), []);
     const streets = new Set(feats.map((f) => f.properties.name || f.properties.seg_id)).size;
     // live checks run first; the roads light up once they are in (or after CHECK_WAIT_MS)
     stage(`Checking ${feats.length ? feats.length + " flagged road segments, " : ""}live sources and traffic cameras within ${RADIUS_KM} km…`);
@@ -1200,7 +1277,6 @@ async function findRoute(full = true) {
     addMarker(origin.lon, origin.lat, "you", "A · Start: " + origin.label, "A");
     stopPlaces().forEach((s, i) => addMarker(s.lon, s.lat, "stop", `${letterOf(i + 1)} · Stop: ${s.label}`, letterOf(i + 1)));
     addMarker(dest.lon, dest.lat, "dest", `${letterOf(stopPlaces().length + 1)} · Destination: ${dest.label}`, letterOf(stopPlaces().length + 1));
-    $("legUsual").hidden = $("legCut").hidden = true;
     const fit = (coords) => full && map.fitBounds([[Math.min(...coords.map((x) => x[0])), Math.min(...coords.map((x) => x[1]))], [Math.max(...coords.map((x) => x[0])), Math.max(...coords.map((x) => x[1]))]], { padding: pad(60), maxZoom: 15 });
     $("directions").hidden = true;
     if (r.state === "error") { routeEmpty(); banner(r.message, "danger"); return; }
@@ -1241,9 +1317,11 @@ async function findRoute(full = true) {
       cards(r.corridor || [], tripH());
       return;
     }
-    const feats = r.corridor.map((c) => flood.get(c.seg_id)).filter(Boolean);
-    const usual = r.usual_geometry ? { type: "Feature", geometry: r.usual_geometry, properties: {} } : empty;
-    fit([...r.geometry.coordinates, ...(r.usual_geometry?.coordinates || [])]);
+    const ghost = ghostParts(r.geometry.coordinates, r.usual_geometry?.coordinates);
+    const feats = tierFeats(r.corridor.map((c) => flood.get(c.seg_id)).filter(Boolean), [r.geometry.coordinates, ...ghost]);
+    const usual = ghost.length ? { type: "Feature", geometry: { type: "MultiLineString", coordinates: ghost }, properties: {} } : empty;
+    $("legUsual").hidden = !ghost.length;
+    fit([...r.geometry.coordinates, ...ghost.flat()]);
     if (full) {
       // live checks first, then the usual way (dashed), then Noah's route draws itself, then flagged roads light up
       stage(`Route found. Checking live sources and traffic cameras along it${feats.length ? ` and ${feats.length} flagged road segments within ${CORRIDOR_M / 1000} km` : ""}…`);
@@ -1258,21 +1336,22 @@ async function findRoute(full = true) {
     } else { // departure-time change: redraw at once
       map.getSource("usual").setData(usual);
       map.getSource("route").setData({ type: "Feature", geometry: r.geometry, properties: {} });
-      setHazard(r.corridor.map((c) => c.seg_id));
+      hazardAnim++; map.getSource("hazard").setData({ type: "FeatureCollection", features: feats }); shown = feats;
       markCuts(r.avoided, h);
     }
+    renderWhy(r.avoided);
     const hit = r.corridor.filter((c) => c.state !== "no_forecast_flooding").length;
     const leave = h === 0 ? "now" : "at " + local(hourTime(h));
     if (full) showTabs(true);
     routeSummary(r);
     if (r.avoided.length) {
-      banner(`Route found, leaving ${leave}: about ${Math.round(r.minutes)} min. It goes around ${r.avoided.length} road segment${r.avoided.length === 1 ? "" : "s"} forecast to flood; the usual way is dashed grey. Not a safety guarantee. Never drive into water.`, "warn");
+      banner(`Route found, leaving ${leave}: about ${Math.round(r.minutes)} min. It goes around ${r.avoided.length} road segment${r.avoided.length === 1 ? "" : "s"} forecast to flood; the grey dashes show the stretch it skips. Not a safety guarantee. Never drive into water.`, "warn");
     } else if (hit || feats.length) {
       banner(`Route found, leaving ${leave}: about ${Math.round(r.minutes)} min. Flooding is forecast near this route (red and amber roads), but not on it. Not a safety guarantee. Never drive into water.`, "warn");
     } else {
       banner(`No flooding is forecast on this route through ${END()}. About ${Math.round(r.minutes)} min. This is not a safety guarantee. Conditions change fast; never drive into water. Turn Around Don't Drown.`, "info");
     }
-    $("summary").textContent = feats.length ? `Flood-forecast roads within ${CORRIDOR_M / 1000} km of your route:` : "";
+    $("summary").textContent = feats.length ? `Flagged roads within ${CORRIDOR_M / 1000} km of this route. Bold on the map = on or next to the route.` : "";
     cards(r.corridor, tripH()); // the list and the map agree: everything forecast under during the drive
     setDirections(r.geometry.coordinates);
     applyHour();
@@ -1290,7 +1369,7 @@ async function plainRoute(o, d) {
     return { geometry: rt.geometry, minutes: rt.duration / 60 };
   } catch (e) { return null; }
 }
-function routeEmpty() { assessToken++; planToken++; lastPlan = null; $("plan").hidden = true; renderPlan(); $("live").hidden = true; $("risk").hidden = true; clearCams(); map.getSource("route").setData(empty); map.getSource("usual").setData(empty); setHazard([]); $("results").replaceChildren(); $("summary").textContent = ""; routeSummary(null); showTabs(false); }
+function routeEmpty() { assessToken++; planToken++; lastPlan = null; $("plan").hidden = true; $("why").hidden = true; $("legUsual").hidden = true; $("tripRoads").textContent = ""; renderPlan(); $("live").hidden = true; $("risk").hidden = true; clearCams(); map.getSource("route").setData(empty); map.getSource("usual").setData(empty); setHazard([]); $("results").replaceChildren(); $("summary").textContent = ""; routeSummary(null); showTabs(false); }
 
 // Legs of the trip: start → each picked stop → destination (combined client-side; the API routes one leg at a time)
 const stopPlaces = () => stops.map((s) => s.place).filter(Boolean);
