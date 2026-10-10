@@ -57,3 +57,9 @@ export async function replyFor(
     return { reply: ERROR_REPLY, via: "error" };
   }
 }
+
+/** Spec 017: "alerts on" / "alerts off" (also "watch on/off") -> "on" | "off", anything else -> null (goes to /chat). */
+export function alertCommand(text: string): "on" | "off" | null {
+  const m = /^\s*(?:alerts?|watch)\s+(on|off)\s*[.!]?\s*$/i.exec(text);
+  return m ? (m[1].toLowerCase() as "on" | "off") : null;
+}

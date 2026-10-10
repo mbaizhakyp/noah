@@ -90,6 +90,7 @@ Every point where the two lanes must connect. Tick each item and note the commit
 | I13 | **C7 for HUC8 coverage:** `routing.coverage()` reads features with a `huc8` property from `web/data/aoi.geojson`. Margulan's HUC8 expansion writes them (CC6). | M | ✅ Fri 23:50: 4 HUC10 features, each with `huc8: "03130001"` and `huc10` |
 | I14 | **Relay ↔ agent:** Margulan's relay (`bot/`, 008) calls Priyanshu's `POST /chat` `{"sender", "text", "image_b64": null}` → `{"reply"}` (C9). Until 007 exists, the relay runs in echo mode. Agree the `API_BASE` (laptop tunnel or Replit URL) before the 14:00 E2E. | M (relay) + P (agent) | ✅ Sat 02:08: `/chat` exists (agent.py); relay auto mode now relays |
 | I15 | **`app.py` touched by Margulan:** `from noah.api import agent`, `app.include_router(agent.router)`, `agent.warm()` in `warm()`. Priyanshu: keep these when editing app.py. | P (ack) | ☐ |
+| I16 | **Spec 017 route watch (Margulan):** `camera_watch` watch list now = flagged-road/creek cameras **plus the route cameras** in `web/data/watch_routes.json`; its check rows gain an `evidence` field. New files Priyanshu can draw on the map if useful: `web/data/watch_routes.json` (11 routes: label, line, cameras) and `web/data/route_watch.json` (per live run, per route: cut-from time + street). The relay answers "alerts on/off" itself (never reaches `/chat`). | P (ack) | ☐ |
 | I11 | **Wording:** agent replies, map labels and dispatch badges all use the §5 vocabulary; run the banned-word check over everything user-facing. | Both | ☐ |
 
 ## Contract change proposals

@@ -3,12 +3,17 @@
 //   npm start         iMessage via Spectrum Cloud (needs SPECTRUM_PROJECT_ID / SPECTRUM_PROJECT_SECRET in ../.env)
 //   npm run local     terminal chat window for local testing (no iMessage needed)
 //
+// Spec 017: "alerts on" / "alerts off" subscribes a thread to route-watch alerts. Python (noah.pipeline.route_watch)
+// queues them in data/interim/outbox.jsonl; new lines go to every subscribed thread (photo attached when there is one).
+//
 // Env (../.env): SPECTRUM_PROJECT_ID, SPECTRUM_PROJECT_SECRET, API_BASE (default http://localhost:8000),
 //                BOT_MODE = auto (default: relay to /chat, echo while /chat doesn't exist) | echo | chat
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { basename } from "node:path";
 import { fileURLToPath } from "node:url";
 import { config as loadEnv } from "dotenv";
-import { Spectrum } from "spectrum-ts";
-import { type Mode, replyFor, senderHash, textOf } from "./relay.ts";
+import { attachment, type Space, Spectrum } from "spectrum-ts";
+import { alertCommand, type Mode, replyFor, senderHash, textOf } from "./relay.ts";
 
 // fileURLToPath, not URL.pathname: the latter keeps %20 for spaces ("Application Support") and misses the file.
 loadEnv({ path: fileURLToPath(new URL("../.env", import.meta.url)), quiet: true });
@@ -25,9 +30,10 @@ if (!local && (!projectId || !projectSecret)) {
   process.exit(1);
 }
 
-const provider = local
-  ? (await import("spectrum-ts/providers/terminal")).terminal.config()
-  : (await import("spectrum-ts/providers/imessage")).imessage.config();
+const platform = local
+  ? (await import("spectrum-ts/providers/terminal")).terminal
+  : (await import("spectrum-ts/providers/imessage")).imessage;
+const provider = platform.config();
 
 // The SDK takes both cloud credentials or none (none = local providers only, e.g. the terminal).
 const app =
@@ -36,12 +42,71 @@ const app =
     : await Spectrum({ providers: [provider] });
 console.error(`noah relay up: ${local ? "terminal" : "iMessage"}, mode=${mode}, api=${apiBase}`);
 
+// ---- spec 017: route-watch alerts (Noah texts first) ----
+const interim = (f: string) => fileURLToPath(new URL(`../data/interim/${f}`, import.meta.url));
+const readText = (f: string) => (existsSync(interim(f)) ? readFileSync(interim(f), "utf8") : "");
+const subs = new Set<string>(JSON.parse(readText("alert_spaces.json") || "[]")); // thread ids, survive restarts
+const saveSubs = () => writeFileSync(interim("alert_spaces.json"), JSON.stringify([...subs]));
+const threads = new Map<string, Space>(); // live handles from inbound messages
+const outbox = () => readText("outbox.jsonl").split("\n").filter(Boolean);
+let sent = Number(readText("outbox.offset") || outbox().length); // first start: skip the backlog
+writeFileSync(interim("outbox.offset"), String(sent));
+let flushing = false;
+
+async function threadFor(id: string): Promise<Space | undefined> {
+  if (!threads.has(id)) threads.set(id, await platform(app).space.get(id)); // after a restart
+  return threads.get(id);
+}
+
+async function flushOutbox() {
+  if (flushing) return;
+  flushing = true;
+  try {
+    const lines = outbox();
+    for (; sent < lines.length; sent++) {
+      const item = JSON.parse(lines[sent]) as { text: string; image?: string | null };
+      for (const id of subs) {
+        try {
+          const thread = await threadFor(id);
+          if (!thread) continue;
+          if (item.image && existsSync(item.image)) {
+            const photo = attachment(readFileSync(item.image), { name: basename(item.image), mimeType: "image/png" });
+            await thread.send(item.text, photo);
+          } else await thread.send(item.text);
+          console.error(`alert to=${senderHash(id)} len=${item.text.length} photo=${Boolean(item.image)}`);
+        } catch (e) {
+          console.error(`alert send failed to=${senderHash(id)}: ${(e as Error).message}`);
+        }
+      }
+      writeFileSync(interim("outbox.offset"), String(sent + 1));
+    }
+  } finally {
+    flushing = false;
+  }
+}
+setInterval(() => void flushOutbox(), 20_000);
+
 for await (const [space, message] of app.messages) {
   if (message.direction !== "inbound") continue;
   const text = textOf(message.content as { type: string; text?: string });
   if (!text) continue; // text only (user photos are out of scope, Fri Oct 9)
   const t0 = Date.now();
   const sender = message.sender?.id ?? "unknown";
+  threads.set(space.id, space);
+  const cmd = alertCommand(text);
+  if (cmd) {
+    if (cmd === "on") subs.add(space.id);
+    else subs.delete(space.id);
+    saveSubs();
+    const latest = readText("route_watch_latest.txt");
+    const reply =
+      cmd === "on"
+        ? `Route watch alerts on: I'll text you when a watched route's forecast changes or a camera on it sees water. Text "alerts off" to stop.${latest ? `\n\n${latest}` : ""}`
+        : "Route watch alerts off.";
+    await space.responding(() => message.reply(reply));
+    console.error(`alerts ${cmd} from=${senderHash(sender)}`);
+    continue;
+  }
   const { reply, via } = await space.responding(async () => {
     const r = await replyFor(text, sender, { mode, apiBase });
     await message.reply(r.reply);

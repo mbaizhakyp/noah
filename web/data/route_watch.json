@@ -1,0 +1,737 @@
+{
+ "runs": [
+  {
+   "cycle": "20261009T22Z",
+   "issued_utc": "2026-10-09T22:00:00Z",
+   "had_utc": "2026-10-10T03:58:14Z",
+   "routes": {
+    "r01": {
+     "state": "uncertain",
+     "from_utc": "2026-10-10T08:00:00Z",
+     "street": "unnamed road",
+     "streets": [
+      {
+       "name": "unnamed road",
+       "from_utc": "2026-10-10T08:00:00Z"
+      }
+     ]
+    },
+    "r02": {
+     "state": "uncertain",
+     "from_utc": "2026-10-10T08:00:00Z",
+     "street": "Graves Road",
+     "streets": [
+      {
+       "name": "Graves Road",
+       "from_utc": "2026-10-10T08:00:00Z"
+      }
+     ]
+    },
+    "r03": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r04": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r05": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r06": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r07": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r08": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r09": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r10": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r11": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    }
+   }
+  },
+  {
+   "cycle": "20261010T00Z",
+   "issued_utc": "2026-10-10T00:00:00Z",
+   "had_utc": "2026-10-10T03:58:50Z",
+   "routes": {
+    "r01": {
+     "state": "uncertain",
+     "from_utc": "2026-10-10T11:00:00Z",
+     "street": "unnamed road",
+     "streets": [
+      {
+       "name": "unnamed road",
+       "from_utc": "2026-10-10T11:00:00Z"
+      }
+     ]
+    },
+    "r02": {
+     "state": "uncertain",
+     "from_utc": "2026-10-10T09:00:00Z",
+     "street": "Graves Road",
+     "streets": [
+      {
+       "name": "Graves Road",
+       "from_utc": "2026-10-10T09:00:00Z"
+      }
+     ]
+    },
+    "r03": {
+     "state": "uncertain",
+     "from_utc": "2026-10-10T11:00:00Z",
+     "street": "Northcrest Way",
+     "streets": [
+      {
+       "name": "Northcrest Way",
+       "from_utc": "2026-10-10T11:00:00Z"
+      }
+     ]
+    },
+    "r04": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r05": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r06": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r07": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r08": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r09": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r10": {
+     "state": "uncertain",
+     "from_utc": "2026-10-10T11:00:00Z",
+     "street": "Horace E Tate Freeway",
+     "streets": [
+      {
+       "name": "Horace E Tate Freeway",
+       "from_utc": "2026-10-10T11:00:00Z"
+      }
+     ]
+    },
+    "r11": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    }
+   }
+  },
+  {
+   "cycle": "20261010T01Z",
+   "issued_utc": "2026-10-10T01:00:00Z",
+   "had_utc": "2026-10-10T03:58:50Z",
+   "routes": {
+    "r01": {
+     "state": "uncertain",
+     "from_utc": "2026-10-10T09:00:00Z",
+     "street": "unnamed road",
+     "streets": [
+      {
+       "name": "unnamed road",
+       "from_utc": "2026-10-10T09:00:00Z"
+      }
+     ]
+    },
+    "r02": {
+     "state": "flooded",
+     "from_utc": "2026-10-10T09:00:00Z",
+     "street": "Graves Road",
+     "streets": [
+      {
+       "name": "Graves Road",
+       "from_utc": "2026-10-10T09:00:00Z"
+      }
+     ]
+    },
+    "r03": {
+     "state": "uncertain",
+     "from_utc": "2026-10-10T10:00:00Z",
+     "street": "Northcrest Way",
+     "streets": [
+      {
+       "name": "Northcrest Way",
+       "from_utc": "2026-10-10T10:00:00Z"
+      }
+     ]
+    },
+    "r04": {
+     "state": "uncertain",
+     "from_utc": "2026-10-10T10:00:00Z",
+     "street": "Kingsport Drive Northeast",
+     "streets": [
+      {
+       "name": "Kingsport Drive Northeast",
+       "from_utc": "2026-10-10T10:00:00Z"
+      },
+      {
+       "name": "Lake Forrest Drive Northeast",
+       "from_utc": "2026-10-10T12:00:00Z"
+      }
+     ]
+    },
+    "r05": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r06": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r07": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r08": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r09": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r10": {
+     "state": "uncertain",
+     "from_utc": "2026-10-10T09:00:00Z",
+     "street": "Horace E Tate Freeway",
+     "streets": [
+      {
+       "name": "Horace E Tate Freeway",
+       "from_utc": "2026-10-10T09:00:00Z"
+      }
+     ]
+    },
+    "r11": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    }
+   }
+  },
+  {
+   "cycle": "20261010T02Z",
+   "issued_utc": "2026-10-10T02:00:00Z",
+   "had_utc": "2026-10-10T03:50:48Z",
+   "routes": {
+    "r01": {
+     "state": "flooded",
+     "from_utc": "2026-10-10T09:00:00Z",
+     "street": "unnamed road",
+     "streets": [
+      {
+       "name": "unnamed road",
+       "from_utc": "2026-10-10T09:00:00Z"
+      }
+     ]
+    },
+    "r02": {
+     "state": "flooded",
+     "from_utc": "2026-10-10T09:00:00Z",
+     "street": "Graves Road",
+     "streets": [
+      {
+       "name": "Graves Road",
+       "from_utc": "2026-10-10T09:00:00Z"
+      }
+     ]
+    },
+    "r03": {
+     "state": "uncertain",
+     "from_utc": "2026-10-10T10:00:00Z",
+     "street": "Northcrest Way",
+     "streets": [
+      {
+       "name": "Northcrest Way",
+       "from_utc": "2026-10-10T10:00:00Z"
+      }
+     ]
+    },
+    "r04": {
+     "state": "flooded",
+     "from_utc": "2026-10-10T09:00:00Z",
+     "street": "Kingsport Drive Northeast",
+     "streets": [
+      {
+       "name": "Kingsport Drive Northeast",
+       "from_utc": "2026-10-10T09:00:00Z"
+      },
+      {
+       "name": "Lake Forrest Drive Northeast",
+       "from_utc": "2026-10-10T11:00:00Z"
+      }
+     ]
+    },
+    "r05": {
+     "state": "uncertain",
+     "from_utc": "2026-10-10T11:00:00Z",
+     "street": "Bradford Square Northeast",
+     "streets": [
+      {
+       "name": "Bradford Square Northeast",
+       "from_utc": "2026-10-10T11:00:00Z"
+      }
+     ]
+    },
+    "r06": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r07": {
+     "state": "uncertain",
+     "from_utc": "2026-10-10T10:00:00Z",
+     "street": "North Peachtree Road",
+     "streets": [
+      {
+       "name": "North Peachtree Road",
+       "from_utc": "2026-10-10T10:00:00Z"
+      }
+     ]
+    },
+    "r08": {
+     "state": "uncertain",
+     "from_utc": "2026-10-10T10:00:00Z",
+     "street": "Hammond Drive Northeast",
+     "streets": [
+      {
+       "name": "Hammond Drive Northeast",
+       "from_utc": "2026-10-10T10:00:00Z"
+      }
+     ]
+    },
+    "r09": {
+     "state": "uncertain",
+     "from_utc": "2026-10-10T10:00:00Z",
+     "street": "Lake Park Drive Southeast",
+     "streets": [
+      {
+       "name": "Lake Park Drive Southeast",
+       "from_utc": "2026-10-10T10:00:00Z"
+      }
+     ]
+    },
+    "r10": {
+     "state": "flooded",
+     "from_utc": "2026-10-10T09:00:00Z",
+     "street": "Horace E Tate Freeway",
+     "streets": [
+      {
+       "name": "Horace E Tate Freeway",
+       "from_utc": "2026-10-10T09:00:00Z"
+      }
+     ]
+    },
+    "r11": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    }
+   }
+  },
+  {
+   "cycle": "20261010T04Z",
+   "issued_utc": "2026-10-10T04:00:00Z",
+   "had_utc": "2026-10-10T06:09:35Z",
+   "routes": {
+    "r01": {
+     "state": "flooded",
+     "from_utc": "2026-10-10T09:00:00Z",
+     "street": "unnamed road",
+     "streets": [
+      {
+       "name": "unnamed road",
+       "from_utc": "2026-10-10T09:00:00Z"
+      }
+     ]
+    },
+    "r02": {
+     "state": "flooded",
+     "from_utc": "2026-10-10T08:00:00Z",
+     "street": "Graves Road",
+     "streets": [
+      {
+       "name": "Graves Road",
+       "from_utc": "2026-10-10T08:00:00Z"
+      }
+     ]
+    },
+    "r03": {
+     "state": "uncertain",
+     "from_utc": "2026-10-10T09:00:00Z",
+     "street": "Northcrest Way",
+     "streets": [
+      {
+       "name": "Northcrest Way",
+       "from_utc": "2026-10-10T09:00:00Z"
+      }
+     ]
+    },
+    "r04": {
+     "state": "uncertain",
+     "from_utc": "2026-10-10T09:00:00Z",
+     "street": "Kingsport Drive Northeast",
+     "streets": [
+      {
+       "name": "Kingsport Drive Northeast",
+       "from_utc": "2026-10-10T09:00:00Z"
+      },
+      {
+       "name": "Lake Forrest Drive Northeast",
+       "from_utc": "2026-10-10T12:00:00Z"
+      }
+     ]
+    },
+    "r05": {
+     "state": "uncertain",
+     "from_utc": "2026-10-10T11:00:00Z",
+     "street": "Bradford Square Northeast",
+     "streets": [
+      {
+       "name": "Bradford Square Northeast",
+       "from_utc": "2026-10-10T11:00:00Z"
+      }
+     ]
+    },
+    "r06": {
+     "state": "uncertain",
+     "from_utc": "2026-10-10T14:00:00Z",
+     "street": "McLendon Drive",
+     "streets": [
+      {
+       "name": "McLendon Drive",
+       "from_utc": "2026-10-10T14:00:00Z"
+      }
+     ]
+    },
+    "r07": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r08": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r09": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r10": {
+     "state": "uncertain",
+     "from_utc": "2026-10-10T09:00:00Z",
+     "street": "Horace E Tate Freeway",
+     "streets": [
+      {
+       "name": "Horace E Tate Freeway",
+       "from_utc": "2026-10-10T09:00:00Z"
+      }
+     ]
+    },
+    "r11": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    }
+   }
+  },
+  {
+   "cycle": "20261010T05Z",
+   "issued_utc": "2026-10-10T05:00:00Z",
+   "had_utc": "2026-10-10T06:55:01Z",
+   "routes": {
+    "r01": {
+     "state": "flooded",
+     "from_utc": "2026-10-10T10:00:00Z",
+     "street": "unnamed road",
+     "streets": [
+      {
+       "name": "unnamed road",
+       "from_utc": "2026-10-10T10:00:00Z"
+      }
+     ]
+    },
+    "r02": {
+     "state": "flooded",
+     "from_utc": "2026-10-10T09:00:00Z",
+     "street": "Graves Road",
+     "streets": [
+      {
+       "name": "Graves Road",
+       "from_utc": "2026-10-10T09:00:00Z"
+      }
+     ]
+    },
+    "r03": {
+     "state": "flooded",
+     "from_utc": "2026-10-10T11:00:00Z",
+     "street": "Northcrest Way",
+     "streets": [
+      {
+       "name": "Northcrest Way",
+       "from_utc": "2026-10-10T11:00:00Z"
+      }
+     ]
+    },
+    "r04": {
+     "state": "uncertain",
+     "from_utc": "2026-10-10T09:00:00Z",
+     "street": "Kingsport Drive Northeast",
+     "streets": [
+      {
+       "name": "Kingsport Drive Northeast",
+       "from_utc": "2026-10-10T09:00:00Z"
+      },
+      {
+       "name": "Lake Forrest Drive Northeast",
+       "from_utc": "2026-10-10T15:00:00Z"
+      }
+     ]
+    },
+    "r05": {
+     "state": "uncertain",
+     "from_utc": "2026-10-10T14:00:00Z",
+     "street": "Bradford Square Northeast",
+     "streets": [
+      {
+       "name": "Bradford Square Northeast",
+       "from_utc": "2026-10-10T14:00:00Z"
+      }
+     ]
+    },
+    "r06": {
+     "state": "uncertain",
+     "from_utc": "2026-10-10T15:00:00Z",
+     "street": "McLendon Drive",
+     "streets": [
+      {
+       "name": "McLendon Drive",
+       "from_utc": "2026-10-10T15:00:00Z"
+      }
+     ]
+    },
+    "r07": {
+     "state": "uncertain",
+     "from_utc": "2026-10-10T14:00:00Z",
+     "street": "North Peachtree Road",
+     "streets": [
+      {
+       "name": "North Peachtree Road",
+       "from_utc": "2026-10-10T14:00:00Z"
+      }
+     ]
+    },
+    "r08": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r09": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r10": {
+     "state": "uncertain",
+     "from_utc": "2026-10-10T10:00:00Z",
+     "street": "Horace E Tate Freeway",
+     "streets": [
+      {
+       "name": "Horace E Tate Freeway",
+       "from_utc": "2026-10-10T10:00:00Z"
+      }
+     ]
+    },
+    "r11": {
+     "state": "uncertain",
+     "from_utc": "2026-10-10T14:00:00Z",
+     "street": "Joseph Way Northwest",
+     "streets": [
+      {
+       "name": "Joseph Way Northwest",
+       "from_utc": "2026-10-10T14:00:00Z"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "cycle": "20261010T06Z",
+   "issued_utc": "2026-10-10T06:00:00Z",
+   "had_utc": "2026-10-10T07:40:32Z",
+   "routes": {
+    "r01": {
+     "state": "uncertain",
+     "from_utc": "2026-10-10T10:00:00Z",
+     "street": "unnamed road",
+     "streets": [
+      {
+       "name": "unnamed road",
+       "from_utc": "2026-10-10T10:00:00Z"
+      }
+     ]
+    },
+    "r02": {
+     "state": "uncertain",
+     "from_utc": "2026-10-10T10:00:00Z",
+     "street": "Graves Road",
+     "streets": [
+      {
+       "name": "Graves Road",
+       "from_utc": "2026-10-10T10:00:00Z"
+      }
+     ]
+    },
+    "r03": {
+     "state": "uncertain",
+     "from_utc": "2026-10-10T11:00:00Z",
+     "street": "Northcrest Way",
+     "streets": [
+      {
+       "name": "Northcrest Way",
+       "from_utc": "2026-10-10T11:00:00Z"
+      }
+     ]
+    },
+    "r04": {
+     "state": "uncertain",
+     "from_utc": "2026-10-10T09:00:00Z",
+     "street": "Kingsport Drive Northeast",
+     "streets": [
+      {
+       "name": "Kingsport Drive Northeast",
+       "from_utc": "2026-10-10T09:00:00Z"
+      }
+     ]
+    },
+    "r05": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r06": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r07": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r08": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r09": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r10": {
+     "state": "uncertain",
+     "from_utc": "2026-10-10T11:00:00Z",
+     "street": "Horace E Tate Freeway",
+     "streets": [
+      {
+       "name": "Horace E Tate Freeway",
+       "from_utc": "2026-10-10T11:00:00Z"
+      }
+     ]
+    },
+    "r11": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    }
+   }
+  }
+ ],
+ "camera_alerts": []
+}

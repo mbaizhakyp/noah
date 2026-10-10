@@ -22,6 +22,7 @@ Personas below are **examples** (not real people): Jordan, a nurse who works at 
 | **Live map** (Priyanshu's `web/index.html`) | Departure-time picker, roads turning red by forecast hour, route around them, camera snapshots, risk score | Public URL via Replit (BL-9) |
 | **Isaias, run by run** | Fri 6 PM forecast: 77 roads flagged → Fri 10 PM: 313 → Saturday morning runs [..] | Live loop running; 8 AM run committed (BL-16) |
 | **Validation** | Isaias closures vs Noah's flags [N/M, ~X h]; Helene 13.2 h + Windsor Pkwy + 5 Buckhead streets | BL-18/19 |
+| **Route watch timeline** (spec 017) | 11 driver routes past traffic cameras; for each, when Noah first warned vs when the camera saw water / the road closed ("warned [X] h ahead") | `route_watch --report`, `web/data/route_watch.json` |
 | **Camera evidence card** (if captured) | Real traffic-camera frame with water next to a road Noah turned red, AI-checked twice | Camera monitor running (BL-22) |
 | **Dispatch board + barricade list** (Replit) | Pharmacy deliveries: go before / hold / no forecast flooding; CSV for city crews | Deployed on Replit (BL-9) |
 | **Tiger Data** (if built) | Every hourly forecast stored as time series; "how the forecast evolved" query | J11: after E2E |
@@ -64,7 +65,7 @@ Personas below are **examples** (not real people): Jordan, a nurse who works at 
 3. *"Can I drive home from work at 6 PM?"* → typing indicator → route answer with the street and time (tool use: geocoding, forecast, routing, live sources).
 4. *"Is Northside Drive near Peachtree Creek going to flood?"* → understands "street near landmark"; separates the street from nearby roads with distances; names a traffic camera that saw water (AI-checked twice).
 5. *"Is it safe to drive on Collier Road?"* → guardrail: never says "safe"; gives the forecast, "never drive into water", 911.
-6. (If built Saturday) **Noah texts first:** when a saved route gets cut in a new hourly forecast, Noah sends the alert unprompted.
+6. **Noah texts first (spec 017, built Sat 04:45):** *"alerts on"* → Noah watches 11 routes; when a new hourly forecast cuts one, or a camera on it sees water, Noah texts unprompted (with the camera photo). Show the real alert thread from Saturday.
 
 **Under the hood (one slide):** iPhone → Spectrum Cloud iMessage line → `spectrum-ts` relay (open source, TypeScript, typing indicator via `space.responding`) → Noah agent (Azure OpenAI tool calling) → NOAA forecast + 33 live sources. Never silent: if anything fails or takes > 45 s, Noah sends the safety message. Privacy: no message content logged.
 **Close:** "The agent lives where people already are, and it speaks up before the water does."
@@ -103,7 +104,7 @@ Personas below are **examples** (not real people): Jordan, a nurse who works at 
 | 4 | Isaias validation: closures + gauges vs flags, counts (BL-18/19) | Margulan | Sat 22:00, final Sun 03:00 |
 | 5 | Camera evidence card (auto, BL-22) → pick the best one | Margulan | Sun 03:00 |
 | 6 | Tiger Data minimal store + one query (J11) | Priyanshu | after E2E |
-| 7 | Optional: Noah texts first on a newly cut saved route (Photon wow) | Margulan | only if 1–4 are done |
+| 7 | Noah texts first: route watch (spec 017) built; keep the loop + camera monitor running all Saturday, pick the best alert thread | Margulan | Sun 03:00 |
 | 8 | Demo phone: Noah thread pre-seeded (home/work), QuickTime screen mirroring tested | Margulan | Sun 07:00 |
 | 9 | Roles (J8): Margulan tells the story + takes hydrology Q&A; Priyanshu drives the map/dispatch | Both | Sat 20:00 |
 | 10 | Backup video recorded; Devpost + README final | Both | Sun 04:00 / 07:00 |

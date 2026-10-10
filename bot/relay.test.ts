@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { ERROR_REPLY, replyFor, senderHash, textOf } from "./relay.ts";
+import { alertCommand, ERROR_REPLY, replyFor, senderHash, textOf } from "./relay.ts";
 
 const fakeFetch = (status: number, body: unknown, delayMs = 0) =>
   (async (_url: string, init?: RequestInit) => {
@@ -39,4 +39,11 @@ test("textOf and senderHash", () => {
   assert.equal(textOf({ type: "text", text: "   " }), null);
   assert.equal(senderHash("+14045551234").length, 8);
   assert.notEqual(senderHash("a"), senderHash("b"));
+});
+
+test("alertCommand", () => {
+  assert.equal(alertCommand("alerts on"), "on");
+  assert.equal(alertCommand(" Alerts OFF! "), "off");
+  assert.equal(alertCommand("watch on"), "on");
+  assert.equal(alertCommand("are alerts on for Northside Dr?"), null);
 });
