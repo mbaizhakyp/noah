@@ -226,6 +226,7 @@
   .src .n { font-weight: 600; display: inline-flex; gap: 6px; align-items: center; } .src .n .lucide { width: 15px; height: 15px; color: var(--blue-ink); }
   .src .c { color: var(--ink-3); white-space: nowrap; }
   .src.fail .n { color: var(--flood-ink); } .src.fail .n .lucide { color: var(--flood-ink); }
+  .src.pending .n { color: var(--amber-ink); } .src.pending .n .lucide { color: var(--amber-ink); }
   .sig { color: var(--ink-2); font-size: 13px; padding: 6px 0 8px 12px; border-left: 1px solid var(--line-2); margin: 4px 0 6px 4px; }
   .sig b { color: var(--ink); font-weight: 600; }
   .gauge { display: grid; grid-template-columns: 1fr 120px; gap: 10px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 13.5px; }
@@ -821,9 +822,9 @@ function relabelPins() { // A start, B… stops, last letter destination; the pl
 }
 
 // ---------- cameras + sources (spec 013/015: from /assess, run in the background) ----------
-let camMarkers = [], assessToken = 0;
+let camMarkers = [], assessToken = 0, assessCtl = null; // assessCtl: spec 018, a new search aborts the old live checks
 const CAM_LABEL = {
-  none: "No water seen", cant_tell: "Can't tell (dark, blocked or feed unavailable)", possible_water: "Possible water, not confirmed",
+  none: "No water seen", cant_tell: "Can't tell (dark, blocked or feed unavailable)", possible_water: "Possible water, not confirmed", checking: "AI check still running",
   curb: "Water at curb level (confirmed)", half_tire: "Water about half a tire deep (confirmed)",
   door_sill_or_above: "Deep water, door-sill level (confirmed)",
 };
@@ -997,21 +998,22 @@ function renderSources(r) {
     head.onclick = () => (body.hidden = !body.hidden);
     row.append(head, body); rows.push(row);
   }
-  for (const f of r.sources_failed || []) {
-    const head = document.createElement("div"); head.className = "src fail";
-    const n = document.createElement("span"); n.className = "n"; n.innerHTML = '<i data-lucide="x"></i>'; n.append(f.source);
+  for (const f of r.sources_failed || []) { // pending = still running past the budget (spec 018), answers on the next search
+    const head = document.createElement("div"); head.className = "src " + (f.pending ? "pending" : "fail");
+    const n = document.createElement("span"); n.className = "n"; n.innerHTML = f.pending ? '<i data-lucide="clock"></i>' : '<i data-lucide="x"></i>'; n.append(f.source);
     const c = document.createElement("span"); c.className = "c"; c.textContent = f.error;
     head.append(n, c); rows.push(head);
   }
   $("srcList").replaceChildren(...rows);
-  const nOk = (r.sources_ok || []).length, nFail = (r.sources_failed || []).length;
-  $("tSrc").textContent = nOk + nFail;
-  $("srcSum").textContent = `${nOk + nFail} sources checked (${nOk} answered${nFail ? `, ${nFail} unavailable` : ""}) · ${(r.signals || []).length} findings. Tap a source to see what it found.`;
+  const nOk = (r.sources_ok || []).length, nPend = (r.sources_failed || []).filter((f) => f.pending).length, nFail = (r.sources_failed || []).length - nPend;
+  $("tSrc").textContent = nOk + nPend + nFail;
+  $("srcSum").textContent = `${nOk + nPend + nFail} sources checked (${nOk} answered${nPend ? `, ${nPend} still checking` : ""}${nFail ? `, ${nFail} unavailable` : ""}) · ${(r.signals || []).length} findings. Tap a source to see what it found.`;
   icons();
 }
 
 async function runAssess(kind) {
   const token = ++assessToken;
+  assessCtl?.abort(); assessCtl = new AbortController(); const signal = assessCtl.signal;
   $("live").hidden = false; $("liveNote").textContent = ""; $("assessBox").hidden = true; $("risk").hidden = true; clearCams();
   $("camList").replaceChildren(); $("camHead").hidden = $("camCredit").hidden = true; $("srcList").replaceChildren();
   $("srcSum").textContent = "Sources checked"; $("tSrc").textContent = "";
@@ -1021,7 +1023,7 @@ async function runAssess(kind) {
     ? legPairs().map(([a, b]) => `${API}/assess/route?from=${a.lat},${a.lon}&to=${b.lat},${b.lon}&depart_h=${depH()}&cycle=${cyc.cycle}`)
     : [`${API}/assess?lat=${origin.lat}&lon=${origin.lon}&cycle=${cyc.cycle}`];
   try {
-    const all = await Promise.all(urls.map((u) => fetch(u).then((x) => x.json())));
+    const all = await Promise.all(urls.map((u) => fetch(u, { signal }).then((x) => x.json())));
     if (token !== assessToken) return; // a newer search started
     const r = all.length === 1 ? all[0] : mergeAssess(all);
     if (r.state === "error") { $("liveStatus").textContent = r.message; return; }
@@ -1040,6 +1042,7 @@ async function runAssess(kind) {
       $("liveNote").textContent = `Re-routed around live hazards: ${(rt.live_hazards_considered || []).join("; ")}. About ${Math.round(rt.minutes)} min.`;
     }
   } catch (e) {
+    if (e?.name === "AbortError") return; // superseded by a newer search
     if (token === assessToken) $("liveStatus").textContent = "Live checks are unavailable right now. The forecast above still applies.";
   }
 }
@@ -1374,7 +1377,7 @@ async function plainRoute(o, d) {
     return { geometry: rt.geometry, minutes: rt.duration / 60 };
   } catch (e) { return null; }
 }
-function routeEmpty() { assessToken++; planToken++; lastPlan = null; $("plan").hidden = true; $("why").hidden = true; $("legUsual").hidden = true; $("tripRoads").textContent = ""; renderPlan(); $("live").hidden = true; $("risk").hidden = true; clearCams(); map.getSource("route").setData(empty); map.getSource("usual").setData(empty); setHazard([]); $("results").replaceChildren(); $("summary").textContent = ""; routeSummary(null); showTabs(false); }
+function routeEmpty() { assessToken++; assessCtl?.abort(); planToken++; lastPlan = null; $("plan").hidden = true; $("why").hidden = true; $("legUsual").hidden = true; $("tripRoads").textContent = ""; renderPlan(); $("live").hidden = true; $("risk").hidden = true; clearCams(); map.getSource("route").setData(empty); map.getSource("usual").setData(empty); setHazard([]); $("results").replaceChildren(); $("summary").textContent = ""; routeSummary(null); showTabs(false); }
 
 // Legs of the trip: start → each picked stop → destination (combined client-side; the API routes one leg at a time)
 const stopPlaces = () => stops.map((s) => s.place).filter(Boolean);

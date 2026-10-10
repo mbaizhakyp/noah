@@ -79,3 +79,70 @@ def test_blank_camera_feed_is_cant_tell_without_ai(monkeypatch):
     )
     r = photo.verified("http://x")
     assert r["bucket"] == "cant_tell" and r["label"] is None and r["blank"]
+
+
+def test_budget_is_enforced_and_slow_sources_are_pending(monkeypatch):
+    import time
+
+    import noah.sources as src
+    import noah.sources.adapters
+    import noah.sources.more  # noqa: F401
+
+    def slow(ctx):
+        time.sleep(1.0)
+        return [src.signal("slow", "context", "late")]
+
+    monkeypatch.setattr(
+        src,
+        "ADAPTERS",
+        [("fast", 0, lambda c: [src.signal("fast", "context", "hi")]), ("slow", 60, slow)],
+    )
+    src._inflight.clear()
+    t0 = time.time()
+    out = src.run(src.Ctx("area", 33.8, -84.4), budget_s=0.3)
+    assert time.time() - t0 < 1.0  # returns at the budget, not when the slow one finishes
+    assert [o["source"] for o in out["sources_ok"]] == ["fast"]
+    assert out["sources_failed"] == [{"source": "slow", "error": "still checking", "pending": True}]
+    time.sleep(1.0)  # the straggler finishes in the background and is cached for the next search
+    out = src.run(src.Ctx("area", 33.8, -84.4), budget_s=0.3)
+    assert {o["source"] for o in out["sources_ok"]} == {"fast", "slow"}
+    assert next(o for o in out["sources_ok"] if o["source"] == "slow")["cached"] is True
+
+
+def test_camera_ai_check_runs_in_the_background(monkeypatch):
+    import time
+
+    from noah.api import photo
+    from noah.sources import more
+
+    def slow_verified(url):
+        time.sleep(0.5)
+        return {"bucket": "none", "confidence": "high", "label": None, "verified": None}
+
+    monkeypatch.setattr(photo, "verified", slow_verified)
+    more._cam_cache.clear()
+    more._cam_jobs.clear()
+    w = {"webcamId": "c1", "images": {"current": {"preview": "http://x"}}}
+    assert more.cam_verdicts([w], wait_s=0.1)["c1"]["bucket"] == "checking"
+    time.sleep(0.7)
+    assert more.cam_verdicts([w], wait_s=0.1)["c1"]["bucket"] == "none"  # from the cache now
+
+
+def test_partial_answers_are_cached_only_briefly(monkeypatch):
+    import noah.sources as src
+    import noah.sources.adapters
+    import noah.sources.more  # noqa: F401
+
+    calls = []
+
+    def partial(ctx):
+        calls.append(1)
+        return [src.signal("cams", "observation", "checking", extra={"partial": True})]
+
+    monkeypatch.setattr(src, "ADAPTERS", [("cams", 600, partial)])
+    monkeypatch.setattr(src, "PARTIAL_TTL", 0)
+    src._inflight.clear()
+    src._cache.clear()
+    src.run(src.Ctx("area", 33.9, -84.5), budget_s=2)
+    src.run(src.Ctx("area", 33.9, -84.5), budget_s=2)
+    assert len(calls) == 2  # not served from the 600 s cache while a verdict is still running

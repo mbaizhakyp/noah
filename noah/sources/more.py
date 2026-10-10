@@ -6,10 +6,11 @@ Same contract as adapters.py: fetch(ctx) -> list[signal], cached, failures isola
 
 import csv
 import io
+import logging
 import os
 import re
 import xml.etree.ElementTree as ET
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, wait
 from datetime import UTC, datetime, timedelta
 from email.utils import parsedate_to_datetime
 from functools import lru_cache
@@ -19,6 +20,8 @@ import pandas as pd
 from noah.api import photo
 from noah.sources import Ctx, adapter, haversine_m, http, signal
 from noah.sources.adapters import local
+
+_log = logging.getLogger("sources.cameras")
 
 NWM = "https://maps.water.noaa.gov/server/rest/services/nwm"
 MM_PER_IN = 25.4
@@ -89,7 +92,49 @@ def county_at(lat: float, lon: float) -> str | None:
 
 # ---------------------------------------------------------------- cameras (010 + 013)
 
-_cam_cache: dict = {}
+_cam_cache: dict = {}  # cam id -> (expires, verdict)
+_cam_jobs: dict = {}  # cam id -> Future of the AI check in progress (spec 018)
+_cam_pool = ThreadPoolExecutor(max_workers=4)
+CAM_WAIT_S = 6  # a search waits this long for fresh verdicts; the rest finish in the background
+CHECKING = {
+    "bucket": "checking",
+    "confidence": "n/a",
+    "label": None,
+    "note": "AI check still running; the verdict shows on the next search",
+    "verified": None,
+}
+
+
+def _verdict(cid: str, url: str) -> dict:
+    res = photo.verified(url)
+    _cam_cache[cid] = (datetime.now(UTC) + timedelta(minutes=10), res)
+    return res
+
+
+def cam_verdicts(pick: list[dict], wait_s: float = CAM_WAIT_S) -> dict[str, dict]:
+    """Verdict per camera id: from the 10 min cache, else start (or reuse) a background AI check
+    and wait up to wait_s for it. Cameras still unchecked get the CHECKING placeholder."""
+    out, futs = {}, {}
+    for w in pick:
+        cid = w["webcamId"]
+        hit = _cam_cache.get(cid)
+        if hit and hit[0] > datetime.now(UTC):
+            out[cid] = hit[1]
+            continue
+        job = _cam_jobs.get(cid)
+        if job is None or job.done():
+            job = _cam_pool.submit(_verdict, cid, w["images"]["current"]["preview"])
+            _cam_jobs[cid] = job
+        futs[job] = cid
+    if futs:
+        done, _ = wait(futs, timeout=wait_s)
+        for f in done:
+            try:
+                out[futs[f]] = f.result()
+            except Exception as e:  # noqa: BLE001 (one camera failing must not sink the rest)
+                _log.warning("camera %s AI check failed: %s", futs[f], e)
+                out[futs[f]] = {**CHECKING, "bucket": "cant_tell", "note": "AI check failed"}
+    return {w["webcamId"]: out.get(w["webcamId"], CHECKING) for w in pick}
 
 
 @adapter("Traffic cameras", ttl=600)  # docs/07 #31 (Windy) + spec 010 AI vision
@@ -121,63 +166,57 @@ def cameras(ctx: Ctx) -> list[dict]:
         step = len(ranked) / 8
         ranked = [ranked[int(i * step)] for i in range(8)]
     pick = ranked[:5] if ctx.kind == "area" else ranked[:8]
-
-    def check(w):
-        cid = w["webcamId"]
-        hit = _cam_cache.get(cid)
-        if hit and hit[0] > datetime.now(UTC):
-            return w, hit[1]
-        res = photo.verified(w["images"]["current"]["preview"])
-        _cam_cache[cid] = (datetime.now(UTC) + timedelta(minutes=10), res)
-        return w, res
+    verdicts = cam_verdicts(pick)
 
     out = []
-    with ThreadPoolExecutor(max_workers=8) as pool:
-        for w, res in pool.map(check, pick):
-            loc = w["location"]
-            b = res["bucket"]
-            if b in photo.WET and res.get("verified") is not True:
-                b = "possible_water"  # seen once, not confirmed: caution only, never blocks a road
-            sev = {
-                "door_sill_or_above": "danger",
-                "half_tire": "danger",
-                "curb": "warning",
-                "possible_water": "watch",
-            }.get(b, "info")
-            seen = {
-                "none": "no water on the road seen",
-                "cant_tell": "camera feed unavailable"
-                if res.get("blank")
-                else "can't tell from the image",
-                "possible_water": "possible water near the road, not confirmed",
-            }.get(b, f"water on the road around {b.replace('_', ' ')} level (confirmed twice)")
-            out.append(
-                signal(
-                    "Traffic cameras",
-                    "observation",
-                    f"Camera {res.get('label') or w['title']}: {seen}",
-                    detail=f"{res.get('note') or ''} (AI check of the current snapshot, confidence {res['confidence']}). Webcams provided by Windy.com.".strip(),
-                    severity=sev,
-                    lat=loc["latitude"],
-                    lon=loc["longitude"],
-                    url=w["urls"]["detail"],
-                    extra={
-                        "camera": {
-                            "cam_id": w["webcamId"],
-                            "lat": loc["latitude"],
-                            "lon": loc["longitude"],
-                            "name": res.get("label") or w["title"],
-                            "bucket": b,
-                            "confidence": res["confidence"],
-                            "reference_object": res.get("reference_object"),
-                            "image_url": w["images"]["current"]["preview"],
-                            "page_url": w["urls"]["detail"],
-                            "checked_utc": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
-                            "distance_m": round(ctx.distance_m(loc["latitude"], loc["longitude"])),
-                        }
+    for w in pick:
+        res = verdicts[w["webcamId"]]
+        loc = w["location"]
+        b = res["bucket"]
+        if b in photo.WET and res.get("verified") is not True:
+            b = "possible_water"  # seen once, not confirmed: caution only, never blocks a road
+        sev = {
+            "door_sill_or_above": "danger",
+            "half_tire": "danger",
+            "curb": "warning",
+            "possible_water": "watch",
+        }.get(b, "info")
+        seen = {
+            "none": "no water on the road seen",
+            "cant_tell": "camera feed unavailable"
+            if res.get("blank")
+            else "can't tell from the image",
+            "possible_water": "possible water near the road, not confirmed",
+            "checking": "AI check still running, verdict on the next search",
+        }.get(b, f"water on the road around {b.replace('_', ' ')} level (confirmed twice)")
+        out.append(
+            signal(
+                "Traffic cameras",
+                "observation",
+                f"Camera {res.get('label') or w['title']}: {seen}",
+                detail=f"{res.get('note') or ''} (AI check of the current snapshot, confidence {res['confidence']}). Webcams provided by Windy.com.".strip(),
+                severity=sev,
+                lat=loc["latitude"],
+                lon=loc["longitude"],
+                url=w["urls"]["detail"],
+                extra={
+                    **({"partial": True} if b == "checking" else {}),  # spec 018: short cache
+                    "camera": {
+                        "cam_id": w["webcamId"],
+                        "lat": loc["latitude"],
+                        "lon": loc["longitude"],
+                        "name": res.get("label") or w["title"],
+                        "bucket": b,
+                        "confidence": res["confidence"],
+                        "reference_object": res.get("reference_object"),
+                        "image_url": w["images"]["current"]["preview"],
+                        "page_url": w["urls"]["detail"],
+                        "checked_utc": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                        "distance_m": round(ctx.distance_m(loc["latitude"], loc["longitude"])),
                     },
-                )
+                },
             )
+        )
     return out
 
 

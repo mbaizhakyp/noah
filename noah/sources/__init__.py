@@ -6,6 +6,7 @@ budget; a slow or failing source is reported, never fatal.
 import itertools
 import logging
 import math
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, wait
 from dataclasses import dataclass, field
@@ -20,6 +21,10 @@ UA = {"User-Agent": "noah-hacklanta/0.1 (Hacklanta 2026 flood-road app)"}
 http = httpx.Client(timeout=8, headers=UA, follow_redirects=True)
 ADAPTERS: list[tuple[str, int, object]] = []  # (name, ttl_s, fn)
 _cache: dict = {}
+_inflight: dict = {}  # (name, ctx key) -> Future of the call in progress (spec 018)
+_lock = threading.Lock()
+SLOW_S = 5  # log any source slower than this
+PARTIAL_TTL = 20  # cache a partial answer (a "still checking" camera) only this long
 
 
 @dataclass
@@ -147,32 +152,54 @@ def _call(name: str, ttl: int, fn, ctx: Ctx):
     hit = _cache.get(k)
     if hit and hit[0] > time.time():
         return hit[1], True
+    t0 = time.time()
     out = fn(ctx)
+    if any(s.get("partial") for s in out):  # e.g. a camera verdict still running: ask again soon
+        ttl = min(ttl, PARTIAL_TTL)
     _cache[k] = (time.time() + ttl, out)
+    took = time.time() - t0
+    if took > SLOW_S:
+        log.warning("source %s took %.1f s", name, took)
     return out, False
 
 
 def run(ctx: Ctx, budget_s: float = 12, only: set[str] | None = None) -> dict:
-    """Run every adapter in parallel. Returns signals plus which sources answered or failed."""
+    """Run every adapter in parallel. Returns signals plus which sources answered or failed.
+
+    Spec 018: one thread per adapter so every source starts at once; the call returns at the
+    budget. A source still running is reported as "still checking" (pending), keeps running in
+    the background and lands in the cache for the next search. A search while a source is still
+    running for the same place reuses that in-flight call instead of starting a second one.
+    """
     from noah.sources import adapters, more  # noqa: F401  (registers adapters)
 
     todo = [a for a in ADAPTERS if only is None or a[0] in only]
     ok, failed, signals = [], [], []
     t0 = time.time()
-    with ThreadPoolExecutor(max_workers=min(16, len(todo) or 1)) as pool:
-        futs = {pool.submit(_call, n, ttl, fn, ctx): n for n, ttl, fn in todo}
-        done, pending = wait(futs, timeout=budget_s)
-        for f in done:
-            name = futs[f]
-            try:
-                out, cached = f.result()
-                signals.extend(out)
-                ok.append({"source": name, "signals": len(out), "cached": cached})
-            except Exception as e:  # noqa: BLE001 (one source failing must not sink the answer)
-                log.warning("source %s failed: %s", name, e)
-                failed.append({"source": name, "error": f"{type(e).__name__}: {str(e)[:120]}"})
-        for f in pending:
-            failed.append({"source": futs[f], "error": f"timeout after {budget_s:.0f} s"})
+    pool = ThreadPoolExecutor(max_workers=len(todo) or 1)
+    futs = {}
+    with _lock:
+        for n, ttl, fn in todo:
+            k = (n, ctx.key())
+            f = _inflight.get(k)
+            if f is None or f.done():
+                f = pool.submit(_call, n, ttl, fn, ctx)
+                _inflight[k] = f
+            futs[f] = n
+    done, pending = wait(futs, timeout=budget_s)
+    pool.shutdown(wait=False)  # stragglers finish on their own thread and cache their answer
+    for f in done:
+        name = futs[f]
+        try:
+            out, cached = f.result()
+            signals.extend(out)
+            ok.append({"source": name, "signals": len(out), "cached": cached})
+        except Exception as e:  # noqa: BLE001 (one source failing must not sink the answer)
+            log.warning("source %s failed: %s", name, e)
+            failed.append({"source": name, "error": f"{type(e).__name__}: {str(e)[:120]}"})
+    for f in pending:
+        log.warning("source %s still running after the %.0f s budget", futs[f], budget_s)
+        failed.append({"source": futs[f], "error": "still checking", "pending": True})
     order = {"danger": 0, "warning": 1, "watch": 2, "info": 3}
     signals.sort(key=lambda s: order.get(s.get("severity"), 4))
     return {
