@@ -474,8 +474,9 @@ function barChart(id, values, title) {
 async function loadCity(cycle) {
   city = null; facMarkers.forEach(({ m }) => m.remove()); facMarkers = [];
   $("fixList").replaceChildren(el("p", "summary", "Ranking the roads…")); $("facList").replaceChildren();
-  const c = await fetch(`${API}/ops/city?cycle=${cycle}`).then((r) => r.json());
+  const r = await fetch(`${API}/ops/city?cycle=${cycle}`), c = await r.json().catch(() => ({}));
   if (!data || data.cycle !== cycle) return;
+  if (!r.ok || !c.facilities) return $("fixList").replaceChildren(el("p", "summary", `City data didn't load (${c.detail || r.status}). Run the check again.`));
   city = c;
   $("fixList").replaceChildren(...c.fix_first.slice(0, 8).map((r, i) => {
     const card = el("div", "card"); card.tabIndex = 0; card.setAttribute("role", "button");
@@ -685,7 +686,7 @@ async function run() {
     const d = await res.json();
     if (!res.ok) throw new Error((d.detail || "The check failed") + ". Fix the depot or stops and try again.");
     await layersReady;
-    data = d; highlighted = null; closeWhy();
+    data = d; city = null; highlighted = null; closeWhy();  // drop the previous run's city data before anything renders
     const gj = await fetch(`data/flood_${d.cycle}.geojson`).then((r) => r.json());
     flood = gj.features; map.getSource("flood").setData(gj);
     cityStats(flood);
