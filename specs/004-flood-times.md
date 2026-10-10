@@ -26,10 +26,10 @@ Algorithm exactly as in `docs/02-ARCHITECTURE.md` §2:
 2. Baseline stage per HydroID from `BASELINE_CYCLE` lead 1.
 3. Channel-pixel filter: drop C3 samples with `hand_m <= baseline_stage(hydro_id)`.
 4. `hand_min[seg_id, hydro_id] = min(hand_m)` over the remaining samples.
-5. Per (seg, hydro): `t_flood` = first lead_h with `stage >= hand_min`; `t_uncertain` = first lead_h with `stage >= hand_min - UNCERTAIN_BAND_M`. Per segment, take the minimum across its HydroIDs. `feature_id` = the reach of the HydroID that set `t_uncertain`.
+5. Per (seg, hydro), over lead_h 0–18 (0 = now): `t_flood` = first lead_h with `stage >= hand_min`; `t_uncertain` = first lead_h with `stage >= hand_min - UNCERTAIN_BAND_M`. Per segment, take the minimum across its HydroIDs. `feature_id` = the reach of the HydroID that set `t_uncertain`.
 6. Persistence is implied: we only store first-entry hours, and consumers treat states as sticky.
 7. Join geometry and `name` from C4 edges. Keep only segments with non-null `t_uncertain`. Round coords to 5 dp, `hand_min_m` to 2 dp, and write C5.
-8. Write or update C6 with all processed cycles and their 18 `valid_times`.
+8. Write or update C6 with all processed cycles and their 19 `valid_times` (index = lead_h, 0–18).
 9. Log per cycle: n uncertain, n flooded, earliest `t_flood`.
 
 ## Acceptance criteria

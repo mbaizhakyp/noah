@@ -102,6 +102,7 @@ Both build with Claude Code. No lab code is reused; everything is built fresh du
 | D5 | Replay clock | Demo "now" = NWM short-range cycle **2024-09-26 18Z (2:00 PM EDT)**, provisional. Final rule: the earliest cycle from 12Z Sep 26 onward whose forecast at the gauge reach (feature_id 2047989) exceeds the minor-flood flow (5,700 cfs = 161.4 m³/s). Set by spec 005 after the midnight go/no-go. |
 | D6 | Output wording | Four frozen states: **Do not cross / Uncertain: treat as impassable / No forecast flooding (not a safety guarantee) / Outside coverage**. Exact text in `02-ARCHITECTURE.md` §5. |
 | D7 | Data store | No database. Parquet + GeoJSON files, loaded into memory by the API. |
+| D10 | Forecast vs real-time | **Forecast first (Margulan, Oct 9).** The product predicts which roads flood in the next 18 h. "Now" is hour 0 of the same map, from NWM's current-conditions analysis: same pipeline, one extra file per cycle. Observed real-time data (gauge, team photos, cameras) is a **confirmation layer**, never the core. We prove the forecast was real with the Helene replay (005) and, if GO, Isaias (011). |
 | D8 | Hosting | Static map on GitHub Pages (`/web`). API + iMessage relay run on a laptop, exposed with a `cloudflared` quick tunnel during judging. |
 
 ## Demo script (target, 3 min)

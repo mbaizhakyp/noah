@@ -23,7 +23,7 @@ A single static `web/index.html`.
 ## Behavior
 1. MapLibre GL JS from a CDN, **pinned exact version**. Dark base map, free with no key: OpenFreeMap "dark" style, or the CARTO dark-matter GL style **(verify the URL works without a key)**. Attribution visible.
 2. On load: read C6, choose `cycle` from the URL or `demo_cycle`, fetch C5 for it, and fetch the AOI (thin outline).
-3. **Slider** over lead hours 0–18. The label shows local time (America/New_York), e.g. "Thu Sep 26, 9 PM (+7 h)". Layer filters:
+3. **Slider** over lead hours 0–18. Hour 0 is labeled **"Now (estimated)"**; others show local time (America/New_York) as a forecast, e.g. "Forecast: Thu Sep 26, 9 PM (+7 h)". Layer filters:
    - red line `#ef4444` (width 4): `t_flood <= t`
    - amber line `#f59e0b` (width 3): `t_uncertain <= t` and not red
    - hidden otherwise.

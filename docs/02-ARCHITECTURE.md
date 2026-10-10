@@ -25,7 +25,7 @@ We deliberately avoid raster thresholding and polygon joins for each forecast ho
 2. **Per cycle:** for each HydroID, `stage(t) = interp(q(feature_id, t), rating_curve(hydro_id))`.
 3. **Channel-pixel filter:** discard samples with `hand_m <= stage_baseline(hydro_id)`, where the baseline is stage at the low-flow cycle (`BASELINE_CYCLE`). These pixels are the stream channel itself, e.g. a culvert crossing burned into the DEM. Dropping them makes a crossing's threshold the elevation of the road approach. Note: `hand_m <= stage` is the same comparison FIM uses to mark a pixel wet.
 4. For each segment, `hand_min = min(hand_m)` over the remaining samples, per HydroID.
-5. `t_flood` = first lead hour where `stage(t) >= hand_min`. `t_uncertain` = first lead hour where `stage(t) >= hand_min - UNCERTAIN_BAND_M`.
+5. Lead hour 0 = **now** (NWM analysis of current conditions); hours 1–18 = forecast. `t_flood` = first lead hour (0–18) where `stage(t) >= hand_min`. `t_uncertain` = first lead hour where `stage(t) >= hand_min - UNCERTAIN_BAND_M`.
 6. **Conservative persistence:** once a segment enters a state it stays there for the rest of the 18 h window. Recession is not modeled.
 
 ## 3. Repo layout
@@ -67,7 +67,7 @@ Cycle IDs everywhere use the format `YYYYMMDDTHHZ`, e.g. `20240926T18Z`. All tim
 | column | type | notes |
 |---|---|---|
 | feature_id | int64 | NWM reach = NHDPlusV2 COMID; only AOI reaches |
-| lead_h | int8 | 1–18 |
+| lead_h | int8 | **0–18**: 0 = `analysis_assim` tm00 at the issue time (model estimate of *now*); 1–18 = `short_range` forecast |
 | valid_time | timestamp (UTC) | issue time + lead_h |
 | q_cms | float32 | `streamflow`, m³/s |
 
@@ -97,8 +97,8 @@ FeatureCollection, EPSG:4326, coordinates rounded to 5 dp. **Contains only segme
 |---|---|---|
 | seg_id | str | joins to C3/C4 |
 | name | str \| null | OSM street name |
-| t_uncertain | int | first lead hour (1–18) in the uncertain band |
-| t_flood | int \| null | first lead hour forecast flooded |
+| t_uncertain | int | first lead hour (0–18) in the uncertain band; 0 = already estimated now |
+| t_flood | int \| null | first lead hour (0–18) forecast flooded |
 | feature_id | int | controlling reach |
 | hand_min_m | float | 2 dp |
 
@@ -108,7 +108,7 @@ FeatureCollection, EPSG:4326, coordinates rounded to 5 dp. **Contains only segme
  "events": {"helene": {"label": "Hurricane Helene, Sep 26–27, 2024", "demo_cycle": "20240926T18Z"},
             "isaias": {"label": "Hurricane Isaias, Oct 10, 2026", "demo_cycle": "20261010T06Z"}},
  "cycles": [{"cycle": "20240926T18Z", "event": "helene", "issue_time": "2024-09-26T18:00:00Z",
-             "valid_times": ["2024-09-26T19:00:00Z", "...18 entries"]}]}
+             "valid_times": ["2024-09-26T18:00:00Z", "...19 entries, index = lead_h 0–18"]}]}
 ```
 `events` and `cycles[].event` were added Oct 9 for spec 011. The top-level `demo_cycle` stays as the default scenario. An event appears only once its C5 files exist.
 
