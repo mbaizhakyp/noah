@@ -1096,6 +1096,17 @@ function wireSearch(inputId, listId, onPick) {
   });
   inp.addEventListener("blur", () => window.setTimeout(() => (list.hidden = true), 200));
 }
+// a link from the agent carries coordinates only; show the nearest address instead of a placeholder word
+async function placeName(p) {
+  const fallback = `${p.lat.toFixed(4)}, ${p.lon.toFixed(4)}`;
+  try {
+    const r = await fetch(`https://photon.komoot.io/reverse?lon=${p.lon}&lat=${p.lat}&lang=en`).then((x) => x.json());
+    const q = r.features?.[0]?.properties; if (!q) return fallback;
+    const name = q.name || [q.housenumber, q.street].filter(Boolean).join(" ");
+    const where = [q.street && q.name ? q.street : null, q.city || q.county].filter(Boolean).join(", ");
+    return [name, where].filter(Boolean).join(", ") || fallback;
+  } catch (e) { return fallback; }
+}
 function setOrigin(o) { origin = o; }
 function setDest(d) { dest = d; $("toClear").hidden = !d; setGoLabel(); }
 wireSearch("fromQ", "fromList", (o) => { setOrigin(o); dest ? findRoute() : checkArea(); });
@@ -1169,8 +1180,14 @@ async function loadCycle(id) {
   // C10 links from the agent: ?from=lat,lon&to=lat,lon  or  ?near=lat,lon
   const ll = (s) => { const [lat, lon] = (s || "").split(",").map(Number); return isFinite(lat) && isFinite(lon) ? { lat, lon } : null; };
   const f = ll(P.get("from")), t = ll(P.get("to")), n = ll(P.get("near"));
-  if (f && t) { setOrigin({ ...f, label: "Start" }); $("fromQ").value = "Start"; setDest({ ...t, label: "Destination" }); $("toQ").value = "Destination"; await mapReady; findRoute(); }
-  else if (n || f) { setOrigin({ ...(n || f), label: "Selected place" }); $("fromQ").value = "Selected place"; await mapReady; checkArea(); }
+  if (f && t) {
+    const [fo, to] = await Promise.all([placeName(f), placeName(t)]);
+    setOrigin({ ...f, label: fo }); $("fromQ").value = fo; setDest({ ...t, label: to }); $("toQ").value = to;
+    await mapReady; findRoute();
+  } else if (n || f) {
+    const p = n || f, name = await placeName(p);
+    setOrigin({ ...p, label: name }); $("fromQ").value = name; await mapReady; checkArea();
+  }
   // the live loop publishes a new NWM cycle every hour; a page left open follows it (unless a link pinned a cycle)
   if (!pick) window.setInterval(async () => {
     try {
