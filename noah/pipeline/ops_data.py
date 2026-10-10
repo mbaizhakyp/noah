@@ -2,12 +2,16 @@
 
 - web/data/facilities.geojson: schools, hospitals, clinics, nursing homes, fire stations and police inside the AOI.
 - web/data/waterways.geojson: named rivers, creeks and canals, so a flagged road can say which creek overtops it.
+- web/data/svi_tracts.geojson: census tracts touching the AOI with CDC/ATSDR Social Vulnerability Index 2022 (RPL_THEMES =
+  national percentile, 1 = most vulnerable), population and households without a vehicle (public domain, CDC).
 
-Run: uv run python -m noah.pipeline.ops_data
+Run: uv run python -m noah.pipeline.ops_data          (all)
+     uv run python -m noah.pipeline.ops_data svi      (SVI tracts only)
 """
 
 import json
 import logging
+import sys
 
 import httpx
 from shapely.geometry import Point, mapping, shape
@@ -16,6 +20,7 @@ from noah import config
 
 log = logging.getLogger("ops_data")
 OVERPASS = "https://overpass-api.de/api/interpreter"
+SVI_URL = "https://onemap.cdc.gov/onemapservices/rest/services/SVI/CDC_ATSDR_Social_Vulnerability_Index_2022_USA/FeatureServer/2/query"
 UA = {"User-Agent": "noah-hacklanta/0.1 (+https://github.com/mbaizhakyp/noah)"}
 KINDS = {
     "hospital": "Hospital",
@@ -33,9 +38,61 @@ def overpass(query: str) -> list[dict]:
     return r.json()["elements"]
 
 
+def svi_tracts(aoi) -> None:
+    w, s, e, n = aoi.bounds
+    feats, offset = [], 0
+    while True:
+        r = httpx.get(
+            SVI_URL,
+            params={
+                "geometry": f"{w},{s},{e},{n}",
+                "geometryType": "esriGeometryEnvelope",
+                "inSR": 4326,
+                "outSR": 4326,
+                "spatialRel": "esriSpatialRelIntersects",
+                "outFields": "FIPS,LOCATION,RPL_THEMES,E_TOTPOP,E_NOVEH",
+                "resultOffset": offset,
+                "f": "geojson",
+            },
+            headers=UA,
+            timeout=120,
+        )
+        r.raise_for_status()
+        page = r.json()
+        feats += page["features"]
+        offset += len(page["features"])
+        if not page.get("properties", {}).get("exceededTransferLimit") or not page["features"]:
+            break
+    out = []
+    for f in feats:
+        g, p = shape(f["geometry"]), f["properties"]
+        rpl = p.get("RPL_THEMES")
+        if g.intersects(aoi) and rpl is not None and rpl >= 0:  # -999 = no estimate
+            out.append(
+                {
+                    "type": "Feature",
+                    "geometry": mapping(g.simplify(0.0002)),
+                    "properties": {
+                        "fips": p["FIPS"],
+                        "name": p["LOCATION"],
+                        "rpl": round(rpl, 3),
+                        "pop": p["E_TOTPOP"],
+                        "no_vehicle_hh": p["E_NOVEH"],
+                    },
+                }
+            )
+    (config.WEB_DATA / "svi_tracts.geojson").write_text(
+        json.dumps({"type": "FeatureCollection", "features": out})
+    )
+    log.info("svi: %d tracts touch the AOI", len(out))
+
+
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
     aoi = config.aoi_union((config.WEB_DATA / "aoi.geojson").read_text())
+    svi_tracts(aoi)
+    if sys.argv[1:] == ["svi"]:
+        return
     w, s, e, n = aoi.bounds
     bbox = f"{s},{w},{n},{e}"
     kinds = "|".join(KINDS)

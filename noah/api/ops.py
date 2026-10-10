@@ -2,7 +2,8 @@
 
 GET /ops/why?seg_id=&cycle=   why a road is flagged: which creek overtops it, how high the road sits above it, the flow at
                               which water reaches it vs the forecast, how often it flagged in past storms, cameras nearby
-GET /ops/city?cycle=          what is at stake: facilities cut off by hour, streets to fix first (and why)
+GET /ops/city?cycle=          what is at stake: facilities cut off by hour, streets to fix first (and why), and how much of
+                              the flooding falls in socially vulnerable neighborhoods (CDC SVI)
 GET /ops/site?lat=&lon=       how often roads around a candidate site were forecast cut in the recorded storms
 
 Noah models creek and river overflow (NOAA National Water Model + NOAA terrain). Storm drains and sewers are not in public
@@ -33,6 +34,7 @@ SOURCE = {
     "noah": "Noah, from NOAA terrain data (residential street)",
 }
 EVENT = {"helene": "Helene 2024", "live": "Isaias 2026"}
+SVI_HIGH = 0.75  # CDC's "high vulnerability" band: the most vulnerable quarter of US census tracts
 
 
 def iso(t: pd.Timestamp) -> str:
@@ -125,6 +127,18 @@ def facilities():
 
 
 @lru_cache(maxsize=1)
+def svi():
+    """CDC SVI tracts (web/data/svi_tracts.geojson) and, per road segment, the tract its midpoint sits in."""
+    feats = json.loads((config.WEB_DATA / "svi_tracts.geojson").read_text())["features"]
+    edges = dispatch.graph_state()[4]
+    mids = shapely.line_interpolate_point(edges.geometry.values, 0.5, normalized=True)
+    seg_i, tract_i = shapely.STRtree([shape(f["geometry"]) for f in feats]).query(
+        mids, predicate="within"
+    )
+    return [f["properties"] for f in feats], dict(zip(edges.seg_id.values[seg_i], tract_i.tolist()))
+
+
+@lru_cache(maxsize=1)
 def undirected():
     """Road network as an undirected graph; each edge remembers the segment ids that make it up (both directions)."""
     G = dispatch.graph_state()[0]
@@ -159,6 +173,16 @@ def fix_score(hist: dict, totals: dict, major: bool, n_facilities: int) -> float
     """Recurring across storms first, then busy roads, then roads that cut off schools, clinics or responders."""
     rec = sum(hist.get(ev, 0) / max(1, totals.get(ev, 1)) for ev in totals)
     return round(rec * 10 + (3 if major else 0) + 2 * min(n_facilities, 3), 2)
+
+
+def vulnerable(
+    t_by_seg: dict, tract_of: dict, tracts: list[dict], h: int
+) -> tuple[float | None, int]:
+    """Of the segments cut by hour h: share in high-SVI tracts, and the population of those tracts."""
+    cut = [tract_of[s] for s, t in t_by_seg.items() if t <= h and s in tract_of]
+    hi = {k for k in cut if tracts[k]["rpl"] >= SVI_HIGH}
+    share = round(sum(k in hi for k in cut) / len(cut), 2) if cut else None
+    return share, sum(tracts[k]["pop"] for k in hi)
 
 
 # ---------- endpoints ----------
@@ -317,6 +341,9 @@ def city_cached(cycle: str) -> dict:
         )
     fix.sort(key=lambda r: -r["score"])
     first = min((f["properties"]["t_uncertain"] for f in feats), default=None)
+    tracts, tract_of = svi()
+    vul = [vulnerable(tu, tract_of, tracts, h) for h in range(config.MAX_LEAD_H + 1)]
+    all_hi = sum(tracts[k]["rpl"] >= SVI_HIGH for k in tract_of.values()) / max(1, len(tract_of))
     return {
         "cycle": cycle,
         "issue_utc": iso(fl.issue_time),
@@ -325,6 +352,12 @@ def city_cached(cycle: str) -> dict:
         "facilities_checked": len(fac),
         "fix_first": fix[:15],
         "segments_by_hour": [edges_by_hour[h] for h in range(config.MAX_LEAD_H + 1)],
+        "vulnerability": {
+            "share_by_hour": [v[0] for v in vul],
+            "people_by_hour": [v[1] for v in vul],
+            "share_all_roads": round(all_hi, 2),
+            "source": "CDC/ATSDR Social Vulnerability Index 2022, census tracts in the top quarter nationally",
+        },
         "not_modeled": NOT_MODELED,
     }
 

@@ -51,8 +51,8 @@
     color: var(--ink); text-decoration: none; font-weight: 600; font-size: 14px; box-shadow: var(--shadow); }
   .maplibregl-ctrl-top-right { top: 12px; right: 4px; }
 
-  .legend { position: absolute; right: 16px; bottom: 104px; background: var(--surface); border-radius: 16px; padding: 12px 14px;
-    box-shadow: var(--shadow); font-size: 13px; display: grid; gap: 5px; }
+  .legend { position: absolute; right: 16px; bottom: 96px; background: var(--surface); border-radius: 12px; padding: 8px 12px;
+    box-shadow: var(--shadow); font-size: 12px; display: grid; gap: 3px; }
   .legend div { display: flex; align-items: center; gap: 8px; }
   .sw { width: 22px; height: 5px; border-radius: 3px; flex: none; }
 
@@ -173,7 +173,7 @@
 
   /* ---------- markers ---------- */
   .pin { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 13px; color: #fff;
-    border: 3px solid #fff; box-shadow: 0 6px 14px -4px rgba(2, 23, 43, .5); cursor: pointer; }
+    border: 3px solid #fff; box-shadow: 0 6px 14px -4px rgba(2, 23, 43, .5); cursor: pointer; z-index: 2; }  /* stop numbers stay above cut ✕ marks */
   .depot { width: 34px; height: 34px; border-radius: 11px; background: var(--deep); color: var(--pale); display: grid; place-items: center;
     font-weight: 800; font-size: 16px; border: 3px solid #fff; box-shadow: 0 6px 14px -4px rgba(2, 23, 43, .5); }
   .fac { width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; font-weight: 800; font-size: 12px; cursor: pointer;
@@ -214,13 +214,14 @@
   </header>
   <a class="maplink" href="index.html">Open the flood map →</a>
   <div class="legend" id="legend" aria-label="Map legend">
-    <div><span class="sw" style="background:var(--soft)"></span>Creeks and rivers</div>
-    <div><span class="sw" style="background:var(--red)"></span>Road forecast underwater</div>
-    <div><span class="sw" style="background:repeating-linear-gradient(90deg,var(--amber) 0 6px,transparent 6px 9px)"></span>Road uncertain: treat as impassable</div>
+    <div><span class="sw" style="background:var(--soft)"></span>Creeks</div>
+    <div><span class="sw" style="background:var(--red)"></span>Road underwater</div>
+    <div><span class="sw" style="background:repeating-linear-gradient(90deg,var(--amber) 0 6px,transparent 6px 9px)"></span>Road risky: treat as impassable</div>
     <div data-mode="fleet"><span class="sw" style="background:var(--dark)"></span>Route: no forecast flooding then</div>
     <div data-mode="fleet"><span class="sw" style="background:var(--amber);height:7px"></span>Route closes later: go before</div>
     <div data-mode="fleet"><span class="sw" style="background:repeating-linear-gradient(90deg,var(--red) 0 6px,transparent 6px 10px)"></span>Route cut by flooding (✕ marks where)</div>
-    <div data-mode="city"><span class="sw" style="background:var(--red);height:12px;width:12px;border-radius:3px"></span>School, clinic or responder with a flooded road at the door</div>
+    <div data-mode="city"><span class="sw" style="background:var(--red);height:12px;width:12px;border-radius:3px"></span>School, clinic or responder at risk</div>
+    <div id="legSvi" hidden><span class="sw" style="background:rgba(4,50,90,.18);border:1px dashed var(--dark);height:12px;width:12px;border-radius:3px"></span>Most vulnerable neighborhoods (CDC)</div>
   </div>
   <aside class="why" id="why" hidden aria-live="polite">
     <button class="close" id="whyClose" aria-label="Close the explanation">✕</button>
@@ -265,6 +266,10 @@
       <div class="tile danger"><span class="n" id="tStreets">–</span><span class="t" id="tStreetsT">streets cut</span></div>
       <div class="tile"><span class="n" id="tFac">–</span><span class="t">schools, clinics or responders with a flooded road at the door</span></div>
       <div class="tile calm"><span class="n tnum" id="tFirst">–</span><span class="t">first road forecast under</span></div>
+    </div>
+    <div style="display:grid;gap:8px">
+      <p class="summary" id="vuln"></p>
+      <button id="sviBtn" class="btn ghost" type="button" aria-pressed="false">Show vulnerable neighborhoods</button>
     </div>
     <div class="chart">
       <div class="cap">Streets forecast cut, hour by hour. Click an hour to see it on the map.</div>
@@ -331,7 +336,7 @@ const C = { red: "#F8635B", amber: "#E8A33D", route: "#04325A", water: "#86B5FA"
 const STATUS_COLOR = { cut: C.red, later: C.amber, open: C.route, none: C.grey };
 const KIND_LETTER = { Hospital: "H", Clinic: "C", "Nursing home": "N", School: "S", "Fire station": "F", Police: "P" };
 let data = null, flood = [], city = null, lastBarricades = [], streetsBy = [], timer = null, liveCycles = new Set(), whySeg = null, whyData = null;
-let pins = [], cuts = [], depotMarker = null, facMarkers = [], sites = [], highlighted = null;
+let pins = [], cuts = [], depotMarker = null, facMarkers = [], sites = [], highlighted = null, sviOn = false;
 // One forecast, three jobs (J20/J21): agencies protect the network (City), businesses plan drivers (Deliveries) and locations (Site check).
 let mode = ["fleet", "site"].includes(Q.get("mode")) ? Q.get("mode") : "city";
 
@@ -367,7 +372,7 @@ function parseStops(text) {
 }
 function kindsText(list) {
   const n = {}; list.forEach((f) => (n[f.kind] = (n[f.kind] || 0) + 1));
-  const parts = Object.entries(n).map(([k, c]) => plural(c, k.toLowerCase()));
+  const parts = Object.entries(n).map(([k, c]) => plural(c, k === "Police" ? "police station" : k.toLowerCase()));
   return parts.length > 1 ? parts.slice(0, -1).join(", ") + " and " + parts.at(-1) : parts[0];
 }
 
@@ -378,6 +383,9 @@ map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-ri
 const mapReady = new Promise((ok) => map.on("load", ok));
 async function setupLayers() {
   const streams = await fetch("data/streams.geojson").then((r) => r.json());
+  map.addSource("svi", { type: "geojson", data: "data/svi_tracts.geojson", filter: [">=", ["get", "rpl"], 0.75] });
+  map.addLayer({ id: "svi", type: "fill", source: "svi", layout: { visibility: "none" }, paint: { "fill-color": C.route, "fill-opacity": 0.14 } });
+  map.addLayer({ id: "svi-line", type: "line", source: "svi", layout: { visibility: "none" }, paint: { "line-color": C.route, "line-width": 1.2, "line-dasharray": [2, 2] } });
   map.addSource("streams", { type: "geojson", data: streams });
   map.addLayer({ id: "streams", type: "line", source: "streams",
     paint: { "line-color": C.water, "line-opacity": 0.95, "line-width": ["interpolate", ["linear"], ["get", "order"], 1, 1.2, 3, 2.6, 5, 4.8] } });
@@ -441,12 +449,15 @@ function renderCity(h) {
     const cutOff = facs.filter((f) => (f.cut_off_h ?? 99) <= h);
     let s = `By <b>${fmtHour.format(atHour(h))}</b>, <em>${plural(n, "street")}</em> forecast cut`;
     s += facs.length ? `, and ${kindsText(facs)} ${facs.length === 1 ? "has" : "have"} a flooded road at the door` : ", with no school, clinic or responder flooded at the door";
-    s += cutOff.length ? `. Cut off from every open road: ${cutOff.map((f) => f.name).join(", ")}.` : ". None is fully cut off.";
+    s += cutOff.length ? `. Cut off from every open road: ${cutOff.slice(0, 3).map((f) => f.name).join(", ")}${cutOff.length > 3 ? ` and ${cutOff.length - 3} more (list below)` : ""}.` : ". None is fully cut off.";
     $("impact").innerHTML = s;
   }
+  const v = city && city.vulnerability, vs = v && v.share_by_hour[h];
+  $("vuln").textContent = !v ? "" : vs == null ? "No road is forecast cut yet." :
+    `By ${fmtHour.format(atHour(h))}, ${Math.round(vs * 100)}% of the road segments cut are in the most socially vulnerable quarter of US neighborhoods (CDC SVI), which hold ${Math.round(v.share_all_roads * 100)}% of all roads here. ${v.people_by_hour[h].toLocaleString()} people live in the ones affected.`;
   if (mode === "city") {
     $("capBig").textContent = h === 0 ? `Forecast issued ${fmt.format(atHour(0))}` : `At ${fmt.format(atHour(h))}`;
-    $("capSmall").textContent = `${plural(n, "street")} forecast underwater or uncertain` + (h ? ` · ${n - n0} more than at ${fmtHour.format(atHour(0))}` : "") +
+    $("capSmall").textContent = `${plural(n, "street")} forecast underwater or risky` + (h ? ` · ${n - n0} more than at ${fmtHour.format(atHour(0))}` : "") +
       (facs.length ? ` · ${kindsText(facs)} with a flooded road at the door` : "") + ". Click a red road to see why.";
   }
 }
@@ -521,7 +532,7 @@ async function openWhy(segId, fly) {
   if (hourNow() < redAt) render(redAt);  // never explain a road that is not red yet on screen
   $("why").hidden = false; $("legend").hidden = true;
   $("whyName").textContent = alias(d.name);
-  $("whyWhen").textContent = `Uncertain from ~${local(d.uncertain_from_utc)}` + (d.flooded_from_utc ? ` · underwater from ~${hourOf(d.flooded_from_utc)}` : "");
+  $("whyWhen").textContent = `Risky from ~${local(d.uncertain_from_utc)}` + (d.flooded_from_utc ? ` · underwater from ~${hourOf(d.flooded_from_utc)}` : "");
   $("whyCause").innerHTML = "";
   const cause = el("span"); cause.append(el("b", null, d.creek ? d.creek.name : "The creek"), document.createTextNode(" overtops it."));
   if (d.creek && d.creek.regulated) cause.append(document.createTextNode(" Its flow is partly set by Buford Dam releases upstream, which the forecast includes."));
@@ -619,6 +630,15 @@ function renderSites() {
 }
 
 // ---------- modes ----------
+function showSvi(on) {
+  for (const id of ["svi", "svi-line"]) if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", on ? "visible" : "none");
+  $("legSvi").hidden = !on;
+}
+$("sviBtn").onclick = () => {
+  sviOn = !sviOn; $("sviBtn").setAttribute("aria-pressed", sviOn);
+  $("sviBtn").textContent = sviOn ? "Hide vulnerable neighborhoods" : "Show vulnerable neighborhoods";
+  layersReady.then(() => showSvi(sviOn));
+};
 function setMode(m) {
   mode = m;
   const is = (x) => m === x;
@@ -631,6 +651,7 @@ function setMode(m) {
   for (const id of ["routes-open", "routes-cut"]) if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", is("fleet") ? "visible" : "none");
   [depotMarker, ...pins, ...cuts.map((c) => c.marker)].forEach((mk) => mk && (mk.getElement().style.display = is("fleet") ? "" : "none"));
   facMarkers.forEach(({ m: mk }) => (mk.getElement().style.display = is("city") ? "" : "none"));
+  showSvi(sviOn && is("city"));
   sites.forEach(({ marker }) => (marker.getElement().style.display = is("site") ? "" : "none"));
   document.querySelectorAll("#legend [data-mode]").forEach((row) => (row.hidden = row.dataset.mode !== m));
   map.getCanvas().style.cursor = is("site") ? "crosshair" : "";
@@ -691,7 +712,7 @@ async function run() {
     flood = gj.features; map.getSource("flood").setData(gj);
     cityStats(flood);
     const live = liveCycles.has(d.cycle);
-    $("eyebrow").textContent = live ? `Live NOAA forecast · issued ${fmtDay.format(new Date(d.issue_time))}` : `Recorded storm · Hurricane Helene · forecast issued ${fmtDay.format(new Date(d.issue_time))}, 2024`;
+    $("eyebrow").textContent = live ? `NOAA forecast Noah ran live · issued ${fmtDay.format(new Date(d.issue_time))}` : `Recorded storm · Hurricane Helene · forecast issued ${fmtDay.format(new Date(d.issue_time))}, 2024`;
     $("eyebrowBox").classList.toggle("backup", !live);
     $("tStart").textContent = fmtHour.format(atHour(0)); $("tEnd").textContent = fmtHour.format(atHour(18));
     $("results").replaceChildren(...d.stops.map((s, i) => {

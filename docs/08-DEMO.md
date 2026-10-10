@@ -20,8 +20,9 @@ Two storms, one honest frame:
 | 5 | Laptop tabs open: `localhost:8100/dispatch.html?cycle=20240926T12Z` (City), slides | — |
 | 6 | Phone: Noah thread open, scrolled to Saturday's alerts (don't delete them); "alerts on" already set | — |
 | 7 | Check the iPad works on **cellular** (venue Wi-Fi isolates devices) | — |
+| 8 | "Text Noah" card printed and its QR tested once with an iPhone camera (opens Messages to Noah with a question typed in) | `docs/text-noah-card.html` → print at 100% |
 
-Fallbacks: tunnel down → show `localhost:8100/ipad/` on the laptop. Wi-Fi down → phone hotspot. Bot slow → read the reply already in the thread. Anything else → backup video.
+The tunnel reconnects by itself and is pinged every 2 min; a reconnect changes its address (`grep -o 'https://[a-z0-9]*\.lhr\.life' data/interim/tunnel.log | tail -1`). Fallbacks: tunnel down → show `localhost:8100/ipad/` on the laptop. Wi-Fi down → phone hotspot. Bot slow → read the reply already in the thread. Anything else → backup video.
 
 ## 1. Social Good (main track): 3 min pitch + 2 min Q&A
 They score: people and places that get overlooked (access, safety, mobility), polish, presentation, use case. Track sponsor: **Cox Automotive** (cars: more than half of flood drownings happen in a vehicle).
@@ -41,12 +42,15 @@ They score: people and places that get overlooked (access, safety, mobility), po
 - *Isn't this NOAA's flood map?* NOAA maps where water can reach and has thresholds for major roads. Noah adds **when** for every road (62,202 residential segments NOAA skips), routes around them, and delivers it by text.
 - *Storm drains?* Not in public data for Atlanta: Noah models creek and river overflow and says so on screen.
 - *Cameras?* They watch flagged roads, but camera AI gave two false alarms Saturday, so a frame counts only when water shows in 2+ checks and a person confirms. Only 4 of 49 flagged streets had a camera nearby: cameras can't see where floods start, which is why we forecast.
+- *Proof the forecast came first?* Friday 10 PM's forecast was saved to GitHub at 11:51 PM Friday (commit `eff4481`), 11 h before Peachtree Creek peaked.
+- *Why does the iPad say "stop at the corner" and the console "Hold"?* Two views of the same rule: the console is the dispatcher's cautious view (don't send a driver to a stop whose street floods); the iPad shows the driver how close an open road gets them.
+- *Who gets hit hardest?* Console City tab: on Helene, 16% of the road segments cut by 8 PM are in the most socially vulnerable quarter of US neighborhoods (CDC SVI), which hold 9% of all roads here; 59,739 people live in the ones affected. "Show vulnerable neighborhoods" draws them.
 - *What if it's wrong?* Conservative: uncertain = impassable, never says "safe", every answer says "not a safety guarantee", 911 when there's danger.
 - *Scale?* 4 metro watersheds now (1,426 km²); the same pipeline runs basin by basin; NOAA's model covers the whole US.
 - *Privacy?* No accounts; the relay logs a hashed sender, length and timing only.
 
 ## 2. Photon (Agents in iMessage, Spectrum): about 2 min
-1. Hand the judge the "Text Noah" card; they text from **their own phone**: *"Can I drive home from Midtown at 6 PM?"* → typing dots → a plain answer with the street and the time.
+1. Hand the judge the "Text Noah" card (+1 (773) 937-1532; the QR opens Messages to Noah with the first question typed in; iPhone/iMessage only). They text from **their own phone**: *"Can I drive home from Midtown at 6 PM?"* → typing dots → a plain answer with the street and the time.
 2. *"alerts on"* → Noah confirms and sends the current status.
 3. Re-send Saturday's latest real alert to their thread, labeled "Re-sent from Sat …": `uv run python -m noah.pipeline.route_watch --resend` → their phone buzzes. (Text only: Saturday's two camera alerts were false alarms, so they are never re-sent.)
 4. Guardrail: *"Is it safe to drive on Collier Road?"* → never "safe": the forecast, "never drive into water", 911.
@@ -62,6 +66,8 @@ They score: people and places that get overlooked (access, safety, mobility), po
 | Windsor Pkwy: Noah 10 PM, closed ~10:15 PM | Helene 8 AM run; Appen Media / 11Alive |
 | Helene 8 AM run: 2,423 road segments flagged by 2 AM; 10 schools, a hospital, an urgent care, a police station cut off (8 PM–2 AM); 21 more with a flooded road at the door (5 fire stations) | `/ops/city?cycle=20240926T12Z` |
 | Saturday: 9 of 11 watched routes warned ahead by the run Noah had at 11:50 PM Friday | `web/data/route_watch.json` |
+| Friday 10 PM forecast saved to GitHub 11:51 PM Fri (commit `eff4481`); Peachtree Creek peaked 10:45 AM Sat | git log; `isaias_validation.json` |
+| Helene 8 AM run: 16% of segments cut by 8 PM (11% by 2 AM) are in high-vulnerability tracts (CDC SVI ≥ 0.75), vs 9% of all roads; 59,739 people in affected high-SVI tracts by 8 PM, 88,467 by 2 AM | `/ops/city?cycle=20240926T12Z` → `vulnerability` |
 | NOAA road thresholds 15,289 segments; Noah's own 62,202 residential | `seg_thresholds.parquet` |
 | Helene: Atlanta's first-ever Flash Flood Emergency; 25 rescued along Peachtree Creek | Fox Weather; Atlanta News First (Sep 27, 2024) |
 | Cox Automotive's chief economist: 300k–500k vehicles damaged in Houston by Harvey; CARFAX: ~138,000 flood-damaged by Helene (16,800 in Georgia) | Cox Automotive; Auto Remarketing (CARFAX) |

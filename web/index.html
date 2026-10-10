@@ -302,7 +302,7 @@
     <div class="legend">
       <span><i class="sw" style="background:var(--blue)"></i>Noah's route</span>
       <span><i class="sw" style="background:var(--flood)"></i>Do not cross</span>
-      <span><i class="sw" style="background:repeating-linear-gradient(90deg,var(--amber) 0 5px,transparent 5px 8px)"></i>Uncertain</span>
+      <span><i class="sw" style="background:repeating-linear-gradient(90deg,var(--amber) 0 5px,transparent 5px 8px)"></i>Risky</span>
       <span id="legUsual" hidden><i class="sw" style="background:repeating-linear-gradient(90deg,#4b4f58 0 4px,transparent 4px 7px)"></i>Usual route</span>
       <span id="legPast" hidden><i class="sw" style="background:repeating-linear-gradient(90deg,var(--flood) 0 2px,transparent 2px 5px)"></i>Past estimate</span>
     </div>
@@ -313,7 +313,7 @@
       <div class="wordmark"><i data-lucide="navigation"></i>Noah</div>
       <div class="updated" id="updated" title="Road forecasts come from the NOAA National Water Model and refresh every hour."><i></i><span id="issued">Loading…</span></div>
     </div>
-    <div class="tag">Get home around the floods. Routes that skip roads forecast to go under.</div>
+    <div class="tag">Get home around the floods. Routes that skip roads forecast to go under. <a href="dispatch.html" style="color:inherit;font-weight:700">Cities and businesses: Noah Operations →</a></div>
     <div class="places" id="places" hidden>
       <button class="place" data-place="home" type="button"><i data-lucide="house"></i>Home</button>
       <button class="place" data-place="work" type="button"><i data-lucide="briefcase"></i>Work</button>
@@ -1300,7 +1300,7 @@ function cards(rows, h) {
     const top = document.createElement("div"); top.className = "top";
     const n = document.createElement("span"); n.className = "name"; n.textContent = g.name || "Unnamed road (ramp or service lane)";
     const b = document.createElement("span"); b.className = "badge b-" + s;
-    b.textContent = { flooded: "Do not cross", uncertain: "Uncertain", no_forecast_flooding: "Later" }[s];
+    b.textContent = { flooded: "Do not cross", uncertain: "Risky", no_forecast_flooding: "Later" }[s];
     top.append(n, b);
     const det = document.createElement("div"); det.className = "detail";
     det.textContent = streetSentence(g, h) + (g.segs.length > 1 ? ` ${g.segs.length} segments.` : "") + (g.d != null ? ` ${(g.d / 1000).toFixed(1)} km away.` : "");
