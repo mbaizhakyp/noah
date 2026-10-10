@@ -51,11 +51,16 @@
 
   /* ---------- trip planner ---------- */
   .trip { margin: 14px 16px 0; border: 1.5px solid var(--line-2); border-radius: 10px; position: relative; background: #fff; }
-  .trip::before { content: ""; position: absolute; left: 19px; top: 30px; height: 28px; border-left: 2px dotted var(--line-2); }
+  .trip::before { content: ""; position: absolute; left: 19px; top: 30px; bottom: 30px; border-left: 2px dotted var(--line-2); }
   .field { position: relative; display: flex; align-items: center; gap: 10px; padding: 0 6px 0 12px; min-height: 48px; }
-  .field + .field { border-top: 1px solid var(--line); }
-  .pin { width: 10px; height: 10px; border-radius: 50%; border: 2.5px solid var(--blue); flex: none; }
+  .field + .field, #stops .field { border-top: 1px solid var(--line); }
+  .pin { width: 10px; height: 10px; border-radius: 50%; border: 2.5px solid var(--blue); flex: none; position: relative; z-index: 1; background: #fff; }
   .pin.b { border-radius: 2px; border-color: var(--ink); }
+  .pin.s { border-color: var(--ink-3); width: 9px; height: 9px; }
+  .tripactions { display: flex; gap: 4px; padding: 6px 12px 0; }
+  .tb { border: 0; background: transparent; color: var(--blue-ink); font-weight: 700; font-size: 13px; display: inline-flex; gap: 6px; align-items: center; min-height: 34px; padding: 0 8px; border-radius: 8px; cursor: pointer; }
+  .tb:hover { background: var(--blue-soft); } .tb:disabled { opacity: .45; cursor: default; background: transparent; }
+  .tb .lucide { width: 16px; height: 16px; }
   .field input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font: inherit; font-weight: 600; color: var(--ink); padding: 12px 0 10px; }
   .field input::placeholder { color: var(--ink-3); font-weight: 400; }
   .ib { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border: 0; border-radius: 8px; background: transparent; color: var(--ink-2); cursor: pointer; }
@@ -215,6 +220,7 @@
   .maplibregl-ctrl-top-right { top: 16px; right: 16px; }
   .you { width: 18px; height: 18px; border-radius: 50%; background: var(--blue); border: 3px solid #fff; box-shadow: 0 0 0 1.5px var(--blue), 0 2px 6px rgba(20,20,20,.35); }
   .dest { width: 16px; height: 16px; border-radius: 3px; background: var(--ink); border: 3px solid #fff; box-shadow: 0 0 0 1.5px var(--ink), 0 2px 6px rgba(20,20,20,.35); }
+  .stop { width: 14px; height: 14px; border-radius: 50%; background: #fff; border: 3px solid var(--ink-2); box-shadow: 0 2px 6px rgba(20,20,20,.35); }
 
   @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 
@@ -260,12 +266,17 @@
         <button id="locate" class="ib" type="button" aria-label="Use my location" title="Use my location"><i data-lucide="locate-fixed"></i></button>
         <div id="fromList" class="suggest" hidden></div>
       </div>
+      <div id="stops"></div>
       <div class="field search">
         <span class="pin b"></span>
         <input id="toQ" autocomplete="off" placeholder="Destination (optional)" aria-label="Destination">
         <button id="toClear" class="ib" type="button" aria-label="Remove destination" title="Remove destination" hidden><i data-lucide="x"></i></button>
         <div id="toList" class="suggest" hidden></div>
       </div>
+    </div>
+    <div class="tripactions">
+      <button id="addStop" class="tb" type="button"><i data-lucide="plus"></i>Add stop</button>
+      <button id="swap" class="tb" type="button" title="Swap start and destination"><i data-lucide="arrow-up-down"></i>Swap</button>
     </div>
 
     <div class="row">
@@ -807,12 +818,13 @@ async function runAssess(kind) {
   $("srcSum").textContent = "Sources checked"; $("tSrc").textContent = "";
   $("liveStatus").innerHTML = '<span class="loading"><span class="spin"></span><span></span></span>';
   $("liveStatus").querySelector(".loading span:last-child").textContent = "Checking live sources and traffic cameras along " + (kind === "route" ? "your route…" : "your area…");
-  const url = kind === "route"
-    ? `${API}/assess/route?from=${origin.lat},${origin.lon}&to=${dest.lat},${dest.lon}&depart_h=${+$("hour").value}&cycle=${cyc.cycle}`
-    : `${API}/assess?lat=${origin.lat}&lon=${origin.lon}&cycle=${cyc.cycle}`;
+  const urls = kind === "route"
+    ? legPairs().map(([a, b]) => `${API}/assess/route?from=${a.lat},${a.lon}&to=${b.lat},${b.lon}&depart_h=${+$("hour").value}&cycle=${cyc.cycle}`)
+    : [`${API}/assess?lat=${origin.lat}&lon=${origin.lon}&cycle=${cyc.cycle}`];
   try {
-    const r = await fetch(url).then((x) => x.json());
+    const all = await Promise.all(urls.map((u) => fetch(u).then((x) => x.json())));
     if (token !== assessToken) return; // a newer search started
+    const r = all.length === 1 ? all[0] : mergeAssess(all);
     if (r.state === "error") { $("liveStatus").textContent = r.message; return; }
     const nOk = (r.sources_ok || []).length;
     const cached = (r.sources_ok || []).filter((x) => x.cached).length;
@@ -822,7 +834,7 @@ async function runAssess(kind) {
     drawCameras(r.cameras);
     renderSources(r);
     const rt = r.route;
-    if (kind === "route" && rt?.live_blocked?.length && rt.geometry) { // live hazards forced a detour
+    if (kind === "route" && all.length === 1 && rt?.live_blocked?.length && rt.geometry) { // live hazards forced a detour (single leg)
       lastRoute = rt;
       map.getSource("route").setData({ type: "Feature", geometry: rt.geometry, properties: {} });
       setDirections(rt.geometry.coordinates);
@@ -831,6 +843,29 @@ async function runAssess(kind) {
   } catch (e) {
     if (token === assessToken) $("liveStatus").textContent = "Live checks are unavailable right now. The forecast above still applies.";
   }
+}
+
+// live checks for a trip with stops: one /assess/route per leg, merged (worst state, union of findings)
+const LEVELS = ["low", "elevated", "high", "severe"];
+function mergeAssess(list) {
+  const ok = list.filter((r) => r && r.state !== "error");
+  if (!ok.length) return list[0];
+  const uniq = (arr, key) => { const seen = new Set(); return arr.filter((x) => { const k = key(x); if (seen.has(k)) return false; seen.add(k); return true; }); };
+  const worst = ok.map((r) => r.assessment).filter(Boolean).sort((a, b) => LEVELS.indexOf(b.next_18h?.level) - LEVELS.indexOf(a.next_18h?.level))[0] || null;
+  const segs = ok.flatMap((r) => r.road_forecast?.segments || []);
+  const rfState = ok.map((r) => r.road_forecast?.state).includes("flooded") ? "flooded" : ok.map((r) => r.road_forecast?.state).includes("uncertain") ? "uncertain" : ok[0].road_forecast?.state;
+  return {
+    state: ok.map((r) => r.state).includes("no_road_forecast") ? "no_road_forecast" : ok[0].state,
+    cycle: ok[0].cycle,
+    assessment: worst,
+    road_forecast: { ...(ok[0].road_forecast || {}), state: rfState, segments: segs, flagged_roads: ok.reduce((n, r) => n + (r.road_forecast?.flagged_roads || 0), 0) },
+    signals: uniq(ok.flatMap((r) => r.signals || []), (s) => s.source + "|" + s.title),
+    cameras: uniq(ok.flatMap((r) => r.cameras || []), (c) => c.image_url || c.name),
+    sources_ok: uniq(ok.flatMap((r) => r.sources_ok || []), (s) => s.source),
+    sources_failed: uniq(ok.flatMap((r) => r.sources_failed || []), (s) => s.source),
+    took_s: Math.max(...ok.map((r) => r.took_s || 0)),
+    route: null,
+  };
 }
 
 // ---------- panel ----------
@@ -851,7 +886,8 @@ document.querySelectorAll("#tabs button").forEach((b) => (b.onclick = () => sele
 function routeSummary(r) {
   if (!r) { $("routeSum").hidden = true; return; }
   $("minutes").textContent = Math.round(r.minutes);
-  $("via").textContent = r.avoided?.length ? `Goes around ${r.avoided.length} road segment${r.avoided.length === 1 ? "" : "s"} forecast to flood` : "No forecast-flooded roads on this route";
+  const n = stopPlaces().length, via = n ? ` via ${n} stop${n === 1 ? "" : "s"}` : "";
+  $("via").textContent = (r.avoided?.length ? `Goes around ${r.avoided.length} road segment${r.avoided.length === 1 ? "" : "s"} forecast to flood` : "No forecast-flooded roads on this route") + via;
   $("routeSum").hidden = false;
 }
 const END = () => local(hourTime(18));
@@ -955,12 +991,16 @@ async function findRoute(full = true) {
   mode = "route"; busy(true);
   const h = +$("hour").value;
   try {
-    const r = await fetch(`${API}/route?from=${origin.lat},${origin.lon}&to=${dest.lat},${dest.lon}&depart_h=${h}&cycle=${cyc.cycle}&corridor_m=${CORRIDOR_M}`).then((x) => x.json());
+    // one /route per leg (start → stops → destination), joined into one answer
+    const legs = await Promise.all(legPairs().map(([a, b]) =>
+      fetch(`${API}/route?from=${a.lat},${a.lon}&to=${b.lat},${b.lon}&depart_h=${h}&cycle=${cyc.cycle}&corridor_m=${CORRIDOR_M}`).then((x) => x.json())));
+    const r = legs.length === 1 ? legs[0] : combineLegs(legs);
     lastRoute = r;
     await mapReady; clearMarkers();
     map.getSource("area").setData(empty);
     if (full) { map.getSource("route").setData(empty); map.getSource("usual").setData(empty); setHazard([]); }
     addMarker(origin.lon, origin.lat, "you", "Start: " + origin.label);
+    stopPlaces().forEach((s, i) => addMarker(s.lon, s.lat, "stop", `Stop ${i + 1}: ${s.label}`));
     addMarker(dest.lon, dest.lat, "dest", "Destination: " + dest.label);
     const fit = (coords) => full && map.fitBounds([[Math.min(...coords.map((x) => x[0])), Math.min(...coords.map((x) => x[1]))], [Math.max(...coords.map((x) => x[0])), Math.max(...coords.map((x) => x[1]))]], { padding: pad(60), maxZoom: 15 });
     $("directions").hidden = true;
@@ -989,7 +1029,8 @@ async function findRoute(full = true) {
       const feats = (r.corridor || []).map((c) => flood.get(c.seg_id)).filter(Boolean);
       const first = (r.crosses || [])[0];
       const leave = h === 0 ? "now" : "at " + local(hourTime(h));
-      const why = first ? ` The usual way (dashed grey) is cut by ${r.crosses.length} road${r.crosses.length === 1 ? "" : "s"} forecast to flood, first ${first.name || "an unnamed road"}${first.eta_utc ? " from around " + local(new Date(first.eta_utc)) : ""}.` : "";
+      const legTxt = r.legs > 1 ? ` (leg ${r.leg} of ${r.legs})` : "";
+      const why = first ? ` The usual way${legTxt} (dashed grey) is cut by ${r.crosses.length} road${r.crosses.length === 1 ? "" : "s"} forecast to flood, first ${first.name || "an unnamed road"}${first.eta_utc ? " from around " + local(new Date(first.eta_utc)) : ""}.` : legTxt ? ` No way around on leg ${r.leg} of ${r.legs}.` : "";
       if (r.usual_geometry) {
         map.getSource("usual").setData({ type: "Feature", geometry: r.usual_geometry, properties: {} });
         fit(r.usual_geometry.coordinates);
@@ -1049,10 +1090,38 @@ async function plainRoute(o, d) {
 }
 function routeEmpty() { assessToken++; $("live").hidden = true; $("risk").hidden = true; clearCams(); map.getSource("route").setData(empty); map.getSource("usual").setData(empty); setHazard([]); $("results").replaceChildren(); $("summary").textContent = ""; routeSummary(null); showTabs(false); }
 
+// Legs of the trip: start → each picked stop → destination (combined client-side; the API routes one leg at a time)
+const stopPlaces = () => stops.map((s) => s.place).filter(Boolean);
+function legPairs() {
+  const pts = [origin, ...stopPlaces(), dest].filter(Boolean);
+  return pts.slice(1).map((p, i) => [pts[i], p]);
+}
+function combineLegs(legs) {
+  const bad = legs.find((l) => l.state !== "route_found");
+  if (bad) return { ...bad, leg: legs.indexOf(bad) + 1, legs: legs.length };
+  const join = (parts) => parts.reduce((acc, c) => acc.concat(acc.length && c.length ? c.slice(1) : c), []);
+  const seen = new Set();
+  return {
+    state: "route_found",
+    cycle: legs[0].cycle,
+    corridor_m: legs[0].corridor_m,
+    geometry: { type: "LineString", coordinates: join(legs.map((l) => l.geometry.coordinates)) },
+    usual_geometry: legs.some((l) => l.usual_geometry) ? { type: "LineString", coordinates: join(legs.map((l) => (l.usual_geometry || l.geometry).coordinates)) } : null,
+    minutes: legs.reduce((n, l) => n + (l.minutes || 0), 0),
+    avoided: [...new Set(legs.flatMap((l) => l.avoided || []))],
+    corridor: legs.flatMap((l) => l.corridor || []).filter((c) => !seen.has(c.seg_id) && seen.add(c.seg_id)),
+    live_blocked: legs.flatMap((l) => l.live_blocked || []),
+    map_url: legs[0].map_url,
+  };
+}
+
 function setDirections(coords) {
-  // up to 3 waypoints from Noah's route so the hand-off follows the detour (Google mobile web max = 3)
-  const pick = coords.length ? [0.25, 0.5, 0.75].map((f) => coords[Math.floor(f * (coords.length - 1))]).filter(Boolean) : [];
+  // waypoints: the stops themselves, else up to 3 points sampled from Noah's route so the hand-off follows the detour
+  // (Google mobile web accepts at most 3)
   const ll = (c) => `${c[1].toFixed(5)},${c[0].toFixed(5)}`;
+  const picked = stopPlaces();
+  const pick = picked.length ? picked.slice(0, 3).map((s) => [s.lon, s.lat])
+    : coords.length ? [0.25, 0.5, 0.75].map((f) => coords[Math.floor(f * (coords.length - 1))]).filter(Boolean) : [];
   const o = `${origin.lat},${origin.lon}`, d = `${dest.lat},${dest.lon}`;
   $("gmaps").href = `https://www.google.com/maps/dir/?api=1&origin=${o}&destination=${d}&travelmode=driving&waypoints=${encodeURIComponent(pick.map(ll).join("|"))}`;
   $("amaps").href = `https://maps.apple.com/directions?source=${o}&destination=${d}&mode=driving` + pick.map((c) => `&waypoint=${ll(c)}`).join("");
@@ -1076,7 +1145,8 @@ function wireSearch(inputId, listId, onPick) {
     timer = window.setTimeout(async () => {
       ctl?.abort(); ctl = new AbortController();
       try {
-        const r = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&bbox=${GA_BBOX}&limit=5&lang=en`, { signal: ctl.signal }).then((x) => x.json());
+        // Georgia only, biased toward metro Atlanta so "Decatur" means the city, not the county in south Georgia
+        const r = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&bbox=${GA_BBOX}&lat=33.749&lon=-84.388&zoom=10&location_bias_scale=0.5&limit=5&lang=en`, { signal: ctl.signal }).then((x) => x.json());
         list.replaceChildren(...r.features.map((f) => {
           const p = f.properties;
           const name = p.name || [p.housenumber, p.street].filter(Boolean).join(" ") || "Place";
@@ -1112,6 +1182,34 @@ function setDest(d) { dest = d; $("toClear").hidden = !d; setGoLabel(); }
 wireSearch("fromQ", "fromList", (o) => { setOrigin(o); dest ? findRoute() : checkArea(); });
 wireSearch("toQ", "toList", (d) => { setDest(d); findRoute(); });
 $("toClear").onclick = () => { $("toQ").value = ""; setDest(null); if (origin) checkArea(); };
+
+// ---------- stops and swap ----------
+const MAX_STOPS = 3;
+let stops = [], stopSeq = 0; // { id, place|null, text }
+function renderStops() {
+  $("stops").replaceChildren(...stops.map((s, i) => {
+    const row = document.createElement("div"); row.className = "field search";
+    const pin = document.createElement("span"); pin.className = "pin s";
+    const inp = document.createElement("input"); inp.id = s.id + "Q"; inp.autocomplete = "off"; inp.placeholder = `Stop ${i + 1}`; inp.setAttribute("aria-label", `Stop ${i + 1}`); inp.value = s.text || "";
+    const rm = document.createElement("button"); rm.className = "ib"; rm.type = "button"; rm.title = rm.ariaLabel = "Remove stop"; rm.innerHTML = '<i data-lucide="x"></i>';
+    rm.onclick = () => { stops = stops.filter((x) => x !== s); renderStops(); if (origin && dest) findRoute(); };
+    const list = document.createElement("div"); list.id = s.id + "List"; list.className = "suggest"; list.hidden = true;
+    row.append(pin, inp, rm, list); return row;
+  }));
+  icons();
+  for (const s of stops) wireSearch(s.id + "Q", s.id + "List", (p) => { s.place = p; s.text = p.label.split(",")[0]; if (origin && dest) findRoute(); });
+  $("addStop").disabled = stops.length >= MAX_STOPS;
+}
+$("addStop").onclick = () => {
+  if (stops.length >= MAX_STOPS) return;
+  const s = { id: "stop" + (++stopSeq), place: null, text: "" }; stops.push(s); renderStops(); $(s.id + "Q").focus();
+};
+$("swap").onclick = () => {
+  const o = origin, d = dest, oq = $("fromQ").value, dq = $("toQ").value;
+  setOrigin(d); setDest(o); $("fromQ").value = dq; $("toQ").value = oq;
+  stops.reverse(); renderStops();
+  if (origin && dest) findRoute(); else if (origin) checkArea();
+};
 
 // places to try (real coordinates; everything shown comes from the live forecast)
 const SAMPLES = [["Midtown Atlanta", "road timing + live checks", 33.7817, -84.3830], ["Alpharetta", "road timing + live checks", 34.0754, -84.2941],
