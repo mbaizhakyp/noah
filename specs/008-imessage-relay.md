@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Owner | Priyanshu |
+| Owner | **Margulan** (moved from Priyanshu Sat 01:20, J14) |
 | Status | Draft |
 | Time box | 2 h (Fri night, go/no-go at 00:00) |
 | Depends on | Photon account + iMessage line (B3); `/chat` (007). An echo works without it. |

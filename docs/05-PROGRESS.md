@@ -22,8 +22,8 @@ _Last updated: Fri Oct 9, 2026, 9:30 PM ET (challenges final: Photon + Gemini + 
 ## Owners
 | Area | Owner | Directories |
 |---|---|---|
-| Data pipeline, validation, Isaias run, low spots | Margulan | `noah/pipeline/`, `web/data/` |
-| API, routing, agent, relay, map, camera vision | Priyanshu | `noah/api/`, `bot/`, `web/index.html`, `fixtures/` |
+| Data pipeline, validation, live runs, dispatch board, **iMessage relay (008)** | Margulan | `noah/pipeline/`, `web/data/`, `noah/api/dispatch.py`, `web/dispatch.html`, **`bot/`** |
+| API, routing, agent, map, camera vision, engine/sources | Priyanshu | `noah/api/` (except dispatch.py), `noah/engine.py`, `noah/sources/`, `web/index.html`, `fixtures/` |
 | Pitch, Devpost, video | Both (Margulan leads the hydrology story) | `README.md`, `docs/` |
 
 Lanes are set up so neither person waits on the other. Priyanshu builds against `fixtures/` until real data lands. Margulan's outputs are files with frozen contracts. The only cross-lane hand-offs are files: `graph.graphml` (Sat 03:00), `flood_*.geojson` (Sat 12:00), `lowspots.geojson` (if 012 ships).
@@ -47,7 +47,7 @@ Never start a lower priority while a higher one in your lane is unfinished, (013
 | 012 | Street low spots (storm-drain stand-in) | Margulan | P3 | 2 h | Draft |
 | 006 | Routing + HTTP API | Priyanshu | P0 | 3 h | **Done** (23:55) |
 | 007 | Gemini agent + safety filter | Priyanshu | P0 | 3 h | Draft |
-| 008 | iMessage relay (Photon Spectrum) | Priyanshu | P0 | 2 h | Draft |
+| 008 | iMessage relay (Photon Spectrum) | **Margulan** (J14) | P0 | 2 h | Draft: Photon booth first (iMessage line), echo bot, then relay to `/chat` |
 | 009 | Web map with time slider | Priyanshu | P0 | 3 h | **Functional** (01:00); UI polish later |
 | 010 | Camera water classifier `classify()` (user photos removed) | Priyanshu | P2 | 1.5 h | Draft |
 | 014 | Dispatch board + barricade list (Replit entry) | Margulan | P1 | 3 h | **Done** (Fri 22:55, standalone; mount = I3) |
