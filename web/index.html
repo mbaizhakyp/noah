@@ -1187,6 +1187,20 @@ async function loadCycle(id) {
   } else if (n || f) {
     const p = n || f, name = await placeName(p);
     setOrigin({ ...p, label: name }); $("fromQ").value = name; await mapReady; checkArea();
+  } else {
+    // landing page: the 5 km check around the visitor, straight away; Midtown if location is denied or slow
+    await mapReady;
+    stage("Finding your location…");
+    const here = await new Promise((res) => {
+      if (!navigator.geolocation) return res(null);
+      navigator.geolocation.getCurrentPosition(
+        (pos) => res({ lat: +pos.coords.latitude.toFixed(5), lon: +pos.coords.longitude.toFixed(5), label: "My location" }),
+        () => res(null), { enableHighAccuracy: true, timeout: 6000, maximumAge: 300e3 });
+    });
+    if (origin) return; // the visitor already picked a place while we waited
+    const start = here || { lat: 33.7817, lon: -84.3830, label: "Midtown Atlanta" };
+    setOrigin(start); $("fromQ").value = start.label;
+    checkArea();
   }
   // the live loop publishes a new NWM cycle every hour; a page left open follows it (unless a link pinned a cycle)
   if (!pick) window.setInterval(async () => {
