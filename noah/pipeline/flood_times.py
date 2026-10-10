@@ -127,7 +127,7 @@ def main() -> None:
     edges = edges.reset_index(drop=True)[["seg_id", "name", "geometry"]]
 
     cycles_meta, written = [], 0
-    for cycle in [ev["baseline"], *ev["cycles"]]:
+    for cycle in dict.fromkeys([ev["baseline"], *ev["cycles"]]):  # baseline may also be a cycle
         f = config.DATA_INTERIM / "nwm" / f"{cycle}.parquet"
         if not f.exists():
             log.warning("missing C1 for %s, skipping", cycle)
@@ -161,7 +161,10 @@ def main() -> None:
 
     c6_path = config.WEB_DATA / "cycles.json"
     c6 = json.loads(c6_path.read_text()) if c6_path.exists() else {"events": {}, "cycles": []}
-    c6["cycles"] = [c for c in c6["cycles"] if c.get("event") != a.event] + cycles_meta
+    c6["cycles"] = sorted(
+        [c for c in c6["cycles"] if c.get("event") != a.event] + cycles_meta,
+        key=lambda c: c["cycle"],
+    )
     c6["events"][a.event] = {"label": ev["label"], "demo_cycle": ev["demo"]}
     c6["demo_cycle"] = config.DEMO_CYCLE
     c6_path.write_text(json.dumps(c6, indent=1))

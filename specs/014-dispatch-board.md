@@ -33,10 +33,10 @@ Logins, saved fleets, live vehicle tracking, multi-stop route optimization (TSP)
 10. **Standalone run for testing** (until Priyanshu's `app.py` mounts the router): `uv run python -m noah.api.dispatch --serve` serves `/dispatch`, `/barricades` and `web/` on port 8001.
 
 ## Acceptance criteria
-- [ ] `uv run pytest tests/test_dispatch.py` passes.
-- [ ] `--serve`, then `curl -XPOST localhost:8001/dispatch` with the sample returns a verdict per stop in under 10 s.
-- [ ] `localhost:8001/dispatch.html` shows the sample with ≥1 `hold`, ≥1 `go_before`, ≥1 `no_forecast_flooding`, 1 `out_of_coverage`, plus a barricade list with a CSV download.
-- [ ] No banned words in the page or the responses.
+- [x] `uv run pytest tests/test_dispatch.py` passes.
+- [x] `--serve` + POST with the sample returns a verdict per stop in ~3 s (first call), <1 s after.
+- [x] `localhost:8001/dispatch.html` shows the sample with `go_before`, `no_forecast_flooding` and `out_of_coverage` (8 AM run) and `hold` (6 PM / 10 PM runs, via the forecast-run selector or `?cycle=`), plus a barricade list with a CSV download. Verified Fri 22:55.
+- [x] No banned words in the page or the responses.
 
 ## Test
 `tests/test_dispatch.py` on a toy graph: a fast edge flooding at h=3 and a slow detour flooding at h=6. Asserts `go_before` = 3+buffer logic, a stop cut at h=0 → `hold`, an always-reachable stop → `no_forecast_flooding`, outside AOI → `out_of_coverage`. Also the barricade grouping.

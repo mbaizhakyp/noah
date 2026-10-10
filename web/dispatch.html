@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Noah Dispatch</title>
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<style>
+  :root {
+    --bg: #0b0f14; --panel: #121821; --line: #233041; --text: #e6edf3; --muted: #8b9bb0;
+    --red: #ef4444; --amber: #f59e0b; --cyan: #22d3ee; --slate: #64748b; --green: #34d399;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  header { padding: 12px 16px; border-bottom: 1px solid var(--line); display: flex; gap: 12px;
+    align-items: baseline; flex-wrap: wrap; }
+  header h1 { margin: 0; font-size: 18px; }
+  header .sub { color: var(--muted); }
+  header a { color: var(--cyan); margin-left: auto; }
+  main { display: grid; grid-template-columns: 420px 1fr; height: calc(100% - 50px); }
+  aside { overflow-y: auto; border-right: 1px solid var(--line); padding: 14px 16px 24px; }
+  #map { height: 100%; }
+  label { display: block; color: var(--muted); font-size: 12px; margin: 10px 0 4px; }
+  select, input, textarea, button { width: 100%; background: var(--panel); color: var(--text);
+    border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px; font: inherit; }
+  textarea { min-height: 120px; font-family: ui-monospace, Menlo, monospace; font-size: 12px; }
+  button { cursor: pointer; background: #1d4ed8; border-color: #1d4ed8; font-weight: 600; min-height: 44px; }
+  button.secondary { background: var(--panel); border-color: var(--line); }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .tabs { display: flex; gap: 6px; margin: 16px 0 10px; }
+  .tabs button { flex: 1; background: var(--panel); border-color: var(--line); font-weight: 500; }
+  .tabs button.on { border-color: var(--cyan); color: var(--cyan); }
+  .card { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin: 8px 0;
+    background: var(--panel); cursor: pointer; }
+  .card .top { display: flex; gap: 8px; align-items: center; justify-content: space-between; }
+  .card .name { font-weight: 600; }
+  .card .detail { color: var(--muted); margin-top: 4px; }
+  .badge { padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+  .b-hold { background: rgba(239,68,68,.15); color: var(--red); border: 1px solid var(--red); }
+  .b-go_before { background: rgba(245,158,11,.15); color: var(--amber); border: 1px solid var(--amber); }
+  .b-no_forecast_flooding { background: rgba(100,116,139,.18); color: #cbd5e1; border: 1px solid var(--slate); }
+  .b-out_of_coverage { background: transparent; color: var(--muted); border: 1px dashed var(--slate); }
+  .banner { margin: 10px 0; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--red);
+    color: #fecaca; background: rgba(239,68,68,.1); display: none; }
+  .summary { color: var(--muted); margin: 6px 0 2px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 6px 4px; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 500; }
+  .legend { position: absolute; bottom: 24px; right: 10px; background: rgba(18,24,33,.92);
+    border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 12px; }
+  .legend div { display: flex; align-items: center; gap: 6px; margin: 2px 0; }
+  .sw { width: 18px; height: 4px; border-radius: 2px; display: inline-block; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+  footer { color: var(--muted); font-size: 12px; margin-top: 16px; }
+  .mapwrap { position: relative; height: 100%; }
+  @media (max-width: 820px) {
+    main { grid-template-columns: 1fr; grid-template-rows: auto 55vh; height: auto; }
+    aside { border-right: 0; border-bottom: 1px solid var(--line); }
+    .mapwrap { height: 55vh; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Noah Dispatch</h1>
+  <span class="sub">Flood-aware delivery planning for small businesses · Peachtree Creek, Atlanta</span>
+  <a href="index.html">Open flood map →</a>
+</header>
+<main>
+  <aside>
+    <div id="business" class="summary"></div>
+    <label for="cycle">Plan with the forecast issued at</label>
+    <select id="cycle"></select>
+    <label>Depot (label · lat · lon)</label>
+    <input id="depotLabel">
+    <div class="row" style="margin-top:6px"><input id="depotLat"><input id="depotLon"></div>
+    <label for="stops">Stops: one per line, <code>label, lat, lon</code></label>
+    <textarea id="stops" spellcheck="false"></textarea>
+    <div style="margin-top:10px"><button id="run">Check deliveries</button></div>
+    <div id="error" class="banner" role="alert"></div>
+
+    <div class="tabs" role="tablist">
+      <button id="tabStops" class="on" role="tab">Deliveries</button>
+      <button id="tabBarr" role="tab">Barricade list (city crews)</button>
+    </div>
+    <section id="paneStops">
+      <div id="runSummary" class="summary"></div>
+      <div id="results"></div>
+    </section>
+    <section id="paneBarr" hidden>
+      <div class="summary">Streets forecast to flood, earliest first. For public works / emergency management to pre-position barricades.</div>
+      <div style="margin:8px 0"><button id="csv" class="secondary">Download CSV</button></div>
+      <table><thead><tr><th>Street</th><th>Floods from</th><th>Length</th></tr></thead><tbody id="barrBody"></tbody></table>
+    </section>
+    <footer>Forecast replay of Hurricane Helene (Sep 26–27, 2024) from NOAA National Water Model forecasts.
+      River and creek flooding only. Not a safety guarantee. Never drive into water. Emergency: 911.</footer>
+  </aside>
+  <div class="mapwrap">
+    <div id="map"></div>
+    <div class="legend">
+      <div><span class="sw" style="background:var(--red)"></span>Forecast flooded (do not cross)</div>
+      <div><span class="sw" style="background:var(--amber)"></span>Uncertain: treat as impassable</div>
+      <div><span class="dot" style="background:var(--red)"></span>Hold</div>
+      <div><span class="dot" style="background:var(--amber)"></span>Go before</div>
+      <div><span class="dot" style="background:#cbd5e1"></span>No forecast flooding</div>
+      <div><span class="dot" style="background:var(--cyan)"></span>Depot</div>
+    </div>
+  </div>
+</main>
+<script>
+const API = new URLSearchParams(location.search).get("api") || "";
+const $ = (id) => document.getElementById(id);
+const fmt = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", weekday: "short", hour: "numeric", minute: "2-digit" });
+const fmtDay = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+const local = (iso) => fmt.format(new Date(iso));
+const COLORS = { hold: "#ef4444", go_before: "#f59e0b", no_forecast_flooding: "#cbd5e1", out_of_coverage: "#64748b" };
+let lastBarricades = [], markers = [], meta = null;
+
+function badgeText(s) {
+  return { hold: "Hold", go_before: "Go before ~" + local(s.go_before_utc),
+           no_forecast_flooding: "No forecast flooding", out_of_coverage: "Outside coverage" }[s.state];
+}
+function detailText(s, validUntil) {
+  if (s.state === "go_before") return `Go before ~${local(s.go_before_utc)}. No forecast flooding on this route if you leave before then. Not a safety guarantee.`;
+  if (s.state === "hold") return `Hold this delivery. The route is forecast cut by flooding from ~${local(s.cut_from_utc)}.`;
+  if (s.state === "no_forecast_flooding") return `No forecast flooding on this route through ${local(validUntil)}. Not a safety guarantee.`;
+  return "Outside Noah's coverage (Peachtree Creek watershed, Atlanta). Check local official warnings.";
+}
+function showError(msg) { const e = $("error"); e.textContent = msg; e.style.display = msg ? "block" : "none"; }
+
+function parseStops(text) {
+  return text.split("\n").map((l) => l.trim()).filter(Boolean).map((l, i) => {
+    const parts = l.split(",").map((x) => x.trim());
+    const lon = parseFloat(parts.pop()), lat = parseFloat(parts.pop());
+    if (!isFinite(lat) || !isFinite(lon)) throw new Error(`Line ${i + 1}: expected "label, lat, lon"`);
+    return { id: "S" + (i + 1), label: parts.join(", ") || "Stop " + (i + 1), lat, lon };
+  });
+}
+
+const map = new maplibregl.Map({ container: "map", style: "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
+  center: [-84.37, 33.85], zoom: 11.3, attributionControl: { compact: true } });
+map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
+
+async function loadFlood(cycle) {
+  const gj = await fetch(`data/flood_${cycle}.geojson`).then((r) => r.json());
+  if (map.getSource("flood")) { map.getSource("flood").setData(gj); return; }
+  map.addSource("flood", { type: "geojson", data: gj });
+  map.addLayer({ id: "uncertain", type: "line", source: "flood", filter: ["==", ["get", "t_flood"], null],
+    paint: { "line-color": "#f59e0b", "line-width": 2.5 } });
+  map.addLayer({ id: "flooded", type: "line", source: "flood", filter: ["!=", ["get", "t_flood"], null],
+    paint: { "line-color": "#ef4444", "line-width": 3.5 } });
+  for (const id of ["uncertain", "flooded"]) {
+    map.on("click", id, (e) => {
+      const p = e.features[0].properties, issue = new Date(meta.issue_time);
+      const t = p.t_flood !== "null" && p.t_flood != null ? +p.t_flood : null;
+      const when = (h) => fmt.format(new Date(issue.getTime() + h * 3600e3));
+      const el = document.createElement("div");
+      el.textContent = (p.name && p.name !== "null" ? p.name : "Unnamed road") + ": " +
+        (t !== null ? `do not cross, forecast flooded from ~${when(t)}` : `uncertain, treat as impassable from ~${when(+p.t_uncertain)}`);
+      new maplibregl.Popup().setLngLat(e.lngLat).setDOMContent(el).addTo(map);
+    });
+  }
+}
+
+function drawMarkers(depot, stops) {
+  markers.forEach((m) => m.remove()); markers = [];
+  const add = (lon, lat, color, text, size) => {
+    const el = document.createElement("div");
+    el.style.cssText = `width:${size}px;height:${size}px;border-radius:50%;background:${color};border:2px solid #0b0f14;box-shadow:0 0 0 1px ${color}`;
+    const pop = new maplibregl.Popup({ offset: 10 }).setText(text);
+    markers.push(new maplibregl.Marker({ element: el }).setLngLat([lon, lat]).setPopup(pop).addTo(map));
+  };
+  add(depot.lon, depot.lat, "#22d3ee", "Depot: " + depot.label, 16);
+  stops.filter((s) => s.state !== "out_of_coverage").forEach((s) => add(s.lon, s.lat, COLORS[s.state], `${s.label}: ${badgeText(s)}`, 13));
+}
+
+async function run() {
+  showError("");
+  let stops;
+  try { stops = parseStops($("stops").value); } catch (e) { showError(e.message); return; }
+  const body = { cycle: $("cycle").value, stops,
+    depot: { label: $("depotLabel").value, lat: +$("depotLat").value, lon: +$("depotLon").value } };
+  $("run").disabled = true; $("run").textContent = "Checking…";
+  try {
+    const res = await fetch(`${API}/dispatch`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Request failed");
+    meta = data;
+    await loadFlood(data.cycle);
+    const counts = data.stops.reduce((a, s) => ((a[s.state] = (a[s.state] || 0) + 1), a), {});
+    $("runSummary").textContent = `Forecast issued ${fmtDay.format(new Date(data.issue_time))}, valid to ${local(data.valid_until)} · ` +
+      `${counts.hold || 0} hold · ${counts.go_before || 0} go before · ${counts.no_forecast_flooding || 0} no forecast flooding`;
+    const order = { hold: 0, go_before: 1, no_forecast_flooding: 2, out_of_coverage: 3 };
+    const sorted = [...data.stops].sort((a, b) => order[a.state] - order[b.state] || (a.go_before_utc || "").localeCompare(b.go_before_utc || ""));
+    $("results").replaceChildren(...sorted.map((s) => {
+      const c = document.createElement("div"); c.className = "card";
+      const top = document.createElement("div"); top.className = "top";
+      const n = document.createElement("span"); n.className = "name"; n.textContent = s.label;
+      const b = document.createElement("span"); b.className = "badge b-" + s.state; b.textContent = badgeText(s);
+      top.append(n, b);
+      const d = document.createElement("div"); d.className = "detail";
+      d.textContent = detailText(s, data.valid_until) + (s.minutes != null ? ` Drive ≈ ${Math.round(s.minutes)} min now.` : "");
+      c.append(top, d);
+      if (s.state !== "out_of_coverage") c.onclick = () => map.flyTo({ center: [s.lon, s.lat], zoom: 14.5 });
+      return c;
+    }));
+    drawMarkers(data.depot, data.stops);
+    await loadBarricades(data.cycle);
+  } catch (e) { showError(e.message); }
+  finally { $("run").disabled = false; $("run").textContent = "Check deliveries"; }
+}
+
+async function loadBarricades(cycle) {
+  lastBarricades = await fetch(`${API}/barricades?cycle=${cycle}`).then((r) => r.json());
+  $("barrBody").replaceChildren(...lastBarricades.map((b) => {
+    const tr = document.createElement("tr");
+    for (const v of [b.street, local(b.first_flood_utc), (b.length_m / 1000).toFixed(2) + " km"]) {
+      const td = document.createElement("td"); td.textContent = v; tr.append(td);
+    }
+    return tr;
+  }));
+}
+
+$("csv").onclick = () => {
+  const rows = [["street", "first_flood_local", "first_flood_utc", "segments", "length_m"],
+    ...lastBarricades.map((b) => [b.street, local(b.first_flood_utc), b.first_flood_utc, b.segments, b.length_m])];
+  const csv = rows.map((r) => r.map((v) => `"${String(v).replaceAll('"', '""')}"`).join(",")).join("\n");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+  a.download = `noah_barricades_${$("cycle").value}.csv`; a.click();
+};
+for (const [btn, pane] of [["tabStops", "paneStops"], ["tabBarr", "paneBarr"]]) {
+  $(btn).onclick = () => {
+    for (const [b2, p2] of [["tabStops", "paneStops"], ["tabBarr", "paneBarr"]]) {
+      $(b2).classList.toggle("on", b2 === btn); $(p2).hidden = p2 !== pane;
+    }
+  };
+}
+$("run").onclick = run;
+
+(async () => {
+  const [cycles, sample] = await Promise.all([fetch("data/cycles.json").then((r) => r.json()), fetch("data/dispatch_sample.json").then((r) => r.json())]);
+  const pick = new URLSearchParams(location.search).get("cycle") || cycles.demo_cycle;
+  $("cycle").replaceChildren(...cycles.cycles.filter((c) => c.event === "helene").map((c) => {
+    const o = document.createElement("option"); o.value = c.cycle;
+    o.textContent = fmtDay.format(new Date(c.issue_time)) + " (Helene replay)"; o.selected = c.cycle === pick; return o;
+  }));
+  $("business").textContent = sample.business + " · sample stops on public streets";
+  $("depotLabel").value = sample.depot.label; $("depotLat").value = sample.depot.lat; $("depotLon").value = sample.depot.lon;
+  $("stops").value = sample.stops.map((s) => `${s.label}, ${s.lat}, ${s.lon}`).join("\n");
+  map.on("load", run);
+  if (map.loaded()) run();
+})();
+</script>
+</body>
+</html>
