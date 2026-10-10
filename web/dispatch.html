@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Noah Operations</title>
-<meta name="theme-color" content="#f4f7fb">
+<meta name="theme-color" content="#02172B">
 <link rel="icon" href="data:,">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -12,19 +12,21 @@
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <style>
-  /* Layout: the map runs edge to edge; a paper-to-sky veil carries the headline; the tools float on white cards.
-     Light only, on purpose: it is shown on a projector. Red / amber / green are flood states, never decoration. */
+  /* Layout: a storm-sky band (deep → dark blue) carries the headline over an edge-to-edge light map; the tools float on white
+     cards. Palette (Margulan, J21): blue = water and calm, red = danger. Amber is the one functional extra, only for
+     "uncertain / closes later", always dashed. Vibrant red is for lines, fills and big numbers; small red text uses --red-ink. */
   :root {
-    --paper: #f4f7fb; --surface: #ffffff; --ink: #0e1a2b; --muted: #56677e; --line: #e1e7ef; --sky: #cfe0f6;
-    --navy: #13284d; --red: #d92d20; --amber: #b45309; --amber-line: #f59e0b; --green: #0f9d6b; --slate: #64748b;
-    --creek: #3b82f6; --focus: #2563eb;
-    --shadow: 0 18px 48px -18px rgba(14, 26, 43, .32), 0 2px 6px rgba(14, 26, 43, .06);
+    --deep: #02172B; --dark: #04325A; --soft: #86B5FA; --red: #F8635B; --pale: #FEECEB;
+    --red-ink: #B42F28; --amber: #E8A33D; --amber-ink: #8A5300; --water-tint: #EAF2FE;
+    --paper: #F3F6FB; --surface: #FFFFFF; --line: #DCE4EF; --muted: #4E6178; --ink: var(--deep); --focus: #2F6FE0;
+    --shadow: 0 18px 48px -18px rgba(2, 23, 43, .38), 0 2px 6px rgba(2, 23, 43, .07);
     --display: "Archivo", "Helvetica Neue", Arial, sans-serif;
     --body: "Public Sans", -apple-system, "Segoe UI", Roboto, sans-serif;
     --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
     color-scheme: light;
   }
   * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
   html, body { margin: 0; height: 100%; background: var(--paper); color: var(--ink); font: 15px/1.5 var(--body); }
   button, input, select, textarea { font: inherit; color: inherit; }
   :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
@@ -33,22 +35,20 @@
   /* ---------- map stage ---------- */
   .stage { position: fixed; inset: 0; }
   #map { position: absolute; inset: 0; }
-  .veil { position: absolute; inset: 0 0 auto 0; height: 300px; pointer-events: none;
+  .veil { position: absolute; inset: 0 0 auto 0; height: 270px; pointer-events: none;
     background:
-      radial-gradient(900px 260px at 72% -60px, var(--sky), transparent 70%),
-      linear-gradient(180deg, rgba(244, 247, 251, .97) 0%, rgba(244, 247, 251, .93) 60%, rgba(244, 247, 251, 0) 100%); }
-  .hero { position: absolute; top: 22px; left: 432px; right: 230px; pointer-events: none; display: grid; gap: 10px; }
-  .eyebrow { justify-self: start; display: inline-flex; align-items: center; gap: 8px; padding: 5px 12px 5px 8px;
-    background: var(--surface); border: 1px solid var(--line); border-radius: 999px; font-size: 13px; color: var(--muted);
-    box-shadow: 0 1px 2px rgba(14, 26, 43, .06); }
-  .eyebrow .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 3px rgba(15, 157, 107, .18); }
-  .eyebrow.backup .dot { background: var(--slate); box-shadow: 0 0 0 3px rgba(100, 116, 139, .18); }
+      radial-gradient(700px 220px at 78% -40px, rgba(134, 181, 250, .35), transparent 70%),
+      linear-gradient(180deg, rgba(2, 23, 43, .97) 0%, rgba(4, 50, 90, .9) 46%, rgba(4, 50, 90, 0) 100%); }
+  .hero { position: absolute; top: 22px; left: 432px; right: 240px; pointer-events: none; display: grid; gap: 10px; color: var(--pale); }
+  .eyebrow { justify-self: start; display: inline-flex; align-items: center; gap: 8px; padding: 5px 12px 5px 9px;
+    background: rgba(254, 236, 235, .08); border: 1px solid rgba(254, 236, 235, .22); border-radius: 999px; font-size: 13px; }
+  .eyebrow .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--red); box-shadow: 0 0 0 3px rgba(248, 99, 91, .28); }
+  .eyebrow.backup .dot { background: var(--soft); box-shadow: 0 0 0 3px rgba(134, 181, 250, .28); }
   h1 { margin: 0; font: 760 clamp(28px, 3.2vw, 44px)/1.04 var(--display); font-stretch: 112%; letter-spacing: -.02em; text-wrap: balance; }
   .caption .big { font: 650 clamp(17px, 1.5vw, 21px)/1.25 var(--display); font-stretch: 104%; }
-  .caption .small { color: var(--muted); font-size: 14px; margin-top: 2px; max-width: 62ch; }
+  .caption .small { color: rgba(254, 236, 235, .82); font-size: 14px; margin-top: 2px; max-width: 64ch; }
   .maplink { position: absolute; top: 22px; right: 64px; padding: 8px 14px; border-radius: 999px; background: var(--surface);
-    color: var(--ink); text-decoration: none; font-weight: 600; font-size: 14px; border: 1px solid var(--line); box-shadow: var(--shadow); }
-  .maplink:hover { border-color: var(--ink); }
+    color: var(--ink); text-decoration: none; font-weight: 600; font-size: 14px; box-shadow: var(--shadow); }
   .maplibregl-ctrl-top-right { top: 12px; right: 4px; }
 
   .legend { position: absolute; right: 16px; bottom: 104px; background: var(--surface); border-radius: 16px; padding: 12px 14px;
@@ -59,14 +59,32 @@
   .timebar { position: absolute; left: 432px; right: 16px; bottom: 28px; max-width: 720px; margin-inline: auto;
     display: flex; align-items: center; gap: 14px; padding: 8px 18px 8px 8px; background: var(--surface);
     border-radius: 999px; box-shadow: var(--shadow); }
-  .timebar .play { width: 48px; height: 48px; flex: none; border: 0; border-radius: 50%; background: var(--navy); color: #fff;
+  .play { width: 48px; height: 48px; flex: none; border: 0; border-radius: 50%; background: var(--deep); color: var(--pale);
     font-size: 16px; cursor: pointer; transition: background-color .15s; }
-  .timebar .play:hover { background: #0b1a33; }
-  .seg { display: grid; line-height: 1.2; min-width: 112px; }
+  .play:hover { background: var(--dark); }
+  .seg { display: grid; line-height: 1.2; min-width: 116px; }
   .seg .k { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
   .seg .v { font-weight: 650; font-size: 16px; }
-  .timebar input[type=range] { flex: 1; min-width: 0; accent-color: var(--navy); }
+  .timebar input[type=range] { flex: 1; min-width: 0; accent-color: var(--deep); }
   .timebar .ends { color: var(--muted); font-size: 12px; white-space: nowrap; }
+
+  /* ---------- why card (floats over the map) ---------- */
+  .why { position: absolute; right: 16px; top: 220px; width: 340px; max-height: calc(100% - 340px); overflow-y: auto; background: var(--surface);
+    border-radius: 18px; box-shadow: var(--shadow); padding: 16px 16px 14px; display: grid; gap: 10px; }
+  .why .close { position: absolute; top: 10px; right: 10px; width: 32px; height: 32px; border: 0; border-radius: 50%; background: var(--paper);
+    cursor: pointer; font-weight: 700; }
+  .why .k { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .why h3 { margin: -4px 40px 0 0; font: 760 20px/1.15 var(--display); font-stretch: 108%; text-wrap: balance; }
+  .why .when { font-size: 14px; color: var(--red-ink); font-weight: 600; }
+  .why .cause { font-size: 14.5px; }
+  .why .cause b { color: var(--dark); }
+  .why svg { display: block; width: 100%; height: auto; }
+  .why svg text { font: 10.5px var(--body); fill: var(--muted); }
+  .facts { display: grid; gap: 6px; font-size: 13.5px; }
+  .facts div { display: flex; gap: 8px; align-items: baseline; }
+  .facts .ico { width: 18px; flex: none; text-align: center; color: var(--dark); font-weight: 700; }
+  .act { background: var(--pale); color: var(--red-ink); border-radius: 12px; padding: 8px 10px; font-size: 13.5px; font-weight: 600; }
+  .fine { font-size: 12px; color: var(--muted); margin: 0; }
 
   /* ---------- floating panel ---------- */
   .panel { position: fixed; top: 16px; left: 16px; bottom: 16px; width: 400px; overflow-y: auto; overscroll-behavior: contain;
@@ -75,17 +93,71 @@
   .brand { display: flex; align-items: center; gap: 10px; }
   .brand b { font: 760 20px/1 var(--display); font-stretch: 112%; letter-spacing: -.01em; }
   .brand span { color: var(--muted); font-size: 13px; }
-  .business { color: var(--muted); font-size: 14px; margin-top: -6px; }
+  .tabs { display: grid; grid-template-columns: repeat(3, 1fr); padding: 4px; background: var(--paper); border-radius: 999px; }
+  .tabs button { border: 0; background: transparent; border-radius: 999px; padding: 8px 6px; font-weight: 600; font-size: 14px; color: var(--muted);
+    cursor: pointer; transition: background-color .15s, color .15s; }
+  .tabs button.on { background: var(--deep); color: var(--pale); }
   .command { display: flex; align-items: stretch; gap: 8px; padding: 6px; border: 1px solid var(--line); border-radius: 999px; }
   .command label { flex: 1; min-width: 0; display: grid; padding: 4px 6px 4px 14px; cursor: pointer; }
   .command .k { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
   .command select { border: 0; background: transparent; padding: 0; font-weight: 600; min-width: 0; cursor: pointer; }
-  .btn { border: 0; border-radius: 999px; background: var(--navy); color: #fff; font-weight: 650; padding: 0 20px; min-height: 48px;
+  .btn { border: 0; border-radius: 999px; background: var(--deep); color: var(--pale); font-weight: 650; padding: 0 20px; min-height: 48px;
     cursor: pointer; white-space: nowrap; transition: background-color .15s; }
-  .btn:hover { background: #0b1a33; }
+  .btn:hover { background: var(--dark); }
   .btn:disabled { opacity: .7; cursor: progress; }
   .btn.ghost { background: var(--paper); color: var(--ink); border: 1px solid var(--line); min-height: 40px; }
   .btn.ghost:hover { border-color: var(--ink); }
+  .banner { padding: 10px 12px; border-radius: 12px; color: var(--red-ink); background: var(--pale); display: none; }
+  .pane { display: grid; gap: 12px; }
+  .pane h2 { margin: 6px 0 -4px; font: 700 15px/1.3 var(--display); font-stretch: 104%; }
+  .impact { margin: 0; font: 600 16px/1.4 var(--display); font-stretch: 102%; color: var(--deep); text-wrap: pretty; }
+  .impact em { font-style: normal; color: var(--red-ink); }
+  .summary { color: var(--muted); font-size: 13px; margin: 0; }
+
+  .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .tile { border-radius: 14px; padding: 10px 12px; background: var(--paper); display: grid; gap: 2px; min-width: 0; align-content: start; }
+  .tile .n { font: 760 28px/1 var(--display); font-variant-numeric: tabular-nums; color: var(--deep); }
+  .tile .t { font-size: 12.5px; color: var(--muted); line-height: 1.25; }
+  .tile.danger { background: var(--pale); } .tile.danger .n { color: var(--red); }
+  .tile.later { background: #FFF4E2; } .tile.later .n { color: var(--amber-ink); }
+  .tile.calm { background: var(--water-tint); } .tile.calm .n { color: var(--dark); }
+
+  .chart { border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px 6px; }
+  .chart .cap { font-size: 12.5px; color: var(--muted); margin-bottom: 4px; }
+  .chart svg { display: block; width: 100%; height: auto; }
+  .chart rect.bar { cursor: pointer; transition: fill .15s; }
+  .chart text { font: 10.5px var(--body); fill: var(--muted); }
+  #cityChart rect.bar { fill: #FBD3CF; } #cityChart rect.bar.past { fill: #F9998F; } #cityChart rect.bar.on { fill: var(--red); }
+  #fleetChart rect.bar { fill: #C6DBFC; } #fleetChart rect.bar.past { fill: #7FA6DA; } #fleetChart rect.bar.on { fill: var(--dark); }
+  .chart rect.bar:hover { opacity: .8; }
+
+  .list { display: grid; gap: 8px; }
+  .card { border: 1px solid var(--line); border-radius: 16px; padding: 12px 14px; background: var(--surface); cursor: pointer;
+    transition: border-color .15s, box-shadow .15s; display: grid; gap: 6px; }
+  .card:hover { border-color: #B9C8DC; box-shadow: 0 6px 18px -10px rgba(2, 23, 43, .35); }
+  .card .top { display: flex; gap: 10px; align-items: center; justify-content: space-between; }
+  .card .name { display: flex; align-items: center; font-weight: 650; min-width: 0; }
+  .card .detail { color: var(--muted); font-size: 13.5px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 650; background: var(--paper); color: var(--muted); }
+  .chip.red { background: var(--pale); color: var(--red-ink); }
+  .chip.blue { background: var(--water-tint); color: var(--dark); }
+  .rank { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 8px; background: var(--deep); color: var(--pale);
+    font-weight: 750; font-size: 12px; margin-right: 10px; flex: none; }
+  .num { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; font-weight: 750; font-size: 12.5px;
+    color: #fff; margin-right: 10px; flex: none; box-shadow: 0 0 0 2px var(--surface), 0 0 0 3px var(--line); }
+  .badge { padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+  .b-hold { background: var(--pale); color: var(--red-ink); } .b-hold::before { content: "✕ "; }
+  .b-go_before { background: #FFF4E2; color: var(--amber-ink); }
+  .b-no_forecast_flooding { background: var(--water-tint); color: var(--dark); }
+  .b-out_of_coverage { background: var(--paper); color: var(--muted); }
+  .strip { display: grid; grid-template-columns: repeat(19, 1fr); gap: 2px; }
+  .strip i { height: 8px; border-radius: 2px; background: var(--dark); }
+  .strip i.cut { background: var(--red); }
+  .strip i.now { outline: 2px solid var(--deep); outline-offset: 1px; }
+  .stripends { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); }
+  .meter { height: 8px; border-radius: 999px; background: var(--water-tint); overflow: hidden; }
+  .meter i { display: block; height: 100%; background: var(--red); }
   details { border: 1px solid var(--line); border-radius: 14px; padding: 10px 14px; }
   details summary { cursor: pointer; font-weight: 600; font-size: 14px; }
   details[open] summary { margin-bottom: 8px; }
@@ -94,50 +166,6 @@
   .field input, .field textarea { width: 100%; border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; background: var(--paper); }
   .field textarea { min-height: 128px; font: 12px/1.5 var(--mono); }
   .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-  .banner { padding: 10px 12px; border-radius: 12px; border: 1px solid #f5c2bd; color: #912018; background: #fdecea; display: none; }
-
-  .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-  .tile { border-radius: 14px; padding: 10px 12px; border: 1px solid var(--line); display: grid; gap: 2px; min-width: 0; }
-  .tile .n { font: 760 30px/1 var(--display); font-variant-numeric: tabular-nums; }
-  .tile .t { font-size: 12.5px; color: var(--muted); line-height: 1.25; }
-  .tile.hold { background: #fdecea; border-color: #f5c2bd; } .tile.hold .n { color: var(--red); }
-  .tile.go { background: #fff4e0; border-color: #f7d398; } .tile.go .n { color: var(--amber); }
-  .tile.ok { background: var(--paper); } .tile.ok .n { color: var(--ink); }
-  .summary { color: var(--muted); font-size: 13px; }
-  .tabs.mode { grid-template-columns: 1fr 1fr; }
-  .pane { display: grid; gap: 12px; }
-  [hidden] { display: none !important; }
-  .pane h2 { margin: 4px 0 0; font: 700 15px/1.3 var(--display); font-stretch: 104%; }
-  .tile.net { background: var(--paper); } .tile.net .n { color: var(--ink); }
-  .tile.net.now .n { color: var(--red); }
-  .chart { border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px 6px; }
-  .chart .cap { font-size: 12.5px; color: var(--muted); margin-bottom: 4px; }
-  .chart svg { display: block; width: 100%; height: auto; }
-  .chart rect.bar { fill: #c9d6e8; cursor: pointer; transition: fill .15s; }
-  .chart rect.bar.past { fill: #8fa7c7; }
-  .chart rect.bar.on { fill: var(--navy); }
-  .chart rect.bar:hover { fill: #5f7ea8; }
-  .chart text { font: 10.5px var(--body); fill: var(--muted); }
-
-  .tabs { display: grid; grid-template-columns: 1fr 1fr; padding: 4px; background: var(--paper); border-radius: 999px; }
-  .tabs button { border: 0; background: transparent; border-radius: 999px; padding: 8px 10px; font-weight: 600; color: var(--muted); cursor: pointer;
-    transition: background-color .15s, color .15s; }
-  .tabs button.on { background: var(--surface); color: var(--ink); box-shadow: 0 1px 3px rgba(14, 26, 43, .12); }
-  #results { display: grid; gap: 8px; }
-  .card { border: 1px solid var(--line); border-radius: 16px; padding: 12px 14px; background: var(--surface); cursor: pointer;
-    transition: border-color .15s, box-shadow .15s; }
-  .card:hover { border-color: #c7d2e0; box-shadow: 0 6px 18px -10px rgba(14, 26, 43, .35); }
-  .card .top { display: flex; gap: 10px; align-items: center; justify-content: space-between; }
-  .card .name { display: flex; align-items: center; font-weight: 650; min-width: 0; }
-  .card .detail { color: var(--muted); margin-top: 6px; font-size: 13.5px; }
-  .num { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; font-weight: 750; font-size: 12.5px;
-    color: #fff; margin-right: 10px; flex: none; box-shadow: 0 0 0 2px var(--surface), 0 0 0 3px var(--line); }
-  .badge { padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; white-space: nowrap; border: 1px solid; }
-  .b-hold { background: #fdecea; color: #b42318; border-color: #f5c2bd; }
-  .b-hold::before { content: "✕ "; }
-  .b-go_before { background: #fff4e0; color: #92400e; border-color: #f7d398; }
-  .b-no_forecast_flooding { background: #eef2f7; color: #334155; border-color: #d5dde7; }
-  .b-out_of_coverage { background: transparent; color: var(--muted); border: 1px dashed var(--slate); }
   table { width: 100%; border-collapse: collapse; font-size: 13.5px; font-variant-numeric: tabular-nums; }
   th, td { text-align: left; padding: 8px 4px; border-bottom: 1px solid var(--line); }
   th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; }
@@ -145,27 +173,31 @@
 
   /* ---------- markers ---------- */
   .pin { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 13px; color: #fff;
-    border: 3px solid #fff; box-shadow: 0 6px 14px -4px rgba(14, 26, 43, .5); cursor: pointer; }
-  .depot { width: 34px; height: 34px; border-radius: 11px; background: var(--navy); color: #fff; display: grid; place-items: center;
-    font-weight: 800; font-size: 16px; border: 3px solid #fff; box-shadow: 0 6px 14px -4px rgba(14, 26, 43, .5); }
+    border: 3px solid #fff; box-shadow: 0 6px 14px -4px rgba(2, 23, 43, .5); cursor: pointer; }
+  .depot { width: 34px; height: 34px; border-radius: 11px; background: var(--deep); color: var(--pale); display: grid; place-items: center;
+    font-weight: 800; font-size: 16px; border: 3px solid #fff; box-shadow: 0 6px 14px -4px rgba(2, 23, 43, .5); }
+  .fac { width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; font-weight: 800; font-size: 12px; cursor: pointer;
+    background: var(--surface); color: var(--dark); border: 2px solid var(--dark); box-shadow: 0 4px 10px -3px rgba(2, 23, 43, .45); }
+  .fac.on { background: var(--red); color: #fff; border-color: #fff; }
+  .site { width: 30px; height: 30px; border-radius: 50% 50% 50% 4px; transform: rotate(-45deg); display: grid; place-items: center;
+    border: 3px solid #fff; box-shadow: 0 6px 14px -4px rgba(2, 23, 43, .5); }
+  .site b { transform: rotate(45deg); color: #fff; font-size: 13px; }
   .cut { display: flex; align-items: center; gap: 6px; pointer-events: none; }
   .cut .x { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-weight: 900; font-size: 13px;
-    color: #fff; background: var(--red); border: 2px solid #fff; box-shadow: 0 4px 10px -3px rgba(14, 26, 43, .5); }
-  .cut .x.later { background: #fff; color: var(--amber); border-color: var(--amber-line); }
+    color: #fff; background: var(--red); border: 2px solid #fff; box-shadow: 0 4px 10px -3px rgba(2, 23, 43, .5); }
+  .cut .x.later { background: #fff; color: var(--amber-ink); border-color: var(--amber); }
   .cut .lbl { background: var(--surface); border-radius: 999px; padding: 2px 9px; font-size: 12px; font-weight: 600; white-space: nowrap;
-    color: var(--ink); box-shadow: 0 4px 12px -4px rgba(14, 26, 43, .4); }
+    color: var(--ink); box-shadow: 0 4px 12px -4px rgba(2, 23, 43, .4); }
   .maplibregl-popup-content { border-radius: 12px; padding: 10px 12px; font: 13.5px/1.4 var(--body); box-shadow: var(--shadow); }
 
-  @media (max-width: 1100px) {
-    .hero { right: 16px; } .hero .sub { display: none; } .maplink { display: none; }
-    .legend { display: none; }
-  }
+  @media (max-width: 1100px) { .hero { right: 16px; } .maplink { display: none; } .legend { display: none; } }
   @media (max-width: 820px) {
     .stage { position: relative; height: 64vh; }
     .veil { height: 200px; }
     .hero { left: 16px; right: 16px; top: 14px; } h1 { font-size: 26px; } .caption .small { display: none; }
     .timebar { left: 12px; right: 12px; bottom: 14px; gap: 10px; padding-right: 14px; }
     .seg { min-width: 0; } .timebar .ends { display: none; }
+    .why { left: 12px; right: 12px; width: auto; top: auto; bottom: 86px; max-height: 55vh; }
     .panel { position: static; width: auto; margin: 16px; overflow: visible; }
   }
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
@@ -173,7 +205,7 @@
 </head>
 <body>
 <div class="stage">
-  <div id="map" role="region" aria-label="Delivery routes and roads forecast to flood"></div>
+  <div id="map" role="region" aria-label="Roads forecast to flood, routes and facilities"></div>
   <div class="veil" aria-hidden="true"></div>
   <header class="hero">
     <div class="eyebrow" id="eyebrowBox"><span class="dot" aria-hidden="true"></span><span id="eyebrow">Loading forecast…</span></div>
@@ -181,31 +213,44 @@
     <div class="caption" aria-live="polite"><div class="big" id="capBig">Loading forecast…</div><div class="small" id="capSmall"></div></div>
   </header>
   <a class="maplink" href="index.html">Open the flood map →</a>
-  <div class="legend" aria-label="Map legend">
-    <div><span class="sw" style="background:var(--creek)"></span>Creeks and rivers</div>
+  <div class="legend" id="legend" aria-label="Map legend">
+    <div><span class="sw" style="background:var(--soft)"></span>Creeks and rivers</div>
     <div><span class="sw" style="background:var(--red)"></span>Road forecast underwater</div>
-    <div><span class="sw" style="background:var(--amber-line)"></span>Road uncertain: treat as impassable</div>
-    <div><span class="sw" style="background:var(--green)"></span>Route: no forecast flooding then</div>
-    <div><span class="sw" style="background:var(--amber-line);height:7px"></span>Route closes later: go before</div>
-    <div><span class="sw" style="background:repeating-linear-gradient(90deg,var(--red) 0 6px,transparent 6px 10px)"></span>Route cut by flooding (✕ marks where)</div>
+    <div><span class="sw" style="background:repeating-linear-gradient(90deg,var(--amber) 0 6px,transparent 6px 9px)"></span>Road uncertain: treat as impassable</div>
+    <div data-mode="fleet"><span class="sw" style="background:var(--dark)"></span>Route: no forecast flooding then</div>
+    <div data-mode="fleet"><span class="sw" style="background:var(--amber);height:7px"></span>Route closes later: go before</div>
+    <div data-mode="fleet"><span class="sw" style="background:repeating-linear-gradient(90deg,var(--red) 0 6px,transparent 6px 10px)"></span>Route cut by flooding (✕ marks where)</div>
+    <div data-mode="city"><span class="sw" style="background:var(--red);height:12px;width:12px;border-radius:3px"></span>School, clinic or responder with a flooded road at the door</div>
   </div>
-  <div class="timebar">
+  <aside class="why" id="why" hidden aria-live="polite">
+    <button class="close" id="whyClose" aria-label="Close the explanation">✕</button>
+    <div class="k">Why this road is red</div>
+    <h3 id="whyName"></h3>
+    <div class="when" id="whyWhen"></div>
+    <div class="cause" id="whyCause"></div>
+    <div id="whyChart"></div>
+    <div class="facts" id="whyFacts"></div>
+    <div class="act" id="whyAct" hidden></div>
+    <p class="fine" id="whyNote"></p>
+  </aside>
+  <div class="timebar" id="timebar">
     <button id="play" class="play" aria-label="Play the forecast hour by hour">▶</button>
     <div class="seg"><span class="k" id="tKey">Forecast time</span><span class="v tnum" id="tNow">Now</span></div>
     <span class="ends tnum" id="tStart"></span>
-    <input id="slider" type="range" min="0" max="18" step="1" value="0" aria-label="Departure time, now to 18 hours ahead">
+    <input id="slider" type="range" min="0" max="18" step="1" value="0" aria-label="Forecast hour, 0 to 18 hours after the forecast was issued">
     <span class="ends tnum" id="tEnd"></span>
   </div>
 </div>
 
 <aside class="panel">
   <div class="brand">
-    <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><rect width="30" height="30" rx="9" fill="#13284d"/><path d="M15 6c3.6 4.6 6 8 6 11a6 6 0 0 1-12 0c0-3 2.4-6.4 6-11z" fill="#cfe0f6"/><path d="M11.5 18.5c1 1.6 2.2 2.3 3.5 2.3" stroke="#13284d" stroke-width="1.6" fill="none" stroke-linecap="round"/></svg>
-    <b>Noah Operations</b><span>for cities and fleets</span>
+    <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><rect width="30" height="30" rx="9" fill="#02172B"/><path d="M15 6c3.6 4.6 6 8 6 11a6 6 0 0 1-12 0c0-3 2.4-6.4 6-11z" fill="#86B5FA"/><path d="M11.5 18.5c1 1.6 2.2 2.3 3.5 2.3" stroke="#02172B" stroke-width="1.6" fill="none" stroke-linecap="round"/></svg>
+    <b>Noah Operations</b><span>for cities and businesses</span>
   </div>
-  <div class="tabs mode" role="tablist" aria-label="Who is planning">
-    <button id="tabBarr" role="tab">City operations</button>
-    <button id="tabStops" role="tab">Fleet dispatch</button>
+  <div class="tabs" role="tablist" aria-label="Who is planning">
+    <button id="tabCity" role="tab">City</button>
+    <button id="tabFleet" role="tab">Deliveries</button>
+    <button id="tabSite" role="tab">Site check</button>
   </div>
   <div class="command">
     <label for="cycle"><span class="k">Forecast</span><select id="cycle"></select></label>
@@ -213,24 +258,43 @@
   </div>
   <div id="error" class="banner" role="alert"></div>
 
-  <section id="paneBarr" class="pane">
-    <div class="tiles" aria-label="Streets forecast cut over the forecast window">
-      <div class="tile net now"><span class="n" id="cNow">–</span><span class="t" id="cNowT">streets cut at issue time</span></div>
-      <div class="tile net"><span class="n" id="cMid">–</span><span class="t" id="cMidT">by +6 h</span></div>
-      <div class="tile net"><span class="n" id="cEnd">–</span><span class="t" id="cEndT">by +18 h</span></div>
+  <!-- City: what is at stake, what to do now, what to fix -->
+  <section id="paneCity" class="pane">
+    <p class="impact" id="impact">Loading the forecast…</p>
+    <div class="tiles">
+      <div class="tile danger"><span class="n" id="tStreets">–</span><span class="t" id="tStreetsT">streets cut</span></div>
+      <div class="tile"><span class="n" id="tFac">–</span><span class="t">schools, clinics or responders with a flooded road at the door</span></div>
+      <div class="tile calm"><span class="n tnum" id="tFirst">–</span><span class="t">first road forecast under</span></div>
     </div>
     <div class="chart">
-      <div class="cap">Streets forecast underwater or uncertain, hour by hour. Click an hour to see it on the map.</div>
-      <div id="timeline" aria-label="Streets forecast cut by hour"></div>
+      <div class="cap">Streets forecast cut, hour by hour. Click an hour to see it on the map.</div>
+      <div id="cityChart"></div>
     </div>
+    <h2>Fix first</h2>
+    <p class="summary">Roads that flood storm after storm, busiest first. Click one to see why it floods.</p>
+    <div id="fixList" class="list"></div>
+    <h2>Schools, clinics and responders at risk</h2>
+    <div id="facList" class="list"></div>
     <h2>Barricade priorities</h2>
-    <p class="summary">Streets forecast to flood, earliest first, for public works and emergency management to pre-position barricades.</p>
+    <p class="summary">Every street forecast to flood, earliest first, for crews to pre-position barricades.</p>
     <button id="csv" class="btn ghost">Download CSV</button>
     <table><thead><tr><th>Street</th><th>Floods from</th><th>Length</th></tr></thead><tbody id="barrBody"></tbody></table>
   </section>
 
-  <section id="paneStops" class="pane" hidden>
-    <div id="business" class="business"></div>
+  <!-- Deliveries: when to send drivers, which stops to hold -->
+  <section id="paneFleet" class="pane" hidden>
+    <p class="impact" id="best">Loading the forecast…</p>
+    <div class="chart">
+      <div class="cap">Stops reachable if the driver leaves at each hour. Click an hour to plan around it.</div>
+      <div id="fleetChart"></div>
+    </div>
+    <div class="tiles">
+      <div class="tile danger"><span class="n" id="nHold">–</span><span class="t">hold: route forecast cut</span></div>
+      <div class="tile later"><span class="n" id="nGo">–</span><span class="t">go before a time</span></div>
+      <div class="tile calm"><span class="n" id="nOk">–</span><span class="t">no forecast flooding</span></div>
+    </div>
+    <div id="business" class="summary"></div>
+    <div id="results" class="list"></div>
     <details>
       <summary>Edit depot and stops</summary>
       <label class="field"><span>Depot name</span><input id="depotLabel" name="depot" autocomplete="off"></label>
@@ -240,53 +304,59 @@
       </div>
       <label class="field"><span>Stops, one per line: <code>label, lat, lon</code></span><textarea id="stops" name="stops" spellcheck="false" autocomplete="off"></textarea></label>
     </details>
-    <div class="tiles" aria-label="Deliveries by verdict">
-      <div class="tile hold"><span class="n" id="nHold">–</span><span class="t">Hold: route forecast cut</span></div>
-      <div class="tile go"><span class="n" id="nGo">–</span><span class="t">Go before a time</span></div>
-      <div class="tile ok"><span class="n" id="nOk">–</span><span class="t">No forecast flooding</span></div>
-    </div>
-    <div id="runSummary" class="summary tnum"></div>
-    <div id="results"></div>
   </section>
-  <footer>Forecasts from the NOAA National Water Model, updated hourly. River and creek flooding only.
+
+  <!-- Site check: where storms cut a location off least -->
+  <section id="paneSite" class="pane" hidden>
+    <p class="impact">Where should the next branch go? <em>Click the map</em> to test a location against every storm Noah recorded.</p>
+    <button id="siteDepot" class="btn ghost">Test the current depot</button>
+    <div id="siteList" class="list"></div>
+    <p class="fine">Recorded storms: Hurricane Helene 2024 and Hurricane Isaias 2026 (every hourly forecast). Creek and river flooding only; this is not a flood-insurance rating.</p>
+  </section>
+  <footer>Forecasts from the NOAA National Water Model, updated hourly. Creek and river flooding only.
     Not a safety guarantee. Never drive into water. Emergency: 911.</footer>
 </aside>
 <script>
-const API = new URLSearchParams(location.search).get("api") || "";
+const Q = new URLSearchParams(location.search);
+const API = Q.get("api") || "";
 const $ = (id) => document.getElementById(id);
+const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
 const TZ = { timeZone: "America/New_York" };
 const fmt = new Intl.DateTimeFormat("en-US", { ...TZ, weekday: "short", hour: "numeric", minute: "2-digit" });
 const fmtHour = new Intl.DateTimeFormat("en-US", { ...TZ, hour: "numeric" });
 const fmtDay = new Intl.DateTimeFormat("en-US", { ...TZ, weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 const local = (iso) => fmt.format(new Date(iso));
-const C = { red: "#e5322d", amber: "#f59e0b", green: "#12a36c", grey: "#94a3b8", creek: "#3b82f6" };
-let data = null, lastBarricades = [], pins = [], cuts = [], depotMarker = null, timer = null, liveCycles = new Set();
-// Two audiences, one forecast (J20): agencies plan the network (City operations), businesses plan their drivers (Fleet dispatch).
-let mode = new URLSearchParams(location.search).get("mode") === "fleet" ? "fleet" : "city", streetsBy = [];
+const hourOf = (iso) => fmtHour.format(new Date(iso));
+const C = { red: "#F8635B", amber: "#E8A33D", route: "#04325A", water: "#86B5FA", grey: "#9AA9BC", deep: "#02172B" };
+const STATUS_COLOR = { cut: C.red, later: C.amber, open: C.route, none: C.grey };
+const KIND_LETTER = { Hospital: "H", Clinic: "C", "Nursing home": "N", School: "S", "Fire station": "F", Police: "P" };
+let data = null, flood = [], city = null, lastBarricades = [], streetsBy = [], timer = null, liveCycles = new Set(), whySeg = null, whyData = null;
+let pins = [], cuts = [], depotMarker = null, facMarkers = [], sites = [], highlighted = null;
+// One forecast, three jobs (J20/J21): agencies protect the network (City), businesses plan drivers (Deliveries) and locations (Site check).
+let mode = ["fleet", "site"].includes(Q.get("mode")) ? Q.get("mode") : "city";
 
 const atHour = (h) => new Date(new Date(data.issue_time).getTime() + h * 3600e3);
-// Route status if a driver leaves at slider hour h: no forecast flooding then / closing later / cut.
+const hourNow = () => +$("slider").value;
+const plural = (n, one, many = one + "s") => `${n} ${n === 1 ? one : many}`;
+const alias = (name) => (name === "Horace E Tate Freeway" ? "Downtown Connector (I-75/85)" : name);
+// Route status if a driver leaves at hour h: no forecast flooding then / closing later / cut.
 function statusAt(s, h) {
   if (s.state === "out_of_coverage") return "none";
   if (s.state === "hold") return "cut";
   if (s.state === "go_before") return h >= s.cut_h ? "cut" : "later";
   return "open";
 }
-const STATUS_COLOR = { cut: C.red, later: C.amber, open: C.green, none: C.grey };
-
 function badgeText(s) {
-  return { hold: "Hold", go_before: "Go before ~" + local(s.go_before_utc),
-           no_forecast_flooding: "No forecast flooding", out_of_coverage: "Outside coverage" }[s.state];
+  return { hold: "Hold", go_before: "Go before ~" + hourOf(s.go_before_utc), no_forecast_flooding: "No forecast flooding", out_of_coverage: "Outside coverage" }[s.state];
 }
 function detailText(s) {
-  const where = s.cut_at && s.cut_at.street ? ` (${s.cut_at.street} becomes impassable ~${local(s.cut_at.impassable_from_utc)})` : "";
-  if (s.state === "go_before") return `Go before ~${local(s.go_before_utc)}${where}. No forecast flooding on this route if you leave before then. Not a safety guarantee.`;
-  if (s.state === "hold") return `Hold this delivery. The route is forecast cut by flooding from ~${local(s.cut_from_utc)}${where}.`;
+  const where = s.cut_at && s.cut_at.street ? ` ${s.cut_at.street} becomes impassable ~${hourOf(s.cut_at.impassable_from_utc)}.` : "";
+  if (s.state === "go_before") return `Leave before ~${hourOf(s.go_before_utc)}.${where}`;
+  if (s.state === "hold") return `Route forecast cut by flooding from ~${hourOf(s.cut_from_utc)}.${where}`;
   if (s.state === "no_forecast_flooding") return `No forecast flooding on this route through ${local(data.valid_until)}. Not a safety guarantee.`;
-  return "Outside Noah's road-level coverage (metro Atlanta creeks). Check local official warnings.";
+  return "Outside Noah's road-level coverage. Check local official warnings.";
 }
 function showError(msg) { const e = $("error"); e.textContent = msg; e.style.display = msg ? "block" : "none"; }
-
 function parseStops(text) {
   return text.split("\n").map((l) => l.trim()).filter(Boolean).map((l, i) => {
     const parts = l.split(",").map((x) => x.trim());
@@ -295,231 +365,368 @@ function parseStops(text) {
     return { id: "S" + (i + 1), label: parts.join(", ") || "Stop " + (i + 1), lat, lon };
   });
 }
+function kindsText(list) {
+  const n = {}; list.forEach((f) => (n[f.kind] = (n[f.kind] || 0) + 1));
+  const parts = Object.entries(n).map(([k, c]) => plural(c, k.toLowerCase()));
+  return parts.length > 1 ? parts.slice(0, -1).join(", ") + " and " + parts.at(-1) : parts[0];
+}
 
+// ---------- map ----------
 const map = new maplibregl.Map({ container: "map", style: "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
   center: [-84.37, 33.85], zoom: 11.3, attributionControl: { compact: true } });
 map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
 const mapReady = new Promise((ok) => map.on("load", ok));
-
 async function setupLayers() {
   const streams = await fetch("data/streams.geojson").then((r) => r.json());
   map.addSource("streams", { type: "geojson", data: streams });
   map.addLayer({ id: "streams", type: "line", source: "streams",
-    paint: { "line-color": C.creek, "line-opacity": 0.7,
-      "line-width": ["interpolate", ["linear"], ["get", "order"], 1, 1, 3, 2.5, 5, 4.5] } });
+    paint: { "line-color": C.water, "line-opacity": 0.95, "line-width": ["interpolate", ["linear"], ["get", "order"], 1, 1.2, 3, 2.6, 5, 4.8] } });
   map.addSource("flood", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+  map.addLayer({ id: "sel", type: "line", source: "flood", filter: ["==", ["get", "seg_id"], ""],
+    paint: { "line-color": C.water, "line-width": 18, "line-opacity": 0.7, "line-blur": 2 } });
   map.addLayer({ id: "flood-casing", type: "line", source: "flood", filter: ["<", ["get", "t_uncertain"], -1],
-    paint: { "line-color": "#ffffff", "line-width": 7, "line-opacity": 0.9 } });
+    paint: { "line-color": "#ffffff", "line-width": 8, "line-opacity": 0.95 } });
   map.addLayer({ id: "uncertain", type: "line", source: "flood", filter: ["<", ["get", "t_uncertain"], -1],
-    paint: { "line-color": C.amber, "line-width": 3, "line-dasharray": [2, 1.2] } });
+    paint: { "line-color": C.amber, "line-width": 3.5, "line-dasharray": [2, 1.2] } });
   map.addLayer({ id: "flooded", type: "line", source: "flood", filter: ["<", ["get", "t_uncertain"], -1],
-    paint: { "line-color": C.red, "line-width": 4 } });
+    paint: { "line-color": C.red, "line-width": 4.5 } });
   map.addSource("routes", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
   map.addLayer({ id: "routes-open", type: "line", source: "routes", filter: ["!=", ["get", "st"], "cut"],
     layout: { "line-cap": "round", "line-join": "round" },
-    paint: { "line-color": ["match", ["get", "st"], "later", C.amber, C.green], "line-width": ["case", ["get", "hi"], 7, 4.5], "line-opacity": 0.95 } });
+    paint: { "line-color": ["match", ["get", "st"], "later", C.amber, C.route], "line-width": ["case", ["get", "hi"], 7, 4.5], "line-opacity": 0.95 } });
   map.addLayer({ id: "routes-cut", type: "line", source: "routes", filter: ["==", ["get", "st"], "cut"],
     layout: { "line-join": "round" },
     paint: { "line-color": C.red, "line-width": ["case", ["get", "hi"], 6, 4], "line-dasharray": [1.5, 1.2] } });
   for (const id of ["uncertain", "flooded"]) {
-    map.on("click", id, (e) => {
-      if (!data) return;
-      const p = e.features[0].properties;
-      const tf = p.t_flood !== "null" && p.t_flood != null ? +p.t_flood : null;
-      const el = document.createElement("div");
-      el.textContent = (p.name && p.name !== "null" ? p.name : "Unnamed road") + ": " + (tf !== null
-        ? `do not cross, forecast underwater from ~${fmt.format(atHour(tf))}`
-        : `uncertain, treat as impassable from ~${fmt.format(atHour(+p.t_uncertain))}`);
-      new maplibregl.Popup().setLngLat(e.lngLat).setDOMContent(el).addTo(map);
-    });
-    map.on("mouseenter", id, () => (map.getCanvas().style.cursor = "pointer"));
+    map.on("click", id, (e) => { if (mode !== "site" && data) openWhy(e.features[0].properties.seg_id); });
+    map.on("mouseenter", id, () => mode !== "site" && (map.getCanvas().style.cursor = "pointer"));
     map.on("mouseleave", id, () => (map.getCanvas().style.cursor = ""));
   }
+  map.on("click", (e) => { if (mode === "site") testSite(e.lngLat.lat, e.lngLat.lng); });
 }
 const layersReady = mapReady.then(setupLayers);
+const framePad = () => innerWidth > 820 ? { top: 230, bottom: 110, left: 450, right: innerWidth > 1100 ? 380 : 40 } : { top: 130, bottom: 90, left: 30, right: 30 };
 
-let highlighted = null;
+// ---------- render at forecast hour h ----------
 function render(h) {
-  if (!data || !map.getSource("routes")) return;  // layers still loading
+  if (!data || !map.getSource("routes")) return;
   $("slider").value = h;
-  $("tNow").textContent = h === 0 ? `Now · ${fmtHour.format(atHour(0))}` : fmt.format(atHour(h));
-  // roads underwater / uncertain by hour h
+  $("tNow").textContent = h === 0 ? `${mode === "fleet" ? "Now" : "Issued"} · ${fmtHour.format(atHour(0))}` : fmt.format(atHour(h));
   map.setFilter("flood-casing", ["<=", ["get", "t_uncertain"], h]);
   map.setFilter("flooded", ["all", ["!=", ["get", "t_flood"], null], ["<=", ["get", "t_flood"], h]]);
-  map.setFilter("uncertain", ["all", ["<=", ["get", "t_uncertain"], h],
-    ["any", ["==", ["get", "t_flood"], null], [">", ["get", "t_flood"], h]]]);
-  // routes + pins + cut markers by status at h
+  map.setFilter("uncertain", ["all", ["<=", ["get", "t_uncertain"], h], ["any", ["==", ["get", "t_flood"], null], [">", ["get", "t_flood"], h]]]);
   const stops = data.stops.map((s, i) => ({ ...s, n: i + 1, st: statusAt(s, h) }));
   map.getSource("routes").setData({ type: "FeatureCollection", features: stops.filter((s) => s.route).map((s) => ({
     type: "Feature", properties: { n: s.n, st: s.st, hi: highlighted === s.n }, geometry: { type: "LineString", coordinates: s.route } })) });
   stops.forEach((s, i) => { if (pins[i]) pins[i].getElement().style.background = STATUS_COLOR[s.st]; });
-  cuts.forEach(({ el, s }) => el.querySelector(".x").classList.toggle("later", statusAt(s, h) !== "cut"));
+  cuts.forEach(({ el: c, s }) => c.querySelector(".x").classList.toggle("later", statusAt(s, h) !== "cut"));
   layoutCutLabels(h);
-  document.querySelectorAll(".card .num").forEach((el, i) => (el.style.background = STATUS_COLOR[stops[i].st]));
-  const n = { cut: 0, later: 0, open: 0 };
-  stops.forEach((s) => n[s.st] !== undefined && n[s.st]++);
-  $("capBig").textContent = h === 0 ? `Leaving now (${fmt.format(atHour(0))})` : `If a driver leaves at ${fmt.format(atHour(h))}`;
-  $("capSmall").textContent = `${n.cut} route${n.cut === 1 ? "" : "s"} cut by flooding · ${n.later} closing later · ${n.open} with no forecast flooding. ` +
-    `Red roads are forecast underwater by then. Drag the time bar to see the day unfold.`;
-  if (mode === "city" && streetsBy.length) {
-    const n = streetsBy[h].size, n0 = streetsBy[0].size;
-    $("capBig").textContent = h === 0 ? `Forecast issued ${fmt.format(atHour(0))}` : `At ${fmt.format(atHour(h))}`;
-    $("capSmall").textContent = `${n} street${n === 1 ? "" : "s"} forecast underwater or uncertain by then` +
-      (h ? ` · ${n - n0} more than at ${fmtHour.format(atHour(0))}` : "") + `. Drag the time bar to watch the network change.`;
-  }
-  document.querySelectorAll("#timeline rect.bar").forEach((r, k) => { r.classList.toggle("on", k === h); r.classList.toggle("past", k < h); });
+  document.querySelectorAll("#results .num").forEach((n, i) => (n.style.background = STATUS_COLOR[stops[i].st]));
+  document.querySelectorAll("#results .strip").forEach((s) => s.querySelectorAll("i").forEach((c, k) => c.classList.toggle("now", k === h)));
+  document.querySelectorAll(".chart rect.bar").forEach((r) => { const k = +r.dataset.h; r.classList.toggle("on", k === h); r.classList.toggle("past", k < h); });
+  renderCity(h); renderFleet(h, stops);
+  if (whyData) drawWhyChart(whyData, h);
 }
 
-// City operations: how many streets are forecast cut by each hour (underwater or uncertain), drawn as clickable bars.
+// ---------- City ----------
+const facAt = (f, h) => (f.cut_off_h ?? 99) <= h || (f.door_h ?? 99) <= h;
+function renderCity(h) {
+  if (!streetsBy.length) return;
+  const n = streetsBy[h].size, n0 = streetsBy[0].size;
+  $("tStreets").textContent = n; $("tStreetsT").textContent = `streets cut by ${fmtHour.format(atHour(h))}`;
+  const facs = city ? city.facilities.filter((f) => facAt(f, h)) : [];
+  $("tFac").textContent = city ? facs.length : "–";
+  facMarkers.forEach(({ m, f }) => m.getElement().classList.toggle("on", facAt(f, h)));
+  if (city) {
+    const cutOff = facs.filter((f) => (f.cut_off_h ?? 99) <= h);
+    let s = `By <b>${fmtHour.format(atHour(h))}</b>, <em>${plural(n, "street")}</em> forecast cut`;
+    s += facs.length ? `, and ${kindsText(facs)} ${facs.length === 1 ? "has" : "have"} a flooded road at the door` : ", with no school, clinic or responder flooded at the door";
+    s += cutOff.length ? `. Cut off from every open road: ${cutOff.map((f) => f.name).join(", ")}.` : ". None is fully cut off.";
+    $("impact").innerHTML = s;
+  }
+  if (mode === "city") {
+    $("capBig").textContent = h === 0 ? `Forecast issued ${fmt.format(atHour(0))}` : `At ${fmt.format(atHour(h))}`;
+    $("capSmall").textContent = `${plural(n, "street")} forecast underwater or uncertain` + (h ? ` · ${n - n0} more than at ${fmtHour.format(atHour(0))}` : "") +
+      (facs.length ? ` · ${kindsText(facs)} with a flooded road at the door` : "") + ". Click a red road to see why.";
+  }
+}
 function cityStats(features) {
-  streetsBy = Array.from({ length: 19 }, (_, h) => new Set(features.filter((f) => f.properties.t_uncertain <= h && f.properties.name)
-    .map((f) => f.properties.name)));  // named streets (unnamed ramps/driveways stay on the map, not in the count)
-  const at = (h) => fmtHour.format(atHour(h));
-  $("cNow").textContent = streetsBy[0].size; $("cNowT").textContent = `streets cut at ${at(0)} (issue time)`;
-  $("cMid").textContent = streetsBy[6].size; $("cMidT").textContent = `by ${at(6)}`;
-  $("cEnd").textContent = streetsBy[18].size; $("cEndT").textContent = `by ${at(18)}`;
-  const max = Math.max(1, streetsBy[18].size), W = 340, H = 108, bw = 14, gap = (W - 19 * bw) / 18;
+  streetsBy = Array.from({ length: 19 }, (_, h) => new Set(features.filter((f) => f.properties.t_uncertain <= h && f.properties.name).map((f) => f.properties.name)));
+  const first = Math.min(...features.map((f) => f.properties.t_uncertain));
+  $("tFirst").textContent = isFinite(first) ? fmtHour.format(atHour(first)) : "none";
+  barChart("cityChart", streetsBy.map((s) => s.size), (v, h) => `${fmt.format(atHour(h))}: ${plural(v, "street")} cut`);
+}
+function barChart(id, values, title) {
+  const max = Math.max(1, ...values), W = 340, bw = 14, gap = (W - 19 * bw) / 18;
   const NS = "http://www.w3.org/2000/svg", svg = document.createElementNS(NS, "svg");
-  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
-  streetsBy.forEach((set, h) => {
-    const bh = Math.max(2, (set.size / max) * 74), x = h * (bw + gap);
+  svg.setAttribute("viewBox", `0 0 ${W} 104`);
+  values.forEach((v, h) => {
+    const bh = Math.max(2, (v / max) * 72), x = h * (bw + gap);
     const r = document.createElementNS(NS, "rect");
-    Object.entries({ x, y: 80 - bh, width: bw, height: bh, rx: 3, class: "bar" }).forEach(([k, v]) => r.setAttribute(k, v));
-    const t = document.createElementNS(NS, "title"); t.textContent = `${fmt.format(atHour(h))}: ${set.size} streets`; r.append(t);
+    Object.entries({ x, y: 78 - bh, width: bw, height: bh, rx: 3, class: "bar", "data-h": h }).forEach(([k, val]) => r.setAttribute(k, val));
+    const t = document.createElementNS(NS, "title"); t.textContent = title(v, h); r.append(t);
     r.addEventListener("click", () => render(h));
     svg.append(r);
-    if (h % 6 === 0) {
-      const lab = document.createElementNS(NS, "text");
-      Object.entries({ x: Math.min(x, W - 34), y: 98 }).forEach(([k, v]) => lab.setAttribute(k, v)); lab.textContent = at(h); svg.append(lab);
-    }
+    if (h % 6 === 0) { const lab = document.createElementNS(NS, "text"); lab.setAttribute("x", Math.min(x, W - 34)); lab.setAttribute("y", 96); lab.textContent = fmtHour.format(atHour(h)); svg.append(lab); }
   });
-  $("timeline").replaceChildren(svg);
+  $(id).replaceChildren(svg);
+}
+async function loadCity(cycle) {
+  city = null; facMarkers.forEach(({ m }) => m.remove()); facMarkers = [];
+  $("fixList").replaceChildren(el("p", "summary", "Ranking the roads…")); $("facList").replaceChildren();
+  const c = await fetch(`${API}/ops/city?cycle=${cycle}`).then((r) => r.json());
+  if (!data || data.cycle !== cycle) return;
+  city = c;
+  $("fixList").replaceChildren(...c.fix_first.slice(0, 8).map((r, i) => {
+    const card = el("div", "card"); card.tabIndex = 0; card.setAttribute("role", "button");
+    const top = el("div", "top"), nm = el("span", "name"); nm.append(el("span", "rank", i + 1), document.createTextNode(alias(r.street))); top.append(nm);
+    const every = r.events.length > 1 && r.events.every((e) => e.runs === e.of);
+    if (every) top.append(el("span", "badge b-hold", "Every storm"));
+    const chips = el("div", "chips");
+    r.events.forEach((e) => chips.append(el("span", "chip red", `${e.event}: ${e.runs}/${e.of}`)));
+    if (r.major) chips.append(el("span", "chip blue", "Major road"));
+    r.facilities.forEach((f) => chips.append(el("span", "chip", `Near ${f}`)));
+    const det = el("div", "detail", `${r.creek ? r.creek + " overtops it" : "Creek overflow"}${r.road_above_creek_m != null ? ` · road ~${r.road_above_creek_m} m above the creek` : ""} · first under ${hourOf(r.first_utc)}`);
+    card.append(top, det, chips);
+    const go = () => openWhy(r.seg_id, true);
+    card.onclick = go; card.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } };
+    return card;
+  }));
+  $("facList").replaceChildren(...(c.facilities.length ? c.facilities.map((f) => {
+    const card = el("div", "card");
+    const top = el("div", "top"), nm = el("span", "name"); nm.append(el("span", "rank", KIND_LETTER[f.kind] || "•"), document.createTextNode(f.name)); top.append(nm);
+    top.append(el("span", "badge b-hold", f.cut_off_utc ? `Cut off ${hourOf(f.cut_off_utc)}` : `From ${hourOf(f.door_utc)}`));
+    card.append(top, el("div", "detail", f.cut_off_utc ? `${f.kind}: no open road connects it to the network from ~${hourOf(f.cut_off_utc)}.` :
+      `${f.kind}: ${f.door_street || "the road at its door"} forecast flooded from ~${hourOf(f.door_utc)}. Other roads stay open.`));
+    card.onclick = () => map.flyTo({ center: [f.lon, f.lat], zoom: 15 });
+    return card;
+  }) : [el("p", "summary", `None of the ${c.facilities_checked} schools, clinics, hospitals, fire and police stations has a flooded road at the door in this forecast.`)]));
+  facMarkers = c.facilities.map((f) => {
+    const m = el("div", "fac", KIND_LETTER[f.kind] || "•"); m.title = `${f.name} (${f.kind})`;
+    return { f, m: new maplibregl.Marker({ element: m }).setLngLat([f.lon, f.lat])
+      .setPopup(new maplibregl.Popup({ offset: 14 }).setText(`${f.name}: ${f.door_street || "road at the door"} forecast flooded from ~${hourOf(f.door_utc || f.cut_off_utc)}`)).addTo(map) };
+  });
+  setMode(mode);
 }
 
+// ---------- Why this road is red ----------
+async function openWhy(segId, fly) {
+  whySeg = segId;
+  map.setFilter("sel", ["==", ["get", "seg_id"], segId]);
+  const d = await fetch(`${API}/ops/why?cycle=${data.cycle}&seg_id=${encodeURIComponent(segId)}`).then((r) => r.json());
+  if (whySeg !== segId || d.detail) return;
+  whyData = d;
+  const redAt = Math.round((new Date(d.uncertain_from_utc) - new Date(data.issue_time)) / 3600e3);
+  if (hourNow() < redAt) render(redAt);  // never explain a road that is not red yet on screen
+  $("why").hidden = false; $("legend").hidden = true;
+  $("whyName").textContent = alias(d.name);
+  $("whyWhen").textContent = `Uncertain from ~${local(d.uncertain_from_utc)}` + (d.flooded_from_utc ? ` · underwater from ~${hourOf(d.flooded_from_utc)}` : "");
+  $("whyCause").innerHTML = "";
+  const cause = el("span"); cause.append(el("b", null, d.creek ? d.creek.name : "The creek"), document.createTextNode(" overtops it."));
+  if (d.creek && d.creek.regulated) cause.append(document.createTextNode(" Its flow is partly set by Buford Dam releases upstream, which the forecast includes."));
+  $("whyCause").append(cause);
+  drawWhyChart(d, hourNow());
+  const facts = [];
+  const add = (ico, text) => { const row = el("div"); row.append(el("span", "ico", ico), el("span", null, text)); facts.push(row); };
+  if (d.water_reaches_road_cfs) add("≈", `Water reaches the road when the creek passes ${d.water_reaches_road_cfs.toLocaleString()} cfs; forecast peak ${d.peak.cfs.toLocaleString()} cfs at ${hourOf(d.peak.t)}${d.times_over ? ` (${d.times_over}×)` : ""}.`);
+  add("↕", `The road sits about ${d.road_above_creek_m} m above the creek.`);
+  add("↻", d.history.map((x) => `${x.event}: flagged in ${x.runs} of ${x.of} forecasts`).join(" · ") + ".");
+  add("◎", d.cameras.length ? `Cameras within 300 m: ${d.cameras.map((c) => `${c.title}${c.last_check ? ` (last check: ${c.last_check.replace("_", " ")})` : ""}`).join("; ")}.` : "No traffic camera within 300 m.");
+  add("§", `Threshold from the ${d.source}.`);
+  $("whyFacts").replaceChildren(...facts);
+  const every = d.history.length > 1 && d.history.every((x) => x.runs === x.of);
+  const barricade = new Date(new Date(d.uncertain_from_utc).getTime() - 3600e3);
+  $("whyAct").hidden = false;
+  $("whyAct").textContent = (mode === "fleet" ? `Plan deliveries across ${alias(d.name)} before ~${fmtHour.format(barricade)}.` : `Barricade before ~${fmtHour.format(barricade)}.`) +
+    (every ? " It floods in every recorded storm: a candidate for a road-raising or culvert study." : "");
+  $("whyNote").textContent = d.not_modeled;
+  if (fly) {
+    const f = flood.find((x) => x.properties.seg_id === segId);
+    if (f) { const cs = f.geometry.coordinates; map.fitBounds(cs.reduce((b, c) => b.extend(c), new maplibregl.LngLatBounds(cs[0], cs[0])), { padding: framePad(), maxZoom: 16 }); }
+  }
+}
+function drawWhyChart(d, h) {
+  if (!d.forecast.length) { $("whyChart").replaceChildren(); return; }
+  const W = 308, H = 128, top = 10, bot = 100, n = d.forecast.length, thr = d.water_reaches_road_cfs || 0;
+  const vmax = Math.max(thr, ...d.forecast.map((p) => p.cfs)) * 1.18 || 1;
+  const x = (i) => 6 + (i / (n - 1)) * (W - 12), y = (v) => bot - (v / vmax) * (bot - top);
+  const line = d.forecast.map((p, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(p.cfs).toFixed(1)}`).join("");
+  const area = `${line}L${x(n - 1)},${bot}L${x(0)},${bot}Z`, ty = y(thr), hx = x(Math.min(h, n - 1));
+  $("whyChart").innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Forecast creek flow against the flow that reaches the road">
+    <defs><clipPath id="above"><rect x="0" y="0" width="${W}" height="${ty}"/></clipPath></defs>
+    <path d="${area}" fill="#EAF2FE"/><path d="${area}" fill="#F8635B" fill-opacity=".35" clip-path="url(#above)"/>
+    <path d="${line}" fill="none" stroke="#04325A" stroke-width="2.4" stroke-linejoin="round"/>
+    ${thr ? `<line x1="0" x2="${W}" y1="${ty}" y2="${ty}" stroke="#F8635B" stroke-width="2" stroke-dasharray="5 4"/>
+    <text x="${W - 4}" y="${ty - 5}" text-anchor="end" fill="#B42F28">water reaches the road</text>` : ""}
+    <line x1="${hx}" x2="${hx}" y1="${top - 4}" y2="${bot}" stroke="#02172B" stroke-width="1" stroke-dasharray="2 3"/>
+    <text x="${x(0)}" y="${H - 10}">${hourOf(d.forecast[0].t)}</text>
+    <text x="${x(Math.floor(n / 2))}" y="${H - 10}" text-anchor="middle">${hourOf(d.forecast[Math.floor(n / 2)].t)}</text>
+    <text x="${x(n - 1)}" y="${H - 10}" text-anchor="end">${hourOf(d.forecast[n - 1].t)}</text>
+    <text x="6" y="${top + 2}">creek flow (forecast)</text></svg>`;
+}
+function closeWhy() { whySeg = null; whyData = null; $("why").hidden = true; $("legend").hidden = false; map.getLayer("sel") && map.setFilter("sel", ["==", ["get", "seg_id"], ""]); }
+
+// ---------- Deliveries ----------
+function renderFleet(h, stops) {
+  const covered = stops.filter((s) => s.st !== "none");
+  const reach = (hh) => covered.filter((s) => statusAt(s, hh) !== "cut").length;
+  const all = covered.length, now = reach(h);
+  let lastAll = -1; for (let k = 0; k <= 18; k++) if (reach(k) === reach(0)) lastAll = k; else break;
+  const held = covered.filter((s) => s.st === "cut").map((s) => s.label.split(",")[0]);
+  // the tiles follow the time bar: what a driver leaving at hour h would face
+  $("nHold").textContent = held.length; $("nGo").textContent = covered.filter((s) => s.st === "later").length;
+  $("nOk").textContent = covered.filter((s) => s.st === "open").length;
+  let s = reach(0) === all
+    ? (lastAll >= 18 ? `No stop is forecast to be cut through ${fmtHour.format(atHour(18))}.` : `Leave by <b>${fmtHour.format(atHour(lastAll))}</b> to reach all ${all} stops.`)
+    : `${plural(all - reach(0), "stop")} already cut at ${fmtHour.format(atHour(0))}.`;
+  s += h > 0 || reach(0) !== all ? ` Leaving ${fmtHour.format(atHour(h))}: <em>${now} of ${all}</em> reachable${held.length ? `; hold ${held.join(", ")}` : ""}.` : "";
+  $("best").innerHTML = s;
+  if (mode === "fleet") {
+    $("capBig").textContent = h === 0 ? `Leaving now (${fmt.format(atHour(0))})` : `If a driver leaves at ${fmt.format(atHour(h))}`;
+    $("capSmall").textContent = `${now} of ${all} stops reachable · ${held.length} to hold. Red roads are forecast underwater by then.`;
+  }
+}
+function fleetStats() {
+  const covered = data.stops.filter((s) => s.state !== "out_of_coverage");
+  barChart("fleetChart", Array.from({ length: 19 }, (_, h) => covered.filter((s) => statusAt(s, h) !== "cut").length), (v, h) => `Leave ${fmt.format(atHour(h))}: ${v} of ${covered.length} stops`);
+}
+
+// ---------- Site check ----------
+async function testSite(lat, lon) {
+  const d = await fetch(`${API}/ops/site?lat=${lat}&lon=${lon}`).then((r) => r.json());
+  const color = d.badge.startsWith("Often") ? C.red : d.badge.startsWith("Sometimes") ? C.amber : C.route;
+  const k = (sites.at(-1)?.k || 0) + 1;
+  const m = el("div", "site"); m.style.background = color; m.append(el("b", null, k));
+  sites.push({ k, d, color, marker: new maplibregl.Marker({ element: m, anchor: "bottom" }).setLngLat([lon, lat]).addTo(map) });
+  if (sites.length > 4) sites.shift().marker.remove();
+  renderSites();
+}
+function renderSites() {
+  $("siteList").replaceChildren(...[...sites].reverse().map(({ k, d, color }) => {
+    const card = el("div", "card");
+    const top = el("div", "top"), nm = el("span", "name");
+    const dot = el("span", "rank", k); dot.style.background = color; nm.append(dot, document.createTextNode(d.nearest_flagged ? `Near ${d.nearest_flagged.street}` : `Site ${k}`));
+    const badge = el("span", "badge " + (color === C.red ? "b-hold" : color === C.amber ? "b-go_before" : "b-no_forecast_flooding"), d.badge);
+    top.append(nm, badge);
+    const meter = el("div", "meter"), fill = el("i"); fill.style.width = `${Math.round(d.share_hours_cut * 100)}%`; meter.append(fill);
+    const lines = d.events.map((e) => `${e.event}: roads within ${d.radius_m} m forecast cut in ${e.cut_runs} of ${e.runs} forecasts` +
+      (e.typical_first_hour != null ? (e.typical_first_hour === 0 ? ", usually from the start" : `, usually from +${e.typical_first_hour} h`) : ""));
+    card.append(top, meter, el("div", "detail", `${Math.round(d.share_hours_cut * 100)}% of recorded storm hours with a road nearby forecast cut. ` + lines.join(". ") + "."));
+    card.onclick = () => map.flyTo({ center: [d.lon, d.lat], zoom: 14 });
+    return card;
+  }));
+}
+
+// ---------- modes ----------
 function setMode(m) {
   mode = m;
-  const fleet = m === "fleet";
-  $("tabStops").classList.toggle("on", fleet); $("tabBarr").classList.toggle("on", !fleet);
-  $("tabStops").setAttribute("aria-selected", fleet); $("tabBarr").setAttribute("aria-selected", !fleet);
-  $("paneStops").hidden = !fleet; $("paneBarr").hidden = fleet;
-  $("heroTitle").textContent = fleet ? "Deliver before the water does." : "Close the road before the water does.";
-  $("tKey").textContent = fleet ? "Driver leaves" : "Forecast time";
-  for (const id of ["routes-open", "routes-cut"]) if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", fleet ? "visible" : "none");
-  [depotMarker, ...pins, ...cuts.map((c) => c.marker)].forEach((mk) => mk && (mk.getElement().style.display = fleet ? "" : "none"));
-  if (data) render(+$("slider").value);
+  const is = (x) => m === x;
+  for (const [tab, pane, key] of [["tabCity", "paneCity", "city"], ["tabFleet", "paneFleet", "fleet"], ["tabSite", "paneSite", "site"]]) {
+    $(tab).classList.toggle("on", is(key)); $(tab).setAttribute("aria-selected", is(key)); $(pane).hidden = !is(key);
+  }
+  $("heroTitle").textContent = { city: "Close the road before the water does.", fleet: "Deliver before the water does.", site: "Choose the spot storms cut off least." }[m];
+  $("tKey").textContent = is("fleet") ? "Driver leaves" : "Forecast time";
+  $("timebar").hidden = is("site");
+  for (const id of ["routes-open", "routes-cut"]) if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", is("fleet") ? "visible" : "none");
+  [depotMarker, ...pins, ...cuts.map((c) => c.marker)].forEach((mk) => mk && (mk.getElement().style.display = is("fleet") ? "" : "none"));
+  facMarkers.forEach(({ m: mk }) => (mk.getElement().style.display = is("city") ? "" : "none"));
+  sites.forEach(({ marker }) => (marker.getElement().style.display = is("site") ? "" : "none"));
+  document.querySelectorAll("#legend [data-mode]").forEach((row) => (row.hidden = row.dataset.mode !== m));
+  map.getCanvas().style.cursor = is("site") ? "crosshair" : "";
+  if (is("site")) { closeWhy(); $("capBig").textContent = "Where to put the next branch"; $("capSmall").textContent = "Click the map to test a location against every storm Noah recorded. Blue pins are rarely cut off; red pins often are."; }
+  if (data) render(hourNow());
 }
 
-// Show a cut label only where it matters now (route cut, or stop selected), earliest first, never overlapping.
+// ---------- fleet markers ----------
 function layoutCutLabels(h) {
   const shown = [];
-  [...cuts].sort((a, b) => a.s.cut_at.impassable_from_utc.localeCompare(b.s.cut_at.impassable_from_utc)).forEach(({ el, s, n }) => {
+  [...cuts].sort((a, b) => a.s.cut_at.impassable_from_utc.localeCompare(b.s.cut_at.impassable_from_utc)).forEach(({ el: c, s, n }) => {
     const want = statusAt(s, h) === "cut" || highlighted === n;
     const p = map.project([s.cut_at.lon, s.cut_at.lat]);
-    const clash = shown.some((q) => Math.abs(q.x - p.x) < 170 && Math.abs(q.y - p.y) < 24);
-    const show = want && (!clash || highlighted === n);
-    el.querySelector(".lbl").style.display = show ? "" : "none";
+    const show = want && (!shown.some((q) => Math.abs(q.x - p.x) < 170 && Math.abs(q.y - p.y) < 24) || highlighted === n);
+    c.querySelector(".lbl").style.display = show ? "" : "none";
     if (show) shown.push(p);
   });
 }
-map.on("moveend", () => data && layoutCutLabels(+$("slider").value));
-
+map.on("moveend", () => data && layoutCutLabels(hourNow()));
 function drawMarkers() {
   [...pins, ...cuts.map((c) => c.marker)].forEach((m) => m && m.remove()); pins = []; cuts = [];
   if (depotMarker) depotMarker.remove();
-  const d = document.createElement("div"); d.className = "depot"; d.textContent = "⌂"; d.title = "Depot: " + data.depot.label;
-  depotMarker = new maplibregl.Marker({ element: d }).setLngLat([data.depot.lon, data.depot.lat])
-    .setPopup(new maplibregl.Popup({ offset: 16 }).setText("Depot: " + data.depot.label)).addTo(map);
+  const d = el("div", "depot", "⌂"); d.title = "Depot: " + data.depot.label;
+  depotMarker = new maplibregl.Marker({ element: d }).setLngLat([data.depot.lon, data.depot.lat]).setPopup(new maplibregl.Popup({ offset: 16 }).setText("Depot: " + data.depot.label)).addTo(map);
   data.stops.forEach((s, i) => {
     if (s.state === "out_of_coverage") { pins.push(null); return; }
-    const el = document.createElement("div"); el.className = "pin"; el.textContent = i + 1;
-    el.setAttribute("role", "button"); el.setAttribute("aria-label", `Stop ${i + 1}: ${s.label}, ${badgeText(s)}`);
-    el.onclick = () => focusStop(i);
-    pins.push(new maplibregl.Marker({ element: el }).setLngLat([s.lon, s.lat])
-      .setPopup(new maplibregl.Popup({ offset: 16 }).setText(`${i + 1}. ${s.label}: ${badgeText(s)}`)).addTo(map));
+    const p = el("div", "pin", i + 1); p.setAttribute("role", "button"); p.setAttribute("aria-label", `Stop ${i + 1}: ${s.label}, ${badgeText(s)}`);
+    p.onclick = () => focusStop(i);
+    pins.push(new maplibregl.Marker({ element: p }).setLngLat([s.lon, s.lat]).setPopup(new maplibregl.Popup({ offset: 16 }).setText(`${i + 1}. ${s.label}: ${badgeText(s)}`)).addTo(map));
     if (s.cut_at) {
-      const c = document.createElement("div"); c.className = "cut";
-      const x = document.createElement("span"); x.className = "x"; x.textContent = "✕";
-      const l = document.createElement("span"); l.className = "lbl";
-      l.textContent = `${(s.cut_at.street || "Road").replace(/ (Northwest|Northeast|Southwest|Southeast)$/, "")} · impassable ~${fmtHour.format(new Date(s.cut_at.impassable_from_utc))}`;
-      c.append(x, l);
-      c.title = l.textContent;
+      const c = el("div", "cut"), x = el("span", "x", "✕");
+      const l = el("span", "lbl", `${(s.cut_at.street || "Road").replace(/ (Northwest|Northeast|Southwest|Southeast)$/, "")} · impassable ~${hourOf(s.cut_at.impassable_from_utc)}`);
+      c.append(x, l); c.title = l.textContent;
       cuts.push({ el: c, s, n: i + 1, marker: new maplibregl.Marker({ element: c, anchor: "left", offset: [-12, 0] }).setLngLat([s.cut_at.lon, s.cut_at.lat]).addTo(map) });
     }
   });
 }
-
-// Keep the trip in the clear part of the map: right of the panel, below the headline, above the time bar.
-const framePad = () => innerWidth > 820 ? { top: 210, bottom: 110, left: 450, right: innerWidth > 1100 ? 250 : 40 }
-  : { top: 130, bottom: 90, left: 30, right: 30 };
 function focusStop(i) {
-  const s = data.stops[i];
-  highlighted = i + 1;
-  if (s.route) {
-    const b = s.route.reduce((bb, c) => bb.extend(c), new maplibregl.LngLatBounds(s.route[0], s.route[0]));
-    map.fitBounds(b, { padding: framePad(), maxZoom: 15 });
-  }
-  render(+$("slider").value);
+  const s = data.stops[i]; highlighted = i + 1;
+  if (s.route) map.fitBounds(s.route.reduce((b, c) => b.extend(c), new maplibregl.LngLatBounds(s.route[0], s.route[0])), { padding: framePad(), maxZoom: 15 });
+  render(hourNow());
 }
 
+// ---------- run ----------
 async function run() {
   showError("");
   let stops;
   try { stops = parseStops($("stops").value); } catch (e) { showError(e.message); return; }
-  const body = { cycle: $("cycle").value, stops,
-    depot: { label: $("depotLabel").value, lat: +$("depotLat").value, lon: +$("depotLon").value } };
+  const body = { cycle: $("cycle").value, stops, depot: { label: $("depotLabel").value, lat: +$("depotLat").value, lon: +$("depotLon").value } };
   $("run").disabled = true; $("run").textContent = "Checking…";
   try {
     const res = await fetch(`${API}/dispatch`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     const d = await res.json();
     if (!res.ok) throw new Error((d.detail || "The check failed") + ". Fix the depot or stops and try again.");
     await layersReady;
-    data = d; highlighted = null;
-    const floodGj = await fetch(`data/flood_${d.cycle}.geojson`).then((r) => r.json());
-    map.getSource("flood").setData(floodGj);
-    cityStats(floodGj.features);
+    data = d; highlighted = null; closeWhy();
+    const gj = await fetch(`data/flood_${d.cycle}.geojson`).then((r) => r.json());
+    flood = gj.features; map.getSource("flood").setData(gj);
+    cityStats(flood);
     const live = liveCycles.has(d.cycle);
     $("eyebrow").textContent = `${live ? "Live NOAA forecast" : "Backup: Hurricane Helene 2024 forecast"} · issued ${fmtDay.format(new Date(d.issue_time))}`;
     $("eyebrowBox").classList.toggle("backup", !live);
     $("tStart").textContent = fmtHour.format(atHour(0)); $("tEnd").textContent = fmtHour.format(atHour(18));
-    const counts = d.stops.reduce((a, s) => ((a[s.state] = (a[s.state] || 0) + 1), a), {});
-    $("nHold").textContent = counts.hold || 0; $("nGo").textContent = counts.go_before || 0; $("nOk").textContent = counts.no_forecast_flooding || 0;
-    $("runSummary").textContent = `${d.stops.length} stops · forecast valid to ${local(d.valid_until)}`;
     $("results").replaceChildren(...d.stops.map((s, i) => {
-      const c = document.createElement("div"); c.className = "card";
-      const top = document.createElement("div"); top.className = "top";
-      const n = document.createElement("span"); n.className = "name";
-      const num = document.createElement("span"); num.className = "num"; num.textContent = i + 1;
-      n.append(num, document.createTextNode(s.label));
-      const b = document.createElement("span"); b.className = "badge b-" + s.state; b.textContent = badgeText(s);
-      top.append(n, b);
-      const det = document.createElement("div"); det.className = "detail";
-      det.textContent = detailText(s) + (s.minutes != null ? ` Drive ≈ ${Math.round(s.minutes)} min now.` : "");
-      c.append(top, det);
+      const c = el("div", "card");
+      const top = el("div", "top"), n = el("span", "name");
+      n.append(el("span", "num", i + 1), document.createTextNode(s.label));
+      top.append(n, el("span", "badge b-" + s.state, badgeText(s)));
+      c.append(top, el("div", "detail", detailText(s) + (s.minutes != null ? ` Drive ≈ ${Math.round(s.minutes)} min.` : "")));
       if (s.state !== "out_of_coverage") {
-        c.onclick = () => focusStop(i);
-        c.tabIndex = 0; c.setAttribute("role", "button");
+        const strip = el("div", "strip"); strip.title = "If the driver leaves at each hour: blue = reachable, red = cut";
+        for (let h = 0; h <= 18; h++) strip.append(el("i", statusAt(s, h) === "cut" ? "cut" : ""));
+        const ends = el("div", "stripends"); ends.append(el("span", null, fmtHour.format(atHour(0))), el("span", null, fmtHour.format(atHour(18))));
+        c.append(strip, ends);
+        c.onclick = () => focusStop(i); c.tabIndex = 0; c.setAttribute("role", "button");
         c.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); focusStop(i); } };
       }
       return c;
     }));
+    fleetStats();
     drawMarkers();
     const pts = [[d.depot.lon, d.depot.lat], ...d.stops.filter((s) => s.state !== "out_of_coverage").map((s) => [s.lon, s.lat])];
     map.fitBounds(pts.reduce((bb, q) => bb.extend(q), new maplibregl.LngLatBounds(pts[0], pts[0])), { padding: framePad(), maxZoom: 14, duration: 0 });
-    const firstCut = Math.min(...d.stops.filter((s) => s.state === "go_before").map((s) => s.cut_h));
     setMode(mode);
-    render(isFinite(firstCut) ? firstCut : 0);
+    const firstCut = Math.min(...d.stops.filter((s) => s.state === "go_before").map((s) => s.cut_h));
+    const worst = streetsBy[18].size, busy = streetsBy.findIndex((x) => x.size >= 0.8 * worst);
+    render(mode === "fleet" ? (isFinite(firstCut) ? firstCut : 0) : Math.max(0, busy));
+    loadCity(d.cycle);
     await loadBarricades(d.cycle);
   } catch (e) { showError(e.message); }
   finally { $("run").disabled = false; $("run").textContent = "Run check"; }
 }
-
 async function loadBarricades(cycle) {
   lastBarricades = await fetch(`${API}/barricades?cycle=${cycle}`).then((r) => r.json());
   $("barrBody").replaceChildren(...lastBarricades.map((b) => {
-    const tr = document.createElement("tr");
-    for (const v of [b.street, local(b.first_flood_utc), (b.length_m / 1000).toFixed(2) + " km"]) {
-      const td = document.createElement("td"); td.textContent = v; tr.append(td);
-    }
+    const tr = el("tr");
+    for (const v of [b.street, local(b.first_flood_utc), (b.length_m / 1000).toFixed(2) + " km"]) tr.append(el("td", null, v));
     return tr;
   }));
 }
@@ -528,41 +735,34 @@ $("slider").oninput = (e) => render(+e.target.value);
 $("play").onclick = () => {
   if (timer) { clearInterval(timer); timer = null; $("play").textContent = "▶"; $("play").setAttribute("aria-label", "Play the forecast hour by hour"); return; }
   $("play").textContent = "❚❚"; $("play").setAttribute("aria-label", "Pause");
-  if (+$("slider").value >= 18) render(0);
-  timer = setInterval(() => {
-    const h = +$("slider").value + 1;
-    render(Math.min(h, 18));
-    if (h >= 18) { clearInterval(timer); timer = null; $("play").textContent = "▶"; }
-  }, 700);
+  if (hourNow() >= 18) render(0);
+  timer = setInterval(() => { const h = hourNow() + 1; render(Math.min(h, 18)); if (h >= 18) { clearInterval(timer); timer = null; $("play").textContent = "▶"; } }, 700);
 };
 $("csv").onclick = () => {
-  const rows = [["street", "first_flood_local", "first_flood_utc", "segments", "length_m"],
-    ...lastBarricades.map((b) => [b.street, local(b.first_flood_utc), b.first_flood_utc, b.segments, b.length_m])];
-  const csv = rows.map((r) => r.map((v) => `"${String(v).replaceAll('"', '""')}"`).join(",")).join("\n");
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+  const rows = [["street", "first_flood_local", "first_flood_utc", "segments", "length_m"], ...lastBarricades.map((b) => [b.street, local(b.first_flood_utc), b.first_flood_utc, b.segments, b.length_m])];
+  const a = el("a"); a.href = URL.createObjectURL(new Blob([rows.map((r) => r.map((v) => `"${String(v).replaceAll('"', '""')}"`).join(",")).join("\n")], { type: "text/csv" }));
   a.download = `noah_barricades_${$("cycle").value}.csv`; a.click();
 };
-$("tabStops").onclick = () => setMode("fleet");
-$("tabBarr").onclick = () => setMode("city");
+$("tabCity").onclick = () => setMode("city");
+$("tabFleet").onclick = () => setMode("fleet");
+$("tabSite").onclick = () => setMode("site");
+$("siteDepot").onclick = () => testSite(+$("depotLat").value, +$("depotLon").value);
+$("whyClose").onclick = closeWhy;
 $("run").onclick = run;
 $("cycle").onchange = run;
 
 (async () => {
   const [cycles, sample] = await Promise.all([fetch("data/cycles.json").then((r) => r.json()), fetch("data/dispatch_sample.json").then((r) => r.json())]);
-  // Live runs first (newest on top); Helene kept as a labeled backup (D5).
   const live = cycles.cycles.filter((c) => c.event === "live").sort((a, b) => b.cycle.localeCompare(a.cycle));
   liveCycles = new Set(live.map((c) => c.cycle));
   const backup = cycles.cycles.filter((c) => c.event === "helene");
-  const pick = new URLSearchParams(location.search).get("cycle") || (live[0] || {}).cycle || cycles.demo_cycle;
+  const pick = Q.get("cycle") || (live[0] || {}).cycle || cycles.demo_cycle;
   const group = (label, list, f, suffix) => {
-    const g = document.createElement("optgroup"); g.label = label;
-    g.append(...list.map((c) => { const o = document.createElement("option"); o.value = c.cycle;
-      o.textContent = f.format(new Date(c.issue_time)) + suffix; o.selected = c.cycle === pick; return o; }));
+    const g = el("optgroup"); g.label = label;
+    g.append(...list.map((c) => { const o = el("option", null, f.format(new Date(c.issue_time)) + suffix); o.value = c.cycle; o.selected = c.cycle === pick; return o; }));
     return g;
   };
-  $("cycle").replaceChildren(...[live.length && group("Live forecast", live, fmt, " · live"),
-    backup.length && group("Backup: Hurricane Helene 2024", backup, fmtDay, " · Helene")].filter(Boolean));
+  $("cycle").replaceChildren(...[live.length && group("Live forecast", live, fmt, " · live"), backup.length && group("Backup: Hurricane Helene 2024", backup, fmtDay, " · Helene")].filter(Boolean));
   $("business").textContent = sample.business + " · sample stops on public streets";
   $("depotLabel").value = sample.depot.label; $("depotLat").value = sample.depot.lat; $("depotLon").value = sample.depot.lon;
   $("stops").value = sample.stops.map((s) => `${s.label}, ${s.lat}, ${s.lon}`).join("\n");

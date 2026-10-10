@@ -22,7 +22,7 @@ from noah import (
     config,
     engine,
 )
-from noah.api import agent, dispatch, past, routing, trip
+from noah.api import agent, dispatch, ops, past, routing, trip
 
 log = logging.getLogger("api")
 ERROR_MESSAGE = (
@@ -37,6 +37,7 @@ if config.WEB_BASE:
     )
 app.include_router(dispatch.router)
 app.include_router(agent.router)  # spec 007 POST /chat (Margulan, J15)
+app.include_router(ops.router)  # J21 /ops/why, /ops/city, /ops/site (Margulan, Noah Operations)
 
 
 def parse_latlon(s: str) -> tuple[float, float]:
