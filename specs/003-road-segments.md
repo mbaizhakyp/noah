@@ -8,8 +8,10 @@
 | Depends on | step 1: `data/interim/aoi.geojson` (fetched by 002) · step 2: 002's `osm_roads_fimpact.csv` |
 | Produces | C7 `web/data/aoi.geojson`, C4 `data/interim/graph.graphml`, C3 `data/interim/seg_thresholds.parquet` |
 
+> **Coverage changed to all of Georgia (Priyanshu, Fri Oct 9 ~22:30 ET; D4 / CC6, Margulan to confirm).** "AOI" in this spec now means **the Georgia HUC8s processed so far** (C6 `hucs`), not the Peachtree Creek HUC10. Peachtree Creek / gauge 02336300 stays the **Helene validation** site. See `01-PROJECT_OVERVIEW.md` §Coverage.
+
 ## Goal
-Build the drivable road network for the Peachtree Creek watershed and attach NOAA's flow threshold for each road segment, i.e. the flow at which it gets wet.
+Build the drivable road network for the processed Georgia HUC8s (starting with 03130001) and attach NOAA's flow threshold for each road segment, i.e. the flow at which it gets wet.
 
 ## Non-goals
 Per-hour flood logic (004). Routing (006). Our own HAND sampling (replaced by CC3; NOAA's thresholds come from the same HAND data).
@@ -24,7 +26,7 @@ C7, C4, C3, exactly as specified in `docs/02-ARCHITECTURE.md` §4.
 
 ## Behavior
 **Step 1: AOI + graph (push immediately; Priyanshu needs it).**
-1. Copy the AOI to C7.
+1. Write C7: the Georgia state polygon plus the processed HUC8 outlines (CC6).
 2. `ox.graph_from_polygon(aoi buffered 2 km in EPSG:5070, network_type="drive", retain_all=False)`.
 3. `ox.routing.add_edge_speeds`, `ox.routing.add_edge_travel_times`. Set the `seg_id` edge attribute = `f"{u}-{v}-{k}"`.
 4. `ox.save_graphml` to C4. If it's under 20 MB, also copy to `fixtures/graph.graphml` and push for Priyanshu.

@@ -11,7 +11,7 @@ _Newest at the top of each table. Tag the owner as M (Margulan) or P (Priyanshu)
 ## Decisions needed (both humans)
 | # | Opened | Decision | Recommendation | Decide by |
 |---|---|---|---|---|
-| J1 | Fri 21:05 | **Priyanshu's expanded-vision proposal** (`01-PROJECT_OVERVIEW.md`, pushed 19:51 CT): US-wide coverage, potholes, sewer overflow, satellite, CCTV, 3 user types, a database. | Accept the proposal's own "hackathon reality check". **Ship:** the MVP + Isaias bonus (011) + cameras (013) + low spots (012, stretch). **Roadmap slide:** US-wide, business/fleet, county dashboard, satellite, sewer-overflow prediction, potholes (no open Atlanta data found). Keep D4 (Peachtree) and D7 (no DB) for the hackathon. Once agreed, move the proposal under a "Roadmap" heading in 01. | **Last** (Margulan, Oct 9): before the pitch script, Sat 20:00 |
+| J1 | Fri 21:05 | **Priyanshu's expanded-vision proposal** (`01-PROJECT_OVERVIEW.md`, pushed 19:51 CT): ~~US-wide~~ **Georgia-wide** coverage (scope narrowed to Georgia by Priyanshu, Fri 21:30), potholes, sewer overflow, satellite, CCTV, 3 user types, a database. | Accept the proposal's own "hackathon reality check". **Ship:** the MVP + Isaias bonus (011) + cameras (013) + low spots (012, stretch). **Roadmap slide:** Georgia-wide, business/fleet, county dashboard, satellite, sewer-overflow prediction, potholes (no open Atlanta data found). Keep D4 (Peachtree) and D7 (no DB) for the hackathon. Once agreed, move the proposal under a "Roadmap" heading in 01. | **Last** (Margulan, Oct 9): before the pitch script, Sat 20:00 |
 | J2 | Fri 21:05 | Saved routes + Google/Apple Maps hand-off (BL-3), county stats view (BL-4) | BL-3 is cheap and makes a good demo moment, but only after 14:00 E2E. BL-4 goes to the roadmap. | Sat 14:00 |
 | J9 | Fri 21:50 | **Tiger Data (MLH) suggested by Priyanshu.** It's a hosted time-series Postgres, *not* a replacement for AWS (AWS was only a download step and is no longer needed). It would be a 4th side challenge, which breaks the max-3 rule, so it reopens D2 only by **replacing Replit**. It also adds a database the plan avoids (D7). | Don't add it. Keep Replit (the dispatch board + hosting fit better). Tiger Data goes on the roadmap (hourly forecasts per road segment are a natural time-series store). | Not critical now (Margulan). Decide with J1 at the end. Anything later than Sat 12:00 effectively means no. |
 | J6 | Fri 21:30 | **Hosting:** Replit hosts API + map + dispatch board (BL-9, Priyanshu) instead of laptop + tunnel + GitHub Pages (changes D8). Where the iMessage relay runs depends on Photon: Spectrum Cloud → Replit is fine; `imessage-kit` → must stay on a Mac. | **Agreed (Margulan, Oct 9)**, pending the Replit booth answers below. Keep laptop + `cloudflared` as the fallback. | Booth answers tonight |
@@ -21,18 +21,19 @@ _Newest at the top of each table. Tag the owner as M (Margulan) or P (Priyanshu)
 ## Open risks and unknowns
 | # | Opened | Owner | Issue | Plan |
 |---|---|---|---|---|
+| R18 | Fri 22:30 | Both | **Statewide compute.** HAND is ~250 MB per HUC8 × 53 Georgia HUC8s (~13 GB if all). A statewide OSM drive graph may not fit in memory with OSMnx/NetworkX. | Roll out HUC8s in order (01 §Coverage) and process what fits by the freeze. Statewide routing fallback: Valhalla `exclude_polygons` with hazard polygons (07 §4). Log which HUC8s are done in PROGRESS. |
 | R17 | Fri 22:30 | M | **Long simplified edges:** OSMnx merges road stretches between intersections, so some flagged segments are long (up to ~1 km) and the whole edge shows red although only part floods. A freeway (Horace E Tate Fwy) is flagged at +11 h, probably a culvert crossing not tagged as a bridge. | Spot-check the top 10 flagged segments on satellite imagery (005 part C). Upgrade: split edges at NOAA's per-catchment road pieces (`osmid_catchid`). Raise `MIN_ROAD_HAND_M` per artifact if needed. Routing stays conservative either way. |
 | R16 | Fri 22:10 | M | **Forecast timing bias:** the 14Z–21Z Helene runs forecast flood flow 3–11 h late and 35–65% low. Roads flagged from those runs would flag late or not at all. | Demo from the most skillful early run (proposal: `DEMO_CYCLE = 20240926T12Z`, needs Margulan's OK since spec 005's rule said keep 18Z). Q&A: state it plainly; the uncertain band + "re-check before you leave" wording are the mitigation; it's NWM skill, not Noah's logic. |
 | R14 | Fri 21:05 | Both | **Potholes: UPDATED Fri 23:05.** SeeClickFix API has flooding + pothole reports (`07-DATA_SOURCES.md` #54). | BL-2: a "recent reports" layer is possible; still roadmap unless ahead after E2E. |
 | R13 | Fri 21:05 | M | **Storm drains / sewers: UPDATED Fri 23:05.** Priyanshu verified an open **Atlanta storm sewer GIS** (40,698 inlets, pipes, culverts) and wastewater GIS (`docs/07-DATA_SOURCES.md` #50–51). My earlier "no open data" was wrong. | BL-1 now has real data. Cheapest uses: (a) the **culvert layer to fix crossing artifacts (R3/R17)**; (b) inlets as a low-spot/ponding hint (012). Still not a sewer-flow forecast. Decide after E2E. |
-| R12 | Fri 21:05 | P | **511GA terms** for storing/redisplaying snapshots unverified. Cameras cover GDOT routes only. API limit 10 calls / 60 s. | Read the terms at key signup and record them in spec 013. Frames stay local (gitignored), attributed, deleted after the event. |
+| R12 | Fri 21:05 | P | **Dropped with 511GA (Fri 23:00).** ~~**511GA terms** for storing/redisplaying snapshots unverified. Cameras cover GDOT routes only. API limit 10 calls / 60 s. | Read the terms at key signup and record them in spec 013. Frames stay local (gitignored), attributed, deleted after the event. |
 | R11 | Fri 21:05 | M | **Isaias may not flood Peachtree Creek.** The 22Z Oct 9 forecast peaks at ~1,061 cfs, below action stage. Most rain falls after that forecast's window. | Spec 011 decision at Sat 14:00. Helene remains the main demo either way. |
 | R1 | Fri 20:30 | M | FIM layout: **resolved for v4.9** (see spec 002 "Discovered layout"). Still verify `hydrotable.parquet` columns and whether it covers branch 0. | Spec 002 step 3. |
 | R3 | Fri 20:30 | M | Culvert crossings: NOAA thresholds can sit at channel level where a road crosses a creek on a culvert. | Rows with `threshold_hand < MIN_ROAD_HAND_M` (0.3 m) dropped + baseline guard (CC3). Known false-negative risk at real low-water crossings; see R17 for false positives. |
 | R4 | Fri 20:30 | M | HAND + synthetic rating curves are weak on small urban creeks. `UNCERTAIN_BAND_M = 0.5` is a heuristic, not calibrated. | State it in Q&A. The uncertain band and "treat as impassable" wording are the mitigation. |
 | R5 | Fri 20:30 | M | Need 2–3 streets with dated public photos or news showing flooding on Sep 27, 2024 in the Peachtree Creek HUC10 (e.g., Buckhead along Peachtree Creek). | Spec 005. Use only sources we can cite. No invented examples. |
 | R6 | Fri 20:30 | P | Current Gemini model ID unknown (Oct 2026). | Check ai.google.dev/gemini-api/docs/models and set `GEMINI_MODEL` in `.env`. |
-| R7 | Fri 20:30 | P | Nominatim usage policy: 1 req/s, needs a real User-Agent, no bulk use. | Cache every lookup, restrict to the AOI viewbox, set the User-Agent to `noah-hacklanta/0.1 (contact: team email)`. |
+| R7 | Fri 20:30 | P | Nominatim usage policy: 1 req/s, needs a real User-Agent, no bulk use. | Cache every lookup, restrict to the Georgia viewbox, set the User-Agent to `noah-hacklanta/0.1 (contact: team email)`. |
 | R8 | Fri 20:30 | P | Map on GitHub Pages (HTTPS) calling the laptop API needs an HTTPS tunnel and CORS. | Use a `cloudflared` HTTPS URL; FastAPI CORSMiddleware allowing the Pages origin only. |
 | R9 | Fri 20:30 | Both | Out of scope by design: storm-drain and flash street flooding (012 is info only), recession timing. | Say it in the pitch "limits" beat. Never imply otherwise. |
 | R10 | Fri 20:30 | Both | Q&A prep: "isn't this just NOAA FIM?"; "how accurate?"; the name collides with Noah-MP (the land-surface model inside NWM) and Project NOAH (Philippines). | Margulan owns these answers. Name collision one-liner: "named for the flood story; unrelated to Noah-MP, which ironically sits inside the model we use." |
@@ -61,7 +62,7 @@ _Newest at the top of each table. Tag the owner as M (Margulan) or P (Priyanshu)
 - [ ] Each person approves their own specs (`Status: Draft → Approved`): M 001–005, 011 (012 if kept) · P 006–010, 013.
 - [ ] Priyanshu confirms or objects to CC1 (the additive contracts).
 - [ ] J6: ask the Replit booth the questions above (Priyanshu). J5 by Sat 12:00. J1 last.
-- [ ] Accounts: Gemini (P), Photon (P), Replit (P), 511GA (BL-7, pending). No AWS needed.
+- [ ] Accounts: Gemini (P), Photon (P), Replit (P). ~~511GA~~ dropped (Priyanshu, Fri 23:00). Windy, Census, Mapillary, Synoptic, TomTom keys done (P). No AWS needed.
 - [ ] Specs 014 (BL-8) and 015 (BL-9) written + approved before anyone codes them.
 
 ## Integration checklist (Margulan ↔ Priyanshu): run through this together before the E2E test
@@ -77,7 +78,7 @@ Every point where the two lanes must connect. Tick each item and note the commit
 | I6 | **Active cycle:** both honor env `NOAH_CYCLE`, else C6 `demo_cycle`. | Both | ☐ |
 | I7 | **Static pages:** `web/index.html` (009, P) and `web/dispatch.html` (014, M) are served from the same origin (FastAPI `StaticFiles` on Replit) or GitHub Pages with `?api=`. Link the two pages to each other. | Both | ☐ |
 | I8 | **Dependencies:** M added `fastapi`, `uvicorn` (and the pipeline deps) to `pyproject.toml`/`uv.lock`. P: `uv sync` after pulling. If you add deps, commit the lock file. | Both | ☐ |
-| I9 | **Contract confirmations:** P to confirm CC1, CC2, CC5 (table below). | P | ☐ |
+| I9 | **Contract confirmations:** P to confirm CC1, CC2, CC5; **M to confirm CC6** (table below). | P + M | ☐ |
 | I10 | **Replit (J6/BL-9):** run command + data loading (I1) + secrets; Margulan does the account/import/billing steps in the browser (Claude can't). | M (browser), P (config) | ☐ |
 | I11 | **Wording:** agent replies, map labels and dispatch badges all use the §5 vocabulary; run the banned-word check over everything user-facing. | Both | ☐ |
 
@@ -85,16 +86,17 @@ Every point where the two lanes must connect. Tick each item and note the commit
 | # | Opened | Proposer | Change | Agreed by both? |
 |---|---|---|---|---|
 | CC5 | Fri 22:58 | M | Additive: C13 `POST /dispatch` + `GET /barricades` (spec 014) as a FastAPI `router` in `noah/api/dispatch.py`, mounted by one line in Priyanshu's `app.py`; §5 rows for dispatch states. No existing contract changed. | M ☑ · P ☐ |
+| CC6 | Fri 22:30 | P | **Coverage = all of Georgia, checked only where the user is or is going:** fixed `ALERT_RADIUS_KM = 5` around the user (`/status` returns every segment in it, plus `distance_m`) and `CORRIDOR_BUFFER_M = 1000` along a searched route (`/route` gains `corridor`). No map pan-to-load. Live layers follow the same rule. Also: **511GA removed**; cameras = Windy (C12 `cam_id` = Windy id, `frame_path` null since frames aren't stored, §5 camera credit = "Webcams provided by Windy.com"). C7 becomes the Georgia polygon + processed `hucs`. C1/C2/C4 cover the processed HUC8s. §5 `out_of_coverage` means outside Georgia. **New state `no_road_forecast`** for Georgia locations without HAND yet (they still get statewide alerts). Config `AOI_HUC10` → `COVERAGE` + `VALIDATION_HUC10`, `HUC8` → `HUC8S`. Already written into `02-ARCHITECTURE.md`. | P ☑ · M ☐ |
 | CC2 | Fri 22:00 | M | C1/C5 lead hours extend from 1–18 to **0–18**: hour 0 = NWM `analysis_assim` (estimated now). Consumers: the slider already starts at 0 (009); routing/status treat 0 like any hour. No renames. | M ☑ · P ☐ |
 | CC1 | Fri 21:05 | M | Additive: C6 `events` + `cycles[].event`; C9 `NOAH_CYCLE`, `beyond_forecast_window` state, `/cameras` endpoints; new C11 (low spots), C12 (camera assessments); §5 rows for low spot, camera water, beyond window. Already written into `02-ARCHITECTURE.md`. Nothing existing was renamed or removed. | M ☑ · P ☐ (Priyanshu: confirm or object before building 006/009) |
 
 ## Parking lot (good ideas, not now)
 - Live mode on today's NWM cycle beyond the Isaias bonus (the code path is the same; set `NOAH_CYCLE` to latest).
 - Recession (`t_clear`) so roads reopen on the map.
-- Max across FIM branches; expand AOI to all of HUC8 03130001; South River (HUC8 03070103).
+- Max across FIM branches. (AOI expansion is no longer parked: coverage is all of Georgia, CC6.)
 - Push alerts: text subscribers when their saved route gets a new `flooded` segment.
 - Low spots (C11) feeding the agent/routing as `uncertain` during heavy forecast rain (needs a rainfall forecast, e.g., NWM forcing or MRMS).
-- Pothole detection from camera frames or user photos (needs an accuracy test, not a claim).
+- Pothole detection from camera frames (needs an accuracy test, not a claim). User photos are out of scope.
 - Everything in BL-6 (Priyanshu's roadmap items).
 
 ## Resolved
@@ -107,5 +109,5 @@ Every point where the two lanes must connect. Tick each item and note the commit
 | D5 | Fri 22:15 | Demo cycle = `20240926T12Z` (8 AM EDT), final. |
 | B1 | Fri 22:08 | **GO.** NWM short-range forecast Peachtree Creek above minor flood flow in every cycle from 20240926T12Z; first warning 13.2 h before the observed crossing. Mid-day runs were late and low (see PROGRESS 22:08). |
 | B2 | Fri 21:45 | No AWS needed. The same OWP HAND-FIM data (v4.9.9.0) is in the public CIROH bucket `ciroh-owp-hand-fim` (anonymous). NOAA's requester-pays bucket is now only the fallback in spec 002. Disclose the data source (FIMserv / CIROH) in the README. |
-| J4 | Fri 21:45 | Camera fallback if no 511GA key by 00:00 = **option C** (our own sidewalk photos during Isaias). Option B (hand-picked public image URLs) only if both explicitly agree later. Never call `/list/getdata/`. (Margulan) |
+| J4 | Fri 21:45 | **Superseded Fri 23:00 (Priyanshu): 511GA dropped; cameras = Windy Webcams (spec 013), Margulan to confirm.** ~~Camera fallback if no 511GA key by 00:00 = **option C** (our own sidewalk photos during Isaias). Option B (hand-picked public image URLs) only if both explicitly agree later. Never call `/list/getdata/`. (Margulan) |
 | J3 | Fri 21:30 | Mercedes CV stays dropped. **FINAL:** main track Social Good; side challenges Photon + Gemini + Replit (Margulan, D2). |

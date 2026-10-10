@@ -1,57 +1,72 @@
-# 013 — Public traffic cameras (511GA) during Isaias
+# 013 — Public traffic cameras (Windy Webcams) during Isaias
 
 | | |
 |---|---|
 | Owner | Priyanshu |
 | Status | Draft |
-| Priority | **Step 1 is time-critical (P1): capture must be running by Sat 01:00.** Steps 2–3 are P2, after the Sat 14:00 E2E milestone. |
+| Priority | **Step 1 is time-critical (P1): the camera list + assessment loop must run before the heavy rain (Sat morning).** Steps 2–3 are P2, after the Sat 14:00 E2E milestone. |
 | Time box | step 1: 45 min · steps 2–3: 2.5 h |
-| Depends on | 511GA developer key; 010's `classify()` for step 2; C5 for "near a flagged road" |
-| Produces | `data/raw/cctv/` frames, C12, `/cameras` endpoints (C9), camera markers on the map (009) |
+| Depends on | `WINDY_API_KEY` (in `.env`, verified Fri 22:00); 010's `classify()` for step 2; C5 for "near a flagged road" |
+| Produces | `data/raw/cctv/cameras.json`, C12, `/cameras` endpoints (C9), camera markers on the map (009) |
+
+> **511GA removed (Priyanshu, Fri Oct 9 ~23:00 ET): not doable this weekend** (developer key under manual review, terms unknown). Windy Webcams is the only camera source. J4's options B/C are superseded.
 
 ## Goal
-Capture Georgia DOT traffic-camera snapshots in and around the Peachtree Creek watershed throughout Isaias. Check them for visible water with the same Gemini classifier as 010 and show them on the map. This gives real ground observations next to the forecast. For Helene there's nothing to capture (cameras keep no recordings), so this only applies to Isaias and live use.
+Check public traffic cameras across Georgia for visible water during Isaias, using the same Gemini classifier as 010, and show the results on the map. This gives real ground observations next to the forecast. Helene has nothing to check (no archived frames), so this only applies to Isaias and live use.
 
 ## Non-goals
-Video. Pothole detection (parking lot). Anything with people or license plates. Cameras outside GDOT 511GA. Committing or publicly hosting images.
+Video. Pothole detection (parking lot). Anything with people or license plates. Committing, re-hosting or redistributing images.
 
-## Known facts (verify during step 1)
-- 511GA has a REST API with a Cameras resource (`511ga.org/developers/doc`). It needs a free developer key (create an account, then request a key). Rate limit: **10 calls per 60 s**.
-- **The cameras don't record.** Any frame we don't capture live is gone, so capture must start before the rain (heaviest Sat early morning through Sat night).
-- Coverage is GDOT routes (interstates and state routes such as GA-400, Peachtree Rd, Northside Dr). City side streets aren't covered.
-- **Terms for storing and redisplaying snapshots are unverified.** Read them during key signup and note them in "Discovered". Until they're confirmed: frames stay in `data/raw/` (gitignored), are shown only from the laptop during judging with "Image: Georgia DOT / 511GA" attribution, and get deleted after the event.
+## Known facts (verified Fri Oct 9, ~22:00–22:45 ET)
+- **Coverage:** `regions=US.GA` lists **2,467 Georgia webcams** in 462 places. 2,452 are active, 2,440 tagged `traffic`, 1,685 in metro Atlanta, 230 in the Peachtree bbox. Nearly all had updated within the last 2 h.
+- **API:** `GET https://api.windy.com/webcams/api/v3/webcams?regions=US.GA&bbox=N,E,S,W&limit=50&offset=N&include=location,categories,images,urls` with header `x-windy-api-key`. The free tier caps `offset` at 1,000, so list Georgia in bbox tiles (quad-split any tile with total > 1,000).
+- **Images:** `images.current.preview` (400×224). Free-tier image URLs **expire after 10 minutes**. Fetch fresh URLs each time; never store URLs for later.
+- **Terms** (`api.windy.com/webcams/terms`):
+  - Show the credit "Webcams provided by Windy.com" with links to windy.com and the add-a-webcam page.
+  - Link every displayed image to its webcam page (`urls`) or player.
+  - Use images only through API URLs, at original size or smaller.
+  - Storing images and automated analysis aren't addressed. **Default: keep only our assessment (C12), never the image.**
+- Free-tier request limits aren't published. Pace calls (≤1 req/s) and log any 429s.
 
 ## Behavior
-**Step 1: capture (tonight, before sleeping).**
-1. `python -m noah.api.cameras list`: one Cameras API call, filtered to the AOI bbox + 1 km. Write `data/raw/cctv/cameras.json` (C12 camera list). Log the count.
-2. `caffeinate -i uv run python -m noah.api.cameras capture --every 300`: every 5 min, fetch each camera's image URL and save `data/raw/cctv/<cam_id>/<YYYYMMDDTHHMMSSZ>.jpg`. Skip a frame if its bytes hash the same as the previous one. Keep total requests within the rate limit (whether image fetches count toward it is **(verify)**; to be safe, space them so total requests stay ≤ 10 per minute). Log failures and keep going. Run on a laptop that stays plugged in and awake from ≤ Sat 01:00 to Sun 06:00.
+**Step 1: list + capture loop (before the heavy rain).**
+1. `python -m noah.api.cameras list`: tile Georgia, write `data/raw/cctv/cameras.json` as `[{"cam_id","name","lat","lon","page_url"}]`, and log the count.
+2. `caffeinate -i uv run python -m noah.api.cameras watch --every 900`. Every 15 min:
+   1. Pick the **watch set**: cameras within 2 km of an active NWS Flood or Flash Flood Warning polygon (07 §2) or of a C5 segment flagged within the next 6 h. Cap the set at 150 cameras per round.
+   2. For each camera in the set, fetch a fresh image URL and get the bytes in memory.
+   3. Skip the camera if the bytes hash the same as its last round.
+   4. Otherwise pass the bytes to step 2's assessment (or queue them in memory until 010 exists) and **discard the bytes**.
+   5. Log failures and keep going.
 
-**Step 2: assess (Sat afternoon, after 010's `classify()` exists).**
-3. Sample frames: one per camera every 30 min, plus every frame from cameras within 300 m of any Isaias C5 segment (if 011 is GO). Budget ≤ 500 Gemini calls.
-4. Run `photo.classify()` on each and write C12.
+**Step 2: assess (once 010's `classify()` exists).**
+3. Run `photo.classify()` on each new frame in the watch set and append to C12 (with `frame_path = null`). Budget: ≤ 500 Gemini calls per day. Log the count.
 
 **Step 3: serve and show.**
-5. Add the `/cameras` and `/cameras/{cam_id}/frames` endpoints (C9) and mount `data/raw/cctv/` as static files.
-6. Map (009 optional layer): camera markers; the popup shows the frame nearest the slider time with its assessment and attribution.
-7. Override rule (same as 010): a `bucket ≥ curb` assessment can only upgrade C4 segments within 100 m to `flooded` for that time onward. Never downgrade.
+4. `/cameras` returns the list with `latest` assessments. `/cameras/{cam_id}/frames` returns assessment history. Each item's `image_url` is a **freshly fetched** Windy URL for the current image only (it expires in 10 min).
+5. Map (009 optional layer): camera markers. The popup shows the current image (linked to the webcam page), the latest assessment with its time, and the credit "Webcams provided by Windy.com".
+6. Override rule (same as 010): a `bucket ≥ curb` assessment can only upgrade C4 segments within 100 m to `flooded` from that time onward. Never downgrade.
 
 ## Discovered
-- Fri Oct 9, ~21:27 ET: key requested from a logged-in 511GA account (Margulan). The form asks for "reasons" (≥10 chars). Status shows **Pending Approval**; a confirmation email from notifications@511ga.org says "we will process your request shortly." No terms were shown at request time. Watch for the approval email; record any terms it contains here.
-
-_Fill in: API base, key signup and terms text (summary), camera count in the AOI, image URL format, whether image fetches count against the rate limit._
+- Fri Oct 9, 22:00–22:45 ET: Windy key works.
+  - Georgia counts are as above.
+  - Image fetch returned 200, PNG, about 118 KB.
+  - Paging past offset 1,000 returns 400 "Offset is over API tier limit 1000!".
+  - The `region=` parameter is ignored. Use `regions=`.
 
 ## Acceptance criteria
-- [ ] Step 1 is running by Sat 01:00. PROGRESS records the camera count and the frame count at 01:00 and again on waking.
-- [ ] By Sun 06:00, ≥ 1 frame per camera per hour across Sat 00:00–Sun 00:00 for most cameras (log coverage per camera).
+- [ ] Step 1 is running before Sat 08:00. PROGRESS records the Georgia camera count and the watch-set size each round.
+- [ ] Across Sat 08:00–Sun 00:00, the watch loop completes ≥ 1 round per hour (log round timestamps).
 - [ ] `curl localhost:8000/cameras` returns the list with `latest` assessments.
-- [ ] The map shows markers. Clicking one shows a frame + bucket + attribution.
-- [ ] No images in git (`git ls-files | grep -i jpg` is empty).
+- [ ] The map shows markers. Clicking one shows the current image + bucket + time + Windy credit, and the image links to its webcam page.
+- [ ] No images on disk or in git (`find data/raw/cctv -name '*.jpg' -o -name '*.png'` and `git ls-files | grep -iE 'jpg|png'` are empty for camera frames).
 
 ## Test
-`tests/test_cameras.py`: the AOI filter keeps an inside camera and drops an outside one; the dedupe skips identical bytes.
+`tests/test_cameras.py`:
+- The Georgia filter keeps an inside camera and drops an outside one.
+- The bbox quad-split stops at ≤ 1,000 per tile (pure function on counts).
+- The dedupe skips identical bytes.
+- The watch-set selector picks cameras within 2 km of a polygon.
 
 ## Fallback
-- No developer key by 00:00 → decision **J4**:
-  - **Option B (gray area):** a person browses the 511ga.org camera map by hand and notes 10–15 AOI camera image IDs. The script fetches only those image URLs (`https://511ga.org/map/Cctv/<id>`), each once per 5 min (~3 req/min), with attribution, kept local and deleted after. `robots.txt` (checked Oct 9) disallows `/list/getdata/` (the camera-list JSON), so **never** call that endpoint. The image path isn't disallowed, but the terms of use are unverified.
-  - **Option C (clean):** our own photos/short clips of streets during Isaias, taken from sidewalks only. Never enter water, never film while driving. Same `classify()` pipeline, with "camera" relabeled "team photo".
-- Classifier not ready: show raw frames on the map without assessments, labeled "camera view" only.
+- Windy rate-limits us: shrink the watch set to cameras within 1 km of active warnings only.
+- Classifier not ready: show current images on the map without assessments, labeled "camera view" only.

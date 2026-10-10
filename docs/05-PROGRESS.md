@@ -6,7 +6,7 @@ _Last updated: Fri Oct 9, 2026, 9:30 PM ET (challenges final: Photon + Gemini + 
 | When | Milestone | Status |
 |---|---|---|
 | Fri 20:30 | Hacking starts | ☑ |
-| Fri ~22:00 | Accounts ready (no AWS needed: HAND comes from the public CIROH bucket): Gemini key, Photon line, Replit (ask the booth about deploy plan/credits), **511GA key check (BL-7)** | ☐ |
+| Fri ~22:00 | Accounts ready (no AWS needed: HAND comes from the public CIROH bucket): Gemini key, Photon line, Replit (ask the booth about deploy plan/credits), ~~511GA key check (BL-7)~~ dropped, cameras = Windy (spec 013) | ☐ |
 | **Sat 00:00** | **GO/NO-GO:** NWM forecast at gauge reach vs observed (spec 001 + quick 005 plot). Spectrum echo bot works on a real phone (spec 008). | ☑ forecast **GO** (22:08, lead 13.2 h) · echo bot: Priyanshu |
 | **Sat 01:00** | **Camera capture running** (013 step 1). Cameras keep no recordings, so Isaias rain starting early Sat is lost if this slips. | ☐ |
 | Sat 03:00 | `graph.graphml` + `aoi.geojson` pushed (003 step 1). Map shows fixture flood roads. | ☑ graph pushed Fri 22:30 as `fixtures/graph.graphml.gz` |
@@ -23,7 +23,7 @@ _Last updated: Fri Oct 9, 2026, 9:30 PM ET (challenges final: Photon + Gemini + 
 | Area | Owner | Directories |
 |---|---|---|
 | Data pipeline, validation, Isaias run, low spots | Margulan | `noah/pipeline/`, `web/data/` |
-| API, routing, agent, relay, map, photo + camera vision | Priyanshu | `noah/api/`, `bot/`, `web/index.html`, `fixtures/` |
+| API, routing, agent, relay, map, camera vision | Priyanshu | `noah/api/`, `bot/`, `web/index.html`, `fixtures/` |
 | Pitch, Devpost, video | Both (Margulan leads the hydrology story) | `README.md`, `docs/` |
 
 Lanes are set up so neither person waits on the other. Priyanshu builds against `fixtures/` until real data lands. Margulan's outputs are files with frozen contracts. The only cross-lane hand-offs are files: `graph.graphml` (Sat 03:00), `flood_*.geojson` (Sat 12:00), `lowspots.geojson` (if 012 ships).
@@ -50,7 +50,7 @@ Never start a lower priority while a higher one in your lane is unfinished, **ex
 | 008 | iMessage relay (Photon Spectrum) | Priyanshu | P0 | 2 h | Draft |
 | 009 | Web map with time slider | Priyanshu | P0 | 3 h | Draft |
 | 013 | Traffic cameras: step 1 capture | Priyanshu | **P1 (by 01:00)** | 45 min | Draft |
-| 010 | Photo check / `classify()` | Priyanshu | P2 | 2 h | Draft |
+| 010 | Camera water classifier `classify()` (user photos removed) | Priyanshu | P2 | 1.5 h | Draft |
 | 014 | Dispatch board + barricade list (Replit entry) | Margulan | P1 | 3 h | Approved, in progress (Fri 23:00) |
 | 013 | Traffic cameras: steps 2–3 assess + show | Priyanshu | P2 | 2.5 h | Draft |
 
@@ -63,12 +63,12 @@ Each research item has a 30-min time box and produces a written finding in `06-C
 |---|---|---|---|---|---|
 | BL-1 | **Research: storm-drain / sewer data for Atlanta.** DWM GIS, Atlanta open-data hub (ArcGIS), EPA combined-sewer data, Georgia EPD spill notifications. | Margulan | P3 | Sat afternoon, only if 005 is on track | Quick search found no open inlet layer; the records route takes ~3 business days. 012 (low spots) is the stand-in we can actually build. |
 | BL-2 | **Research: pothole data for Atlanta.** Atlanta open-data hub for ATL311 requests; ATLDOT. | Priyanshu | P3 | Sat evening, only if ahead | No open ATL311 dataset found yet (records requests only). A pothole layer from another city wouldn't match the Atlanta flood demo. Default: roadmap slide. |
-| BL-7 | ✅ **Requested Fri ~21:27 ET by Margulan → "Pending Approval"** (confirmation email: "we will process your request shortly"). Check email Sat morning; a key by Sat noon still catches the heaviest rain (Sat afternoon–night). Until then option C (own photos) is the plan. · **511GA developer key check.** Create a 511ga.org account → request a key at `511ga.org/developers/doc` → note whether it's issued instantly or goes to review, and copy the terms shown at signup into spec 013 "Discovered". Put the key in `.env` as `GA511_API_KEY`. | **Priyanshu (or Margulan, whoever is free first)** | **P1** | **Tonight, by 23:00** | Instant key → 013 option A. No key by 00:00 → decision J4 picks option B or C. 10 min of work. |
-| BL-10 | **Check email for the 511GA key approval and act on it.** Approved → put `GA511_API_KEY` in `.env`, tell Priyanshu, start 013 step 1 capture right away (option A). Still pending at noon → stay on option C (own photos) for the rest of Isaias and say so in PROGRESS. | Margulan (the email is Margulan's) | P1 | Sat morning, **decide by Sat 12:00** | Approval email comes from notifications@511ga.org. Record any terms it contains in spec 013 "Discovered". |
+| BL-7 | **DROPPED (Priyanshu, Fri 23:00): 511GA not doable; cameras use Windy (spec 013).** ~~✅ **Requested Fri ~21:27 ET by Margulan → "Pending Approval"** (confirmation email: "we will process your request shortly"). Check email Sat morning; a key by Sat noon still catches the heaviest rain (Sat afternoon–night). Until then option C (own photos) is the plan. · **511GA developer key check.** Create a 511ga.org account → request a key at `511ga.org/developers/doc` → note whether it's issued instantly or goes to review, and copy the terms shown at signup into spec 013 "Discovered". Put the key in `.env` as `GA511_API_KEY`. | **Priyanshu (or Margulan, whoever is free first)** | **P1** | **Tonight, by 23:00** | Instant key → 013 option A. No key by 00:00 → decision J4 picks option B or C. 10 min of work. |
+| BL-10 | **DROPPED with 511GA (Fri 23:00).** ~~Check email for the 511GA key approval and act on it.** Approved → put `GA511_API_KEY` in `.env`, tell Priyanshu, start 013 step 1 capture right away (option A). Still pending at noon → stay on option C (own photos) for the rest of Isaias and say so in PROGRESS. | Margulan (the email is Margulan's) | P1 | Sat morning, **decide by Sat 12:00** | Approval email comes from notifications@511ga.org. Record any terms it contains in spec 013 "Discovered". |
 | BL-8 | **B2B: small-business dispatch board + agency barricade list** (our Replit Small Business entry). Dispatch: paste depot + stops (+ time windows) → per stop "no forecast flooding on the route if you leave before ~X (not a safety guarantee)" / "hold: route cut X–Y" / "outside coverage", plus a map. One route search per forecast hour from the depot covers all stops. Barricade list: C5 segments sorted by `t_flood`, with street names, CSV export. No accounts, no DB. | Margulan (**J5 approved Fri 22:58, option A**) | P1 | **Fri night (ahead of schedule)** | **Spec 014 approved.** New files only: `noah/api/dispatch.py`, `web/dispatch.html`, so nothing overlaps Priyanshu's files. Folds in BL-4 (county stats). |
 | BL-9 | **Replit deployment** of the runtime (FastAPI + map + dispatch board) for the Replit challenge and an always-on demo link | Priyanshu (proposed, J6) | P1 | Booth question tonight; deploy Sat 15:00–17:00 | **Spec 015 to write + approve.** Runtime-only deps (fastapi, uvicorn, networkx, osmnx, shapely, google-genai). Pipeline stays on the laptop. Fallback: laptop + `cloudflared` (D8). |
 | BL-3 | Saved routes + "open in Google/Apple Maps" link from the route view | Priyanshu | P3 | Only if ahead | From Priyanshu's proposal. Cheap on top of 006/009. **Needs joint OK** (J2). |
-| BL-6 | US-wide coverage, fleet/business view, satellite flood detection, sewer overflow prediction | — | Roadmap | — | From Priyanshu's proposal. Pitch as roadmap unless real data turns out to be quick to get. |
+| BL-6 | ~~Georgia-wide coverage~~ (now in scope, CC6), fleet/business view, satellite flood detection, sewer overflow prediction | — | Roadmap | — | From Priyanshu's proposal. Pitch as roadmap unless real data turns out to be quick to get. |
 
 ## Plan by person
 ### Margulan

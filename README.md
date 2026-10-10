@@ -9,7 +9,7 @@ Noah forecasts which road segments will flood in the next 18 hours and roughly w
 **Status:** in progress. This README becomes the Devpost-ready version at feature freeze (Sun 00:00).
 
 ## How it works (one paragraph)
-We pull NOAA National Water Model short-range streamflow forecasts for every creek reach, hourly and 18 hours ahead. NOAA's synthetic rating curves turn each forecast flow into a water level. We compare that level against the Height Above Nearest Drainage (HAND) elevation of every OpenStreetMap road in the Peachtree Creek watershed (Atlanta). A road is flagged when the forecast water would reach it. Routing removes flagged roads, and a Gemini agent reached through iMessage answers in plain language. Noah never says a road is safe.
+We pull NOAA National Water Model short-range streamflow forecasts for every creek reach, hourly and 18 hours ahead. NOAA's synthetic rating curves turn each forecast flow into a water level. We compare that level against the Height Above Nearest Drainage (HAND) elevation of every OpenStreetMap road in Georgia, starting with metro Atlanta's Upper Chattahoochee basin and adding basins one by one, plus statewide NWS/radar flash-flood hazards. A road is flagged when the forecast water would reach it. Routing removes flagged roads, and a Gemini agent reached through iMessage answers in plain language. Noah never says a road is safe.
 
 ## Run it
 _TBD at freeze. See `docs/02-ARCHITECTURE.md` §6._

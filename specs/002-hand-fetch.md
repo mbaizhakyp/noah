@@ -8,11 +8,13 @@
 | Depends on | — (public bucket, **no AWS account needed**) |
 | Produces | rasters in `data/raw/hand/03130001/`, C2 `data/interim/rating.parquet` |
 
+> **Coverage changed to all of Georgia (Priyanshu, Fri Oct 9 ~22:30 ET; D4 / CC6, Margulan to confirm).** "AOI" in this spec now means **the Georgia HUC8s processed so far** (C6 `hucs`), not the Peachtree Creek HUC10. Peachtree Creek / gauge 02336300 stays the **Helene validation** site. See `01-PROJECT_OVERVIEW.md` §Coverage.
+
 ## Goal
-Get the HAND raster, catchment (HydroID) raster and synthetic rating curves for HUC8 03130001, and write the AOI's rating curves as C2.
+Get the HAND raster, catchment (HydroID) raster and synthetic rating curves for each HUC8 in `HUC8S` (starting with 03130001), and write their rating curves as C2.
 
 ## Non-goals
-Running the FIM inundation pipeline. Merging branches (MVP uses branch 0; see R2). Other HUC8s. Using FIMserv's code: we download its **public data only**.
+Running the FIM inundation pipeline. Merging branches (MVP uses branch 0; see R2). (Other HUC8s are now in scope: loop over `HUC8S`, same files per HUC8, CC6.) Using FIMserv's code: we download its **public data only**.
 
 ## Inputs
 - **Public CIROH bucket, OWP HAND-FIM v4.9.9.0** (hosted by the FIMserv project, github.com/sdmlua/fimserve). Anonymous access, verified Oct 9, 2026:

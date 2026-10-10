@@ -1,38 +1,37 @@
-# 010 — Photo check (STRETCH)
+# 010 — Water classifier for camera frames (`classify()`)
 
 | | |
 |---|---|
 | Owner | Priyanshu |
-| Status | Draft (P2: start after the Sat 14:00 E2E milestone; its `classify()` unblocks 013 step 2) |
-| Time box | 2 h |
-| Depends on | 007 (agent), 008 (image forwarding) |
-| Produces | `noah/api/photo.py`, `check_photo` agent tool |
+| Status | Draft (P2: start after the Sat 14:00 E2E milestone; unblocks 013 step 2) |
+| Time box | 1.5 h |
+| Depends on | Gemini key (`GEMINI_API_KEY`, `GEMINI_MODEL`) |
+| Produces | `noah/api/photo.py` (`classify()`, `apply_override()`) |
+
+> **Scope change (Priyanshu, Fri Oct 9 ~21:45 ET): user-submitted photos are removed.** We can't expect people to take photos in the rain, so there is no `check_photo` agent tool and no photo intake over iMessage. This spec now builds only the classifier, which spec 013 runs on traffic-camera frames. The file name stays `010-photo-check.md` so existing links keep working.
 
 ## Goal
-A resident texts a street photo. Gemini vision estimates a **coarse water-depth bucket** against a visible reference object. A confirmed-water report can only make that segment's state **more** conservative. Strengthens the Gemini challenge story. (Mercedes CV is dropped, so there's no CV-prize pressure.)
+Given one image (a traffic-camera frame), Gemini vision estimates a **coarse water-depth bucket** against a visible reference object. A confirmed-water result can only make nearby segments **more** conservative (applied by 013).
 
 ## Non-goals
-Depth in centimetres. Downgrading a forecast ("photo shows dry, so it's fine" is **never** allowed). Storing photos. Moderation beyond Gemini's defaults.
+User photos. Depth in centimetres. Downgrading a forecast ("frame shows dry, so it's fine" is **never** allowed). Storing images beyond 013's local capture folder.
 
 ## Inputs
-`image_b64` from `/chat`, plus a location: the sender's last geocoded place, or ask "where was this taken?".
+`image_bytes: bytes` (JPEG from `data/raw/cctv/`, spec 013).
 
 ## Outputs
-Tool result `{"bucket": "none|curb|half_tire|door_sill_or_above|cant_tell", "reference_object": str|null, "confidence": "low|med|high", "note": str}` and, if the bucket ≥ `curb`, an in-memory override: nearest C5/C4 segment within 100 m → state `flooded` from now on for this server session.
+`{"bucket": "none|curb|half_tire|door_sill_or_above|cant_tell", "reference_object": str|null, "confidence": "low|med|high", "note": str}`
 
 ## Behavior
-0. Expose the classifier as a pure-ish function `classify(image_bytes: bytes) -> dict` in `photo.py`. Spec 013 reuses it on traffic-camera frames, so build it once.
-1. Gemini call with structured output (JSON schema = the dict above) and a prompt asking for the reference object first (curb, tire, car door, stop-sign post), then the bucket. `cant_tell` is the default when there's no reference object.
-2. Override rule: only upgrades (`no_forecast_flooding|uncertain → flooded`). Never downgrades. Log every override.
-3. Reply wording: "Thanks. Your photo shows water around {reference} level. I've marked {road} as **do not cross**." For `none` / `cant_tell`: "Thanks. I can't confirm water depth from this photo; my forecast for {road} stays {state}."
+1. `classify(image_bytes: bytes) -> dict` in `photo.py`: one Gemini call with structured output (JSON schema = the dict above). The prompt asks for the reference object first (curb, tire, car door, sign post, lane marking), then the bucket. `cant_tell` is the default when there's no reference object, the frame is dark or the camera is blocked.
+2. `apply_override(states: dict, seg_ids: list, bucket: str) -> dict`: pure function. Upgrades `no_forecast_flooding|uncertain → flooded` when `bucket ≥ curb`. Never downgrades. 013 calls it for segments within 100 m of the camera and logs every override.
 
 ## Acceptance criteria
-- [ ] Gather 6 test photos with clear licenses (CC / public-domain / our own), listed with sources in `README.md` Disclosures. Each returns a bucket. Print the table in PROGRESS: expected vs got.
-- [ ] A `curl /chat` with a flooded-car photo near a forecast-clear segment → that segment shows as flooded in a subsequent `/status`.
-- [ ] A dry-road photo near a forecast-flooded segment → the state is **unchanged**.
+- [ ] 6 test images with clear licenses (Windy webcam frames checked live and not stored, or CC / public-domain / our own), sources listed in `README.md` Disclosures. Each returns a valid dict. Print the table in PROGRESS: expected vs got.
+- [ ] At least one wet image returns `bucket ≥ curb`, and at least one dry image returns `none` or `cant_tell`.
 
 ## Test
-`tests/test_photo.py`: the override function upgrades and never downgrades (pure function on a dict).
+`tests/test_photo.py`: `apply_override` upgrades and never downgrades (pure function on a dict).
 
 ## Fallback
-Cut it. Mention it as "next" in the pitch.
+013 shows raw frames labeled "camera view" without assessments.

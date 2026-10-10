@@ -49,5 +49,5 @@ Guiding rule: **least code that works, and boring code over clever code.** It's 
 - Shared files (`noah/config.py`, `docs/02-ARCHITECTURE.md`, `pyproject.toml`): tell the other person before pushing a change.
 
 ## Secrets
-- `.env` holds the actual values and is gitignored. `.env.example` lists the names: `GEMINI_API_KEY`, `GEMINI_MODEL`, `PHOTON_*` (per Photon docs), `GA511_API_KEY`, `API_BASE`, `WEB_BASE`.
+- `.env` holds the actual values and is gitignored. `.env.example` lists the names: `GEMINI_API_KEY`, `GEMINI_MODEL`, `PHOTON_*` (per Photon docs), `WINDY_API_KEY`, `CENSUS_API_KEY`, `MAPILLARY_TOKEN`, `SYNOPTIC_TOKEN`, `TOMTOM_API_KEY`, `API_BASE`, `WEB_BASE`.
 - Never print secrets. Never put them in URLs, logs or commit messages.

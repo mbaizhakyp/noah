@@ -48,7 +48,7 @@ noah/                      Python package
     routing.py             spec 006
     agent.py               spec 007 (Gemini + tools + safety filter)
     photo.py               spec 010 (water-depth classifier, shared with 013)
-    cameras.py             spec 013 (511GA camera list, capture, assessments)
+    cameras.py             spec 013 (Windy webcam list, watch loop, assessments)
     dispatch.py            spec 014 (Margulan: dispatch board + barricade list, FastAPI router)
 tests/                     one small test file per module with real logic
 fixtures/                  tiny hand-made files that follow the §4 contracts (for Priyanshu before real data lands)
@@ -67,7 +67,7 @@ Cycle IDs everywhere use the format `YYYYMMDDTHHZ`, e.g. `20240926T12Z`. All tim
 ### C1 `data/interim/nwm/<cycle>.parquet` — producer 001
 | column | type | notes |
 |---|---|---|
-| feature_id | int64 | NWM reach = NHDPlusV2 COMID; only AOI reaches |
+| feature_id | int64 | NWM reach = NHDPlusV2 COMID; only reaches in processed HUC8s (CC6) |
 | lead_h | int8 | **0–18**: 0 = `analysis_assim` tm00 at the issue time (model estimate of *now*); 1–18 = `short_range` forecast |
 | valid_time | timestamp (UTC) | issue time + lead_h |
 | q_cms | float32 | `streamflow`, m³/s |
@@ -79,7 +79,7 @@ Cycle IDs everywhere use the format `YYYYMMDDTHHZ`, e.g. `20240926T12Z`. All tim
 | feature_id | int64 | NWM reach the HydroID belongs to |
 | stage_m | float32 | |
 | q_cms | float32 | |
-Sorted by `hydro_id, stage_m`. Contains only HydroIDs that intersect the AOI.
+Sorted by `hydro_id, stage_m`. Contains only HydroIDs in the processed Georgia HUC8s (CC6).
 
 ### C3 `data/interim/seg_thresholds.parquet` — producer 003, consumer 004 (CC3)
 | column | type | notes |
@@ -94,7 +94,7 @@ Sorted by `hydro_id, stage_m`. Contains only HydroIDs that intersect the AOI.
 Only AOI edges, no bridges/tunnels, no rows below `MIN_ROAD_HAND_M`. Fallback: `build_segments --noaa-only` writes NOAA rows only.
 
 ### C4 `data/interim/graph.graphml` — producer 003
-OSMnx `network_type="drive"` graph for the AOI buffered by 2 km, EPSG:4326. Every edge carries `seg_id`, `length` (m), `travel_time` (s) from `ox.add_edge_speeds` + `ox.add_edge_travel_times`, plus `name` and `highway` where present.
+OSMnx `network_type="drive"` graph for the processed HUC8s (clipped to Georgia) buffered by 2 km (CC6), EPSG:4326. Every edge carries `seg_id`, `length` (m), `travel_time` (s) from `ox.add_edge_speeds` + `ox.add_edge_travel_times`, plus `name` and `highway` where present.
 
 ### C5 `web/data/flood_<cycle>.geojson` — producer 004
 FeatureCollection, EPSG:4326, coordinates rounded to 5 dp. **Contains only segments with a non-null `t_uncertain`.**
@@ -118,7 +118,7 @@ FeatureCollection, EPSG:4326, coordinates rounded to 5 dp. **Contains only segme
 `events` and `cycles[].event` were added Oct 9 for spec 011. The top-level `demo_cycle` stays as the default scenario. An event appears only once its C5 files exist.
 
 ### C7 `web/data/aoi.geojson` — producer 003
-The AOI polygon (HUC10 0313000112), EPSG:4326.
+**Coverage polygon = the State of Georgia** (TIGER, FIPS 13), EPSG:4326 (CC6). Feature property `hucs`: list of HUC8s with road-level timing, and their outlines as extra features with `{"huc8": "..."}`. ~~The AOI polygon (HUC10 0313000112)~~
 
 ### C8 `web/data/validation.json` — producer 005
 ```json
@@ -134,11 +134,11 @@ The AOI polygon (HUC10 0313000112), EPSG:4326.
 | method + path | request | response |
 |---|---|---|
 | `GET /health` | — | `{"ok": true, "cycle": "20240926T12Z"}` |
-| `GET /status` | `lat, lon, hours=18` | `{"state": STATE, "segments": [{"seg_id","name","state","eta_utc"}], "cycle"}`: worst state within 300 m and within `hours` |
-| `GET /route` | `from=lat,lon&to=lat,lon&depart_h=0` | `{"state": "route_found"\|"no_route"\|"out_of_coverage"\|"beyond_forecast_window", "geometry": GeoJSON LineString\|null, "minutes": float\|null, "avoided": [seg_id], "map_url": str}` |
+| `GET /status` | `lat, lon, hours=18` | `{"state": STATE, "segments": [{"seg_id","name","state","eta_utc","distance_m"}], "cycle"}`: **every** segment within `ALERT_RADIUS_KM` (5 km) and within `hours`, nearest first; `state` = worst (CC6) |
+| `GET /route` | `from=lat,lon&to=lat,lon&depart_h=0` | `{"state": "route_found"\|"no_route"\|"out_of_coverage"\|"beyond_forecast_window", "geometry": GeoJSON LineString\|null, "minutes": float\|null, "avoided": [seg_id], "corridor": [{"seg_id","name","state","eta_utc"}], "map_url": str}`. `corridor` = every segment within `CORRIDOR_BUFFER_M` (1 km) of the route (CC6) |
 | `POST /chat` | `{"sender": str, "text": str, "image_b64": str\|null}` | `{"reply": str}` |
 | `GET /cameras` (spec 013) | — | `[{"cam_id","name","lat","lon","latest": {"ts_utc","bucket","confidence","image_url"} \| null}]` |
-| `GET /cameras/{cam_id}/frames` (spec 013) | `from, to` (UTC ISO) | `[{"ts_utc","image_url","bucket"\|null,"confidence"\|null}]`. `image_url` points at the API's local static mount; demo only. |
+| `GET /cameras/{cam_id}/frames` (spec 013) | `from, to` (UTC ISO) | `[{"ts_utc","image_url","bucket"\|null,"confidence"\|null}]`. `image_url` is a freshly fetched Windy URL for the current image (expires in 10 min). Frames aren't stored (CC6). |
 `STATE` ∈ `flooded | uncertain | no_forecast_flooding | out_of_coverage`.
 "Now" = lead hour 0 of the active cycle in replay mode. The active cycle is env `NOAH_CYCLE` if set, otherwise C6 `demo_cycle`. A route removes every edge whose `t_uncertain <= depart_h + ROUTE_BUFFER_H`. A `depart_h` > 18 is outside the forecast window: `/route` returns `state: "beyond_forecast_window"` and the agent says so instead of guessing.
 
@@ -165,9 +165,9 @@ Static: it doesn't change by forecast hour and **doesn't affect routing or state
 ### C12 `data/interim/cctv_assessments.parquet` — producer + consumer 013 (Priyanshu only)
 | column | type | notes |
 |---|---|---|
-| cam_id | str | 511GA camera id |
+| cam_id | str | Windy webcam id (CC6: 511GA removed) |
 | ts_utc | timestamp (UTC) | capture time |
-| frame_path | str | relative to `data/raw/cctv/` |
+| frame_path | str \| null | null: frames aren't stored (Windy terms, CC6) |
 | bucket | str | `none\|curb\|half_tire\|door_sill_or_above\|cant_tell` (same as 010) |
 | confidence | str | `low\|med\|high` |
 | reference_object | str \| null | |
@@ -181,13 +181,14 @@ Every reply from the agent, the API and the map uses exactly these meanings. Wor
 | `flooded` | **Do not cross {road}.** Forecast shows water reaching it around {time}. |
 | `uncertain` | **{road}: uncertain, treat as impassable** from around {time}. |
 | `no_forecast_flooding` | No flooding is forecast on this route through {end_time}. **This is not a safety guarantee.** Conditions change fast; never drive into water. *Turn Around Don't Drown.* |
-| `out_of_coverage` | That's outside Noah's coverage (Peachtree Creek watershed, Atlanta). Check local official warnings. |
+| `out_of_coverage` | That's outside Noah's coverage (Georgia). Check local official warnings. |
+| `no_road_forecast` (CC6, proposed) | Noah doesn't have road-level forecasts for this part of Georgia yet. {official_alerts_or_none}. Treat any water on a road as impassable. |
 | `beyond_forecast_window` | That's more than 18 hours out, past Noah's forecast window. Ask again closer to the time. |
 | dispatch `go_before` (014) | **Go before ~{time}.** No forecast flooding on this route if you leave before then. Not a safety guarantee. |
 | dispatch `hold` (014) | **Hold this delivery.** The route is forecast cut by flooding from ~{time}. |
 | dispatch `no_forecast_flooding` (014) | No forecast flooding on this route through {end_time}. Not a safety guarantee. |
 | low spot (C11, informational) | **Low spot:** water can pool here in heavy rain when storm drains back up. Not part of the creek forecast. |
-| camera water (013) | **Camera on {road} shows water** around {reference} level at {time}. Treat nearby roads as impassable. (Image: Georgia DOT / 511GA) |
+| camera water (013) | **Camera on {road} shows water** around {reference} level at {time}. Treat nearby roads as impassable. (Webcams provided by Windy.com) |
 A camera or photo report can only move a road to a **more** conservative state. Never use one to say water is gone.
 
 - Times are shown in America/New_York, e.g. "around 9 PM".
@@ -205,8 +206,9 @@ A camera or photo report can only move a road to a **more** conservative state. 
 ## 7. `noah/config.py` (single source of constants)
 | name | value | source |
 |---|---|---|
-| AOI_HUC10 | `"0313000112"` | WBD |
-| HUC8 | `"03130001"` | WBD |
+| COVERAGE | State of Georgia (FIPS `13`) | TIGER (CC6) |
+| VALIDATION_HUC10 | `"0313000112"` (Peachtree Creek, Helene validation only) | WBD |
+| HUC8S | `["03130001", ...]` processed in rollout order (01 §Coverage). 53 HUC8s touch Georgia | WBD, CIROH |
 | GAUGE_USGS / GAUGE_NWS_LID / GAUGE_FEATURE_ID | `"02336300"` / `"AANG1"` / `2047989` | NLDI, NWPS |
 | MINOR_FLOOD_CMS | `161.4` (5,700 cfs) | NWPS AANG1 |
 | HELENE_CYCLES | hourly `20240926T12Z` … `20240927T12Z` | — |
@@ -217,6 +219,8 @@ A camera or photo report can only move a road to a **more** conservative state. 
 | ACTION_FLOW_CMS | `102.8` (3,630 cfs) | NWPS AANG1 |
 | UNCERTAIN_BAND_M | `0.5` | heuristic, see issues |
 | ROUTE_BUFFER_H | `1` | — |
+| ALERT_RADIUS_KM | `5` (fixed radius around the user; CC6) | Priyanshu |
+| CORRIDOR_BUFFER_M | `1000` (hazard check along a searched route; CC6) | Priyanshu |
 | MIN_ROAD_HAND_M | `0.3` (crossing-artifact floor for NOAA thresholds) | CC3, R3 |
 | NWM_URL | `https://storage.googleapis.com/national-water-model/nwm.{YYYYMMDD}/short_range/nwm.t{HH}z.short_range.channel_rt.f{FFF}.conus.nc` | verified Oct 9, 2026 |
 | GEMINI_MODEL | from env `GEMINI_MODEL` | check ai.google.dev for the current Flash model |

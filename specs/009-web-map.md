@@ -9,7 +9,7 @@
 | Produces | `web/index.html`, served by GitHub Pages; consumes C10 URL params |
 
 ## Goal
-The judge-facing visual. Drag an hour slider and watch roads along Peachtree Creek turn amber, then red, hours before the crest. The same page is the link the agent texts, so it must work on a phone.
+The judge-facing visual. Drag an hour slider and watch Georgia roads turn amber, then red, hours before the water reaches them (Helene replay on Peachtree Creek, live Isaias statewide). The same page is the link the agent texts, so it must work on a phone.
 
 ## Non-goals
 Base-road rendering (the base map already draws roads), user accounts, editing, multiple cycles on screen at once, a build step.
@@ -22,7 +22,7 @@ A single static `web/index.html`.
 
 ## Behavior
 1. MapLibre GL JS from a CDN, **pinned exact version**. Dark base map, free with no key: OpenFreeMap "dark" style, or the CARTO dark-matter GL style **(verify the URL works without a key)**. Attribution visible.
-2. On load: read C6, choose `cycle` from the URL or `demo_cycle`, fetch C5 for it, and fetch the AOI (thin outline).
+2. **Scope rule (CC6): the map shows hazards only inside the user's 5 km radius (a `near=lat,lon` URL param, drawn as a circle) and along a searched route's 1 km corridor. No pan-to-load and no statewide browsing.** On load: read C6, choose `cycle` from the URL or `demo_cycle`, fetch C5 for it and filter it to the radius / corridor, and fetch C7 (thin Georgia outline + processed HUC8 outlines, so users can see where road-level timing exists).
 3. **Slider** over lead hours 0–18. Hour 0 is labeled **"Now (estimated)"**; others show local time (America/New_York) as a forecast, e.g. "Forecast: Thu Sep 26, 9 PM (+7 h)". Layer filters:
    - red line `#ef4444` (width 4): `t_flood <= t`
    - amber line `#f59e0b` (width 3): `t_uncertain <= t` and not red
@@ -36,7 +36,7 @@ A single static `web/index.html`.
 9. **Scenario switch** (spec 011): if C6 has more than one `events` entry, show a small dropdown ("Helene 2024 / Isaias 2026") that reloads with that event's `demo_cycle`. Hidden if there's only one event.
 10. **Optional layers** (each only if its source exists; a toggle in the legend; off by default on mobile):
     - Low spots (C11, spec 012): dotted violet `#a78bfa` lines, popup with the §5 low-spot text.
-    - Cameras (C12 via `/cameras`, spec 013): small camera markers. The popup shows the frame nearest the slider time, its assessment, and "Image: Georgia DOT / 511GA". Needs `api` in the URL.
+    - Cameras (C12 via `/cameras`, spec 013): small camera markers. The popup shows the frame nearest the slider time, its assessment and time, and the credit "Webcams provided by Windy.com" (image links to its webcam page). Needs `api` in the URL.
 
 ## Acceptance criteria
 - [ ] Open `web/index.html` via `python -m http.server -d web` → fixture roads change color as the slider moves.

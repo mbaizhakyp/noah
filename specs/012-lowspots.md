@@ -9,6 +9,8 @@
 | Depends on | C4 (graph), a DEM |
 | Produces | C11 `web/data/lowspots.geojson` |
 
+> **Coverage changed to all of Georgia (Priyanshu, Fri Oct 9 ~22:30 ET; D4 / CC6, Margulan to confirm).** "AOI" in this spec now means **the Georgia HUC8s processed so far** (C6 `hucs`), not the Peachtree Creek HUC10. Peachtree Creek / gauge 02336300 stays the **Helene validation** site. See `01-PROJECT_OVERVIEW.md` §Coverage.
+
 ## Goal
 Answer "you only track creeks; what about storm drains and sewers?" with something real. We can't get Atlanta's storm-drain network in time (no open dataset found; a records request takes ~3 business days). Instead, flag **road segments that sit in terrain depressions**, such as underpasses and street sags. Those are the places water pools when drains are overwhelmed.
 

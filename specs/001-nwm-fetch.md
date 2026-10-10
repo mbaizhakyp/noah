@@ -8,6 +8,8 @@
 | Depends on | — (AOI reach list improves once 002 lands; the gauge reach alone is enough for the go/no-go) |
 | Produces | C1 `data/interim/nwm/<cycle>.parquet` |
 
+> **Coverage changed to all of Georgia (Priyanshu, Fri Oct 9 ~22:30 ET; D4 / CC6, Margulan to confirm).** "AOI" in this spec now means **the Georgia HUC8s processed so far** (C6 `hucs`), not the Peachtree Creek HUC10. Peachtree Creek / gauge 02336300 stays the **Helene validation** site. See `01-PROJECT_OVERVIEW.md` §Coverage.
+
 ## Goal
 Get NWM short-range streamflow for the Helene cycles, cut to AOI reaches, so we can (a) make the midnight go/no-go call at the gauge reach and (b) feed spec 004.
 
