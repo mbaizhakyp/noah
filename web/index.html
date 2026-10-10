@@ -788,10 +788,14 @@ function cutStreets(avoided) {
 }
 const cutText = (c) => `${c.name || "Unnamed road"} · ${c.flooded ? "under" : "uncertain"} from ${fmtClock.format(hourTime(c.t))}`;
 function markCuts(avoided, h) {
-  const pinPts = [origin, ...stopPlaces(), dest].filter(Boolean).map((p) => [p.lon, p.lat]);
+  const pins = [origin, ...stopPlaces(), dest].filter(Boolean);
+  const pinPts = pins.map((p) => [p.lon, p.lat]);
+  const stem = (t) => (t || "").toLowerCase().split(/[,·]/)[0].split(/\s+/).slice(0, 2).join(" "); // "browns mill" for "Browns Mill Rd, Atlanta"
+  const pinStems = new Set(pins.map((p) => stem(p.label)));
   for (const c of cutStreets(avoided).slice(0, 5)) {
     const g = c.f.geometry.coordinates, [lon, lat] = g[Math.floor(g.length / 2)];
-    if (nearLines([lon, lat], [pinPts], 250)) continue; // a stop on the cut street already carries its name; the Why list has the hour
+    // a stop on the cut street already carries its name on the map; the Why list has the hour
+    if (nearLines([lon, lat], [pinPts], 250) || pinStems.has(stem(c.name))) continue;
     const el = document.createElement("div"); el.className = "cutlab";
     const dot = document.createElement("i"); const txt = document.createElement("span"); txt.textContent = cutText(c);
     el.append(dot, txt);
