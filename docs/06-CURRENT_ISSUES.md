@@ -6,7 +6,6 @@ _Newest at the top of each table. Tag the owner as M (Margulan) or P (Priyanshu)
 | # | Opened | Owner | Issue | Next step / fallback |
 |---|---|---|---|---|
 | B4 | Fri 21:05 | P (or M) | **RESOLVED Fri 23:59: no capture needed. Cameras are checked on demand when a user asks (013 redesign).** ~~Camera capture (013 step 1) must be running by Sat 01:00.~~ GDOT cameras keep no recordings, and Isaias rain begins early Sat. **Key requested Fri ~21:27 ET → Pending Approval (manual review).** Plan: option C (own sidewalk photos during Isaias, J4). If the key arrives, switch to option A and start capture right away; a key by Sat noon still catches the heaviest rain. Cameras are P2, so the demo doesn't depend on them. **Alt (Fri 23:05):** Windy webcams API, 2,467 GA cameras (`07-DATA_SOURCES.md` #31). Check key/terms and whether any cover the AOI before J4's fallback. |
-| B3 | Fri 20:30 | P | Photon Spectrum API, account and iMessage line provisioning not yet confirmed. | Go to the Photon booth/mentors first thing. Fallback 1: `imessage-kit` on a team Mac with a spare Apple ID. Fallback 2: Twilio SMS, and drop the Photon challenge (keep Gemini). |
 
 ## Decisions needed (both humans)
 | # | Opened | Decision | Recommendation | Decide by |
@@ -111,6 +110,7 @@ Every point where the two lanes must connect. Tick each item and note the commit
 ## Resolved
 | # | Resolved | How |
 |---|---|---|
+| B3 | Sat 02:50 | Photon Spectrum Cloud project + iMessage line work: real echo round trip from Margulan's iPhone (spec 008 Phase 0). |
 | J14 | Sat 01:20 | **008 (iMessage relay + Photon) moved to Margulan** (Margulan's call; Priyanshu: please ack in PROGRESS). Priyanshu keeps 007 (agent behind `POST /chat`). Contract between them = C9 `/chat` (see I14). |
 | J11 | Sat 01:05 | **Accepted with a condition (Margulan: "sounds good" to Claude's recommendation):** side challenges = Tiger Data + Photon + Replit; AI on Azure OpenAI (Gemini dropped). **Condition:** Tiger Data stays small (store live forecast runs per segment + 1 dashboard query) and starts **after** the 007 agent + 008 iMessage relay work end to end (Sat 14:00 E2E). |
 | J10 | Sat 00:45 | **Agreed with two conditions (Margulan):** (1) the demo needs proof, so Isaias forecasts are validated against USGS gauges + reported closures Sat night / Sun early; (2) Helene is kept as backup (Devpost, Q&A, fallback demo), not in the main UI/pitch. Product = live by default (spec 015 live loop, Margulan). Spec 011 retired into 015 + the Sat-night validation. Demo-event final call Sat 14:00 (J13). First data point: the 9 PM Fri run already forecasts 62 metro segments flooded / 205 uncertain by 5–7 AM Sat. |
