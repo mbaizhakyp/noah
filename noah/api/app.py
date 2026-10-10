@@ -18,7 +18,7 @@ from noah import (
     config,
     engine,
 )
-from noah.api import dispatch, past, routing
+from noah.api import agent, dispatch, past, routing
 
 log = logging.getLogger("api")
 ERROR_MESSAGE = (
@@ -32,6 +32,7 @@ if config.WEB_BASE:
         CORSMiddleware, allow_origins=[config.WEB_BASE.rstrip("/")], allow_methods=["GET", "POST"]
     )
 app.include_router(dispatch.router)
+app.include_router(agent.router)  # spec 007 POST /chat (Margulan, J15)
 
 
 def parse_latlon(s: str) -> tuple[float, float]:
@@ -120,6 +121,7 @@ def warm() -> None:
     """Load graph + active cycle once at startup so the first request is fast."""
     try:
         dispatch.graph_state()
+        agent.warm()  # street index for the chat agent (007)
         routing.flood_index(routing.current_cycle())
         routing.coverage()
         # 21 years of Georgia flood reports is a large download: fetch it once in the background

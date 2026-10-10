@@ -31,12 +31,12 @@ export function senderHash(id: string | undefined): string {
  * - echo: "echo: <text>" (Phase 0 go/no-go).
  * - chat: POST {apiBase}/chat {sender, text, image_b64: null} -> reply (C9).
  * - auto: chat, but echo while /chat doesn't exist yet (404/405), so the relay switches by itself when 007 lands.
- * Any other failure or a slow agent (> timeout) -> ERROR_REPLY, never silence.
+ * Any other failure or a slow agent (> 45 s: live sources can take ~15 s) -> ERROR_REPLY, never silence.
  */
 export async function replyFor(
   text: string,
   sender: string,
-  { mode, apiBase, timeoutMs = 25_000, fetchFn = fetch }: ReplyOptions,
+  { mode, apiBase, timeoutMs = 45_000, fetchFn = fetch }: ReplyOptions,
 ): Promise<{ reply: string; via: "echo" | "chat" | "error" }> {
   if (mode === "echo") return { reply: `echo: ${text}`, via: "echo" };
   try {

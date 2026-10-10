@@ -4,8 +4,8 @@
 
 | | |
 |---|---|
-| Owner | Priyanshu |
-| Status | Draft |
+| Owner | **Margulan** (moved from Priyanshu Sat 03:00, J15) |
+| Status | **Built (Sat 03:30): `noah/api/agent.py`, POST /chat mounted in app.py; tested end to end with Azure** |
 | Time box | 3 h |
 | Depends on | 006 functions (call them in-process, not over HTTP); `GEMINI_API_KEY`, `GEMINI_MODEL` |
 | Produces | C9 `POST /chat` |
@@ -21,6 +21,15 @@ Long conversations, general chit-chat, any answer not grounded in a tool result,
 
 ## Outputs
 `{"reply": str}`. Plain text, ≤ 480 characters, at most one URL (the map link).
+
+## As built (Sat 03:30, Margulan via Claude)
+- **Model:** Azure OpenAI `gpt-4.1-mini` with tool calling (J11), not Gemini. Tools: `check_area(place)`, `check_route(origin, destination, leave_in_hours)`, `remember_place(name, place)` (per-sender "home"/"work").
+- **Facts:** `routing.status/route` (road forecast, < 1 s) + Priyanshu's `engine.area/route` (33 live sources + AI assessment) **only if it finishes within 12 s**, so answers never wait on slow sources.
+- **Times:** `leave_in_hours` from *now* → forecast lead hour (`depart_hour`, accounts for the run being issued ~2 h earlier); > 18 h → beyond window. Demo replay (`NOAH_CYCLE` pinned) sets "now" = that run's issue time.
+- **Places:** Nominatim (Georgia viewbox, 1 req/s, project User-Agent, no personal contact sent) → fallback "..., Atlanta, GA" → "STREET near LANDMARK" resolved via our OSM road graph. Rate-limit failures are never cached.
+- **Safety:** banned-word check → one rewrite → deterministic §5 template; 911 when describing danger; ≤ 480 chars plain text; model told never to claim a tool result it didn't get. Errors → §5 error reply.
+- Tests `tests/test_agent.py` (6): banned words, depart hour, finalize, flagged-road ranking, template never says safe, street matching.
+- Relay (008) timeout raised to 45 s.
 
 ## Behavior
 1. **SDK:** `google-genai` (`from google import genai`), with the client created once. Model from `GEMINI_MODEL` (R6). Use the SDK's function calling with plain Python functions as tools (automatic function calling, **(verify)** in the installed SDK version).
