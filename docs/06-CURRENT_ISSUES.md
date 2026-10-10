@@ -14,7 +14,6 @@ _Newest at the top of each table. Tag the owner as M (Margulan) or P (Priyanshu)
 | J1 | Fri 21:05 | **Priyanshu's expanded-vision proposal** (`01-PROJECT_OVERVIEW.md`, pushed 19:51 CT): US-wide coverage, potholes, sewer overflow, satellite, CCTV, 3 user types, a database. | Accept the proposal's own "hackathon reality check". **Ship:** the MVP + Isaias bonus (011) + cameras (013) + low spots (012, stretch). **Roadmap slide:** US-wide, business/fleet, county dashboard, satellite, sewer-overflow prediction, potholes (no open Atlanta data found). Keep D4 (Peachtree) and D7 (no DB) for the hackathon. Once agreed, move the proposal under a "Roadmap" heading in 01. | **Last** (Margulan, Oct 9): before the pitch script, Sat 20:00 |
 | J2 | Fri 21:05 | Saved routes + Google/Apple Maps hand-off (BL-3), county stats view (BL-4) | BL-3 is cheap and makes a good demo moment, but only after 14:00 E2E. BL-4 goes to the roadmap. | Sat 14:00 |
 | J9 | Fri 21:50 | **Tiger Data (MLH) suggested by Priyanshu.** It's a hosted time-series Postgres, *not* a replacement for AWS (AWS was only a download step and is no longer needed). It would be a 4th side challenge, which breaks the max-3 rule, so it reopens D2 only by **replacing Replit**. It also adds a database the plan avoids (D7). | Don't add it. Keep Replit (the dispatch board + hosting fit better). Tiger Data goes on the roadmap (hourly forecasts per road segment are a natural time-series store). | Not critical now (Margulan). Decide with J1 at the end. Anything later than Sat 12:00 effectively means no. |
-| J5 | Fri 21:30 | **B2B scope + owner:** BL-8 (dispatch board + barricade list) owned by Margulan Sat afternoon; move 012 (low spots) to the roadmap to make room. | Yes. It's the Replit Small Business entry and the "who pays" answer. | **Sat 12:00** (deferred by Margulan). Spec 014 must be written + approved before the Sat 14:00 build block. Without BL-8 the Replit entry is only "hosted on Replit". |
 | J6 | Fri 21:30 | **Hosting:** Replit hosts API + map + dispatch board (BL-9, Priyanshu) instead of laptop + tunnel + GitHub Pages (changes D8). Where the iMessage relay runs depends on Photon: Spectrum Cloud → Replit is fine; `imessage-kit` → must stay on a Mac. | **Agreed (Margulan, Oct 9)**, pending the Replit booth answers below. Keep laptop + `cloudflared` as the fallback. | Booth answers tonight |
 | J7 | Fri 21:30 | **Live demo setup:** a fixed demo "home" address in the AOI (not anyone's real home), demo origin/destination pairs, which phone texts Noah on stage, which Apple ID/line Noah uses. | Pick 2 addresses along Peachtree Creek that Helene flooded (from 005 street truth) + 1 dry control. Use Priyanshu's or Margulan's phone as the sender. | Sat 14:00 (E2E test uses them) |
 | J8 | Fri 21:30 | **Roles for judging:** who gives the 3-min pitch, who drives the demo (phone + map), who records/edits the video. | Margulan pitches the problem + hydrology; Priyanshu drives the live demo; record together at Sun 02:00. | Sat 20:00 |
@@ -65,9 +64,27 @@ _Newest at the top of each table. Tag the owner as M (Margulan) or P (Priyanshu)
 - [ ] Accounts: Gemini (P), Photon (P), Replit (P), 511GA (BL-7, pending). No AWS needed.
 - [ ] Specs 014 (BL-8) and 015 (BL-9) written + approved before anyone codes them.
 
+## Integration checklist (Margulan ↔ Priyanshu): run through this together before the E2E test
+Every point where the two lanes must connect. Tick each item and note the commit. Add new items as they appear.
+
+| # | Item | Owner | Status |
+|---|---|---|---|
+| I1 | **Graph file:** Priyanshu's routing loads `data/interim/graph.graphml` if present, else gunzips `fixtures/graph.graphml.gz` (36 MB unzipped). `data/` is gitignored, so Replit/teammates use the fixture. | P (M ships the fixture ✅) | ☐ |
+| I2 | **Flood files:** `web/data/flood_<cycle>.geojson` (C5, lead hours **0–18**, CC2) + `cycles.json` (C6, with `events`, CC1). Real Helene data is committed; demo cycle `20240926T12Z`. Fixtures are no longer needed for flood data. | P consumes | ☐ |
+| I3 | **Mount dispatch:** in `noah/api/app.py` add `from noah.api import dispatch` + `app.include_router(dispatch.router)` (CC5). | P | ☐ |
+| I4 | **One graph in memory:** `dispatch.py` and `routing.py` must share one loaded graph + flood dict (36 MB graphml ≈ several hundred MB in RAM; two copies may not fit a 2 GB Replit VM). Agree on one loader, e.g. `routing.load_state()` that `dispatch` imports, or the reverse. | Both | ☐ |
+| I5 | **Same blocking rule:** `t_uncertain <= depart_h + ROUTE_BUFFER_H` in both `/route` and `/dispatch`. Reuse one helper (`dispatch.blocked_weight()` or Priyanshu's equivalent). | Both | ☐ |
+| I6 | **Active cycle:** both honor env `NOAH_CYCLE`, else C6 `demo_cycle`. | Both | ☐ |
+| I7 | **Static pages:** `web/index.html` (009, P) and `web/dispatch.html` (014, M) are served from the same origin (FastAPI `StaticFiles` on Replit) or GitHub Pages with `?api=`. Link the two pages to each other. | Both | ☐ |
+| I8 | **Dependencies:** M added `fastapi`, `uvicorn` (and the pipeline deps) to `pyproject.toml`/`uv.lock`. P: `uv sync` after pulling. If you add deps, commit the lock file. | Both | ☐ |
+| I9 | **Contract confirmations:** P to confirm CC1, CC2, CC5 (table below). | P | ☐ |
+| I10 | **Replit (J6/BL-9):** run command + data loading (I1) + secrets; Margulan does the account/import/billing steps in the browser (Claude can't). | M (browser), P (config) | ☐ |
+| I11 | **Wording:** agent replies, map labels and dispatch badges all use the §5 vocabulary; run the banned-word check over everything user-facing. | Both | ☐ |
+
 ## Contract change proposals
 | # | Opened | Proposer | Change | Agreed by both? |
 |---|---|---|---|---|
+| CC5 | Fri 22:58 | M | Additive: C13 `POST /dispatch` + `GET /barricades` (spec 014) as a FastAPI `router` in `noah/api/dispatch.py`, mounted by one line in Priyanshu's `app.py`; §5 rows for dispatch states. No existing contract changed. | M ☑ · P ☐ |
 | CC2 | Fri 22:00 | M | C1/C5 lead hours extend from 1–18 to **0–18**: hour 0 = NWM `analysis_assim` (estimated now). Consumers: the slider already starts at 0 (009); routing/status treat 0 like any hour. No renames. | M ☑ · P ☐ |
 | CC1 | Fri 21:05 | M | Additive: C6 `events` + `cycles[].event`; C9 `NOAH_CYCLE`, `beyond_forecast_window` state, `/cameras` endpoints; new C11 (low spots), C12 (camera assessments); §5 rows for low spot, camera water, beyond window. Already written into `02-ARCHITECTURE.md`. Nothing existing was renamed or removed. | M ☑ · P ☐ (Priyanshu: confirm or object before building 006/009) |
 
@@ -83,6 +100,7 @@ _Newest at the top of each table. Tag the owner as M (Margulan) or P (Priyanshu)
 ## Resolved
 | # | Resolved | How |
 |---|---|---|
+| J5 | Fri 22:58 | Option A: Margulan builds the dispatch board + barricade list now (spec 014), new files only, mounted by Priyanshu later (I3). 012 low spots stays P3 / roadmap. |
 | CC4 | Fri 22:38 | Residential streets covered: Noah computes thresholds from FIM HAND for roads NOAA's list omits (motorway–tertiary only), across branch 0 + 4 level paths; `source` column added to C3. Result: all reported Buckhead streets flagged (Woodward Way, Hanover W, Bohler, Peachtree Battle, Sagamore). `--noaa-only` fallback kept. C5 unchanged, so Priyanshu is not affected. |
 | R2 | Fri 22:38 | Level-path branches used for residential thresholds (min across branches = FIM max-extent composite). |
 | R15 / CC3 | Fri 22:15 | Margulan approved using NOAA FIM 4.9 per-road thresholds (`osm_roads_fimpact.csv`) instead of our own HAND sampling. Implemented in 003/004; C3 is now `seg_thresholds.parquet`; C5 unchanged. Pitch: NOAA computes where/at what flow; Noah adds when, routing and text delivery. |

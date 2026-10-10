@@ -49,6 +49,7 @@ noah/                      Python package
     agent.py               spec 007 (Gemini + tools + safety filter)
     photo.py               spec 010 (water-depth classifier, shared with 013)
     cameras.py             spec 013 (511GA camera list, capture, assessments)
+    dispatch.py            spec 014 (Margulan: dispatch board + barricade list, FastAPI router)
 tests/                     one small test file per module with real logic
 fixtures/                  tiny hand-made files that follow the §4 contracts (for Priyanshu before real data lands)
 bot/                       Priyanshu — spec 008 (TypeScript, Photon Spectrum relay)
@@ -144,6 +145,13 @@ The AOI polygon (HUC10 0313000112), EPSG:4326.
 ### C10 Map URL — producer 009, consumed by 006/007
 `{WEB_BASE}/?cycle=20240926T12Z&t=3&from=lat,lon&to=lat,lon&api={API_BASE}`. All parameters are optional. With `from`, `to` and `api` set, the map calls `/route` and draws the result.
 
+### C13 Dispatch + barricades API — producer 014 (Margulan), mounted by 006's `app.py` (Priyanshu)
+| method + path | request | response |
+|---|---|---|
+| `POST /dispatch` | `{"cycle"?, "depot": {"label","lat","lon"}, "stops": [{"id","label","lat","lon"}]}` | `{"cycle","issue_time","valid_until","depot","stops": [{"id","label","state","go_before_utc"\|null,"minutes"\|null}]}` |
+| `GET /barricades` | `cycle` (optional) | `[{"street","segments","length_m","first_flood_utc","state"}]` |
+Dispatch `state` ∈ `go_before | hold | no_forecast_flooding | out_of_coverage`. Same edge-blocking rule as `/route`.
+
 ### C11 `web/data/lowspots.geojson` — producer 012, consumer 009
 FeatureCollection, EPSG:4326, coordinates at 5 dp. One LineString per road segment that crosses a terrain depression.
 | property | type | notes |
@@ -175,6 +183,9 @@ Every reply from the agent, the API and the map uses exactly these meanings. Wor
 | `no_forecast_flooding` | No flooding is forecast on this route through {end_time}. **This is not a safety guarantee.** Conditions change fast; never drive into water. *Turn Around Don't Drown.* |
 | `out_of_coverage` | That's outside Noah's coverage (Peachtree Creek watershed, Atlanta). Check local official warnings. |
 | `beyond_forecast_window` | That's more than 18 hours out, past Noah's forecast window. Ask again closer to the time. |
+| dispatch `go_before` (014) | **Go before ~{time}.** No forecast flooding on this route if you leave before then. Not a safety guarantee. |
+| dispatch `hold` (014) | **Hold this delivery.** The route is forecast cut by flooding from ~{time}. |
+| dispatch `no_forecast_flooding` (014) | No forecast flooding on this route through {end_time}. Not a safety guarantee. |
 | low spot (C11, informational) | **Low spot:** water can pool here in heavy rain when storm drains back up. Not part of the creek forecast. |
 | camera water (013) | **Camera on {road} shows water** around {reference} level at {time}. Treat nearby roads as impassable. (Image: Georgia DOT / 511GA) |
 A camera or photo report can only move a road to a **more** conservative state. Never use one to say water is gone.
