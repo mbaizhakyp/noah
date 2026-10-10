@@ -21,7 +21,8 @@ USGS IV + NWS thresholds ──► validate ─► web/data/validation.json     
 ## 2. Core algorithm (flood time per road segment) — CC3, approved Oct 9
 We use **NOAA OWP FIM 4.9's own per-road flood thresholds** (`osm_roads_fimpact.csv`: per OSM way × HydroID, the HAND height and the discharge at which the road gets wet). We don't sample HAND ourselves. NOAA computes *where / at what flow*; Noah adds *when* (forecast), routing, and delivery.
 
-1. **Once (003):** join OSMnx drive edges to the thresholds by OSM way id. Drop `bridge`/`tunnel` edges (bare-earth HAND would call every bridge flooded). Drop threshold rows with `threshold_hand < MIN_ROAD_HAND_M` (0.3 m): the road sits at channel level, a culvert/crossing artifact. Result: C3, one row per (segment, HydroID, branch).
+1. **Once (003), major roads:** join OSMnx drive edges to the thresholds by OSM way id. Drop `bridge`/`tunnel` edges (bare-earth HAND would call every bridge flooded). Drop threshold rows with `threshold_hand < MIN_ROAD_HAND_M` (0.3 m): the road sits at channel level, a culvert/crossing artifact. Result: C3, one row per (segment, HydroID, branch).
+   **Residential and other roads NOAA doesn't list (CC4):** same method on the same data. Sample FIM HAND + catchment rasters every 10 m along the edge, for branch 0 **and** the 4 main-stem level-path branches (FIM's composite is the max extent across branches, so main-stem flooding reaches side-creek catchments). Per (segment, HydroID, branch): lowest HAND ≥ 0.3 m and ≤ 25 m → discharge on that curve. Tagged `source = "noah"`. Check vs NOAA on shared roads: median ΔHAND 0.00 m bias, corr 0.74.
 2. **Uncertain band:** per row, `uncertain_q` = discharge on that HydroID/branch rating curve at stage `max(threshold_hand − UNCERTAIN_BAND_M, 0.5 · threshold_hand)`.
 3. **Baseline guard:** drop rows whose `threshold_q` ≤ the reach's flow in `BASELINE_CYCLE` (wet at low flow = artifact).
 4. **Per cycle (004):** lead hour 0 = **now** (NWM analysis), 1–18 = forecast. `t_flood` = first lead with `q(feature_id) ≥ threshold_q`; `t_uncertain` = first lead with `q ≥ uncertain_q`. Per segment, take the minimum over its rows (conservative; equals FIM's max-extent composite across branches).
@@ -87,8 +88,9 @@ Sorted by `hydro_id, stage_m`. Contains only HydroIDs that intersect the AOI.
 | feature_id | int64 | NWM reach of that HydroID |
 | branch_id | int64 | FIM branch (0 or a level path) |
 | threshold_hand_m | float32 | NOAA `threshold_hand` (m) |
-| threshold_q_cms | float32 | NOAA `threshold_discharge` (m³/s): flow at which the road gets wet |
-Only AOI edges, no bridges/tunnels, no rows below `MIN_ROAD_HAND_M`.
+| threshold_q_cms | float32 | flow (m³/s) at which the road gets wet |
+| source | str | `noaa` (FIM 4.9 fimpact, major roads) or `noah` (computed from FIM HAND, other roads; CC4) |
+Only AOI edges, no bridges/tunnels, no rows below `MIN_ROAD_HAND_M`. Fallback: `build_segments --noaa-only` writes NOAA rows only.
 
 ### C4 `data/interim/graph.graphml` — producer 003
 OSMnx `network_type="drive"` graph for the AOI buffered by 2 km, EPSG:4326. Every edge carries `seg_id`, `length` (m), `travel_time` (s) from `ox.add_edge_speeds` + `ox.add_edge_travel_times`, plus `name` and `highway` where present.

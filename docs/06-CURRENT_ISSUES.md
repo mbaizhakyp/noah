@@ -29,7 +29,6 @@ _Newest at the top of each table. Tag the owner as M (Margulan) or P (Priyanshu)
 | R12 | Fri 21:05 | P | **511GA terms** for storing/redisplaying snapshots unverified. Cameras cover GDOT routes only. API limit 10 calls / 60 s. | Read the terms at key signup and record them in spec 013. Frames stay local (gitignored), attributed, deleted after the event. |
 | R11 | Fri 21:05 | M | **Isaias may not flood Peachtree Creek.** The 22Z Oct 9 forecast peaks at ~1,061 cfs, below action stage. Most rain falls after that forecast's window. | Spec 011 decision at Sat 14:00. Helene remains the main demo either way. |
 | R1 | Fri 20:30 | M | FIM layout: **resolved for v4.9** (see spec 002 "Discovered layout"). Still verify `hydrotable.parquet` columns and whether it covers branch 0. | Spec 002 step 3. |
-| R2 | Fri 20:30 | M | FIM4 uses multiple branches (branch 0 + level-path branches). MVP uses one branch per spec 002. | Log which branch was used. Taking the max across branches is the upgrade path. |
 | R3 | Fri 20:30 | M | Culvert crossings: NOAA thresholds can sit at channel level where a road crosses a creek on a culvert. | Rows with `threshold_hand < MIN_ROAD_HAND_M` (0.3 m) dropped + baseline guard (CC3). Known false-negative risk at real low-water crossings; see R17 for false positives. |
 | R4 | Fri 20:30 | M | HAND + synthetic rating curves are weak on small urban creeks. `UNCERTAIN_BAND_M = 0.5` is a heuristic, not calibrated. | State it in Q&A. The uncertain band and "treat as impassable" wording are the mitigation. |
 | R5 | Fri 20:30 | M | Need 2–3 streets with dated public photos or news showing flooding on Sep 27, 2024 in the Peachtree Creek HUC10 (e.g., Buckhead along Peachtree Creek). | Spec 005. Use only sources we can cite. No invented examples. |
@@ -69,7 +68,6 @@ _Newest at the top of each table. Tag the owner as M (Margulan) or P (Priyanshu)
 ## Contract change proposals
 | # | Opened | Proposer | Change | Agreed by both? |
 |---|---|---|---|---|
-| CC4 | Fri 22:50 | M | C3 gains rows for **residential streets** computed by Noah from HAND (spec 003 step 3) plus an additive `source` column (`noaa` / `noah`). C5 is unchanged, so Priyanshu is not affected. Reason: NOAA's road list has no residential streets (verified: motorway/trunk/primary/secondary/tertiary only); Helene's reported Buckhead closures were residential. | M ☐ (proposed) |
 | CC2 | Fri 22:00 | M | C1/C5 lead hours extend from 1–18 to **0–18**: hour 0 = NWM `analysis_assim` (estimated now). Consumers: the slider already starts at 0 (009); routing/status treat 0 like any hour. No renames. | M ☑ · P ☐ |
 | CC1 | Fri 21:05 | M | Additive: C6 `events` + `cycles[].event`; C9 `NOAH_CYCLE`, `beyond_forecast_window` state, `/cameras` endpoints; new C11 (low spots), C12 (camera assessments); §5 rows for low spot, camera water, beyond window. Already written into `02-ARCHITECTURE.md`. Nothing existing was renamed or removed. | M ☑ · P ☐ (Priyanshu: confirm or object before building 006/009) |
 
@@ -85,6 +83,8 @@ _Newest at the top of each table. Tag the owner as M (Margulan) or P (Priyanshu)
 ## Resolved
 | # | Resolved | How |
 |---|---|---|
+| CC4 | Fri 22:38 | Residential streets covered: Noah computes thresholds from FIM HAND for roads NOAA's list omits (motorway–tertiary only), across branch 0 + 4 level paths; `source` column added to C3. Result: all reported Buckhead streets flagged (Woodward Way, Hanover W, Bohler, Peachtree Battle, Sagamore). `--noaa-only` fallback kept. C5 unchanged, so Priyanshu is not affected. |
+| R2 | Fri 22:38 | Level-path branches used for residential thresholds (min across branches = FIM max-extent composite). |
 | R15 / CC3 | Fri 22:15 | Margulan approved using NOAA FIM 4.9 per-road thresholds (`osm_roads_fimpact.csv`) instead of our own HAND sampling. Implemented in 003/004; C3 is now `seg_thresholds.parquet`; C5 unchanged. Pitch: NOAA computes where/at what flow; Noah adds when, routing and text delivery. |
 | D5 | Fri 22:15 | Demo cycle = `20240926T12Z` (8 AM EDT), final. |
 | B1 | Fri 22:08 | **GO.** NWM short-range forecast Peachtree Creek above minor flood flow in every cycle from 20240926T12Z; first warning 13.2 h before the observed crossing. Mid-day runs were late and low (see PROGRESS 22:08). |

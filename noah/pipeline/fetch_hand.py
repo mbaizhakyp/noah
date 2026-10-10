@@ -27,7 +27,7 @@ DOWNLOAD = ["hand", "catchments", "hydroid_prefix", "hydrotable_huc", "fimpact"]
 
 
 def download(name: str, client: httpx.Client) -> None:
-    rel = config.FIM_FILES[name]
+    rel = config.FIM_FILES.get(name, name)
     dest = RAW / rel
     url = f"{config.FIM_BASE}/{rel}"
     size = int(client.head(url).raise_for_status().headers["content-length"])
@@ -100,6 +100,9 @@ def main() -> None:
     with httpx.Client(timeout=300, follow_redirects=True) as client:
         for name in DOWNLOAD:
             download(name, client)
+        for b in config.FIM_BRANCHES[1:]:  # level-path branches for residential thresholds (CC4)
+            for rel in config.fim_branch_files(b).values():
+                download(rel, client)
         aoi = aoi_geometry(client)
 
     for name in ("hand", "catchments"):

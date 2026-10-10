@@ -195,9 +195,9 @@
     "https://roughdraftatlanta.com/2024/09/27/atlanta-storm-damage-helene/"
    ],
    "demo_cycle": "20240926T12Z",
-   "flagged": false,
-   "t_flood_local": null,
-   "t_uncertain_local": null
+   "flagged": true,
+   "t_flood_local": "Thu Sep 26 10 PM",
+   "t_uncertain_local": "Thu Sep 26 09 PM"
   }
  ]
 }

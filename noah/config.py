@@ -91,6 +91,19 @@ DEMO_CYCLE = EVENTS["helene"]["demo"]
 # HAND / FIM (public CIROH bucket, OWP HAND-FIM v4.9.9.0; verified Oct 9, 2026)
 FIM_BASE = f"https://ciroh-owp-hand-fim.s3.amazonaws.com/hand_fim_4_9_9_0/{HUC8}"
 FIM_BRANCH = "0"
+# Branch 0 = all streams; level-path branches = main stems (FIM takes max extent across branches).
+# These 4 level paths carry AOI roads in osm_roads_fimpact.csv (checked Oct 9).
+FIM_BRANCHES = ["0", "3286000029", "3286000031", "3286000033", "3286000035"]
+
+
+def fim_branch_files(b: str) -> dict[str, str]:
+    return {
+        "hand": f"branches/{b}/rem_zeroed_masked_{b}.tif",
+        "catchments": f"branches/{b}/gw_catchments_reaches_filtered_addedAttributes_{b}.tif",
+        "hydroid_prefix": f"branches/{b}/hydroid_prefix.txt",
+    }
+
+
 FIM_FILES = {
     "hand": f"branches/{FIM_BRANCH}/rem_zeroed_masked_{FIM_BRANCH}.tif",
     "catchments": f"branches/{FIM_BRANCH}/gw_catchments_reaches_filtered_addedAttributes_{FIM_BRANCH}.tif",

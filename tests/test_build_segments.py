@@ -45,3 +45,24 @@ def test_edge_thresholds_drops_bridges_explodes_and_floors():
         "threshold_hand_m",
         "threshold_q_cms",
     ]
+
+
+def test_densify_spacing_and_min_hand_floor():
+    import shapely
+    from shapely.geometry import LineString
+
+    from noah.pipeline.build_segments import densify, min_hand_per_catchment
+
+    idx, pts = densify(
+        np.array([LineString([(0, 0), (25, 0)]), LineString([(0, 0), (5, 0)])]), 10.0
+    )
+    xs = shapely.get_x(pts)
+    assert idx.tolist() == [0, 0, 0, 0, 1, 1]  # 25 m -> 4 points (<= 10 m apart), 5 m -> both ends
+    assert np.allclose(xs[:4], [0, 25 / 3, 50 / 3, 25]) and np.allclose(xs[4:], [0, 5])
+
+    m = min_hand_per_catchment(
+        ["a", "a", "a", "b"], np.array([0.1, 1.2, 2.0, 30.0]), np.array([7, 7, 7, 7]), 0.3, 25.0
+    )
+    assert m.to_dict("records") == [
+        {"seg_id": "a", "hydro_id": 7, "hand": 1.2}
+    ]  # 0.1 floored, 30 > max

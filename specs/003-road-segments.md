@@ -36,9 +36,9 @@ C7, C4, C3, exactly as specified in `docs/02-ARCHITECTURE.md` §4.
 8. Drop rows with `threshold_hand < MIN_ROAD_HAND_M` (0.3 m): road at channel level, a crossing artifact. Log the count.
 9. Write C3. Log: AOI edges, bridges/tunnels, segments with a threshold (match rate), artifacts dropped.
 
-**Step 3: residential streets (CC4, PROPOSED, needs Margulan's OK before coding).**
+**Step 3: residential streets (CC4, approved by Margulan Fri 22:55 "if it adds meaningfully"; done 22:38).**
 NOAA's list covers only motorway/trunk/primary/secondary/tertiary. Residential streets (70% of our edges) are missing, and they're where Helene flooded homes (Sagamore Dr, Bohler Rd, Peachtree Battle area). Compute thresholds for them ourselves, the same way NOAA does for major roads:
-10. AOI edges with no NOAA row, no bridge/tunnel tag → densify every `SAMPLE_SPACING_M` (10 m) → sample the HAND raster and the catchment raster (branch 0; HydroID = prefix·10000 + value).
+10. AOI edges with no NOAA row, no bridge/tunnel tag → densify every `SAMPLE_SPACING_M` (10 m) → sample each branch's HAND (int16 **mm**) and catchment rasters, for branch 0 + the 4 AOI level-path branches in `config.FIM_BRANCHES` (HydroID = branch prefix·10000 + value).
 11. Per (segment, HydroID): `threshold_hand` = min HAND over samples ≥ `MIN_ROAD_HAND_M` (same crossing floor as NOAA rows). Skip if > 25 m (NOAA's own cutoff).
 12. `threshold_q` = discharge at `threshold_hand` on that HydroID's branch-0 curve. Skip if above the curve's range.
 13. Append to C3 with `branch_id = 0` and a new column `source = "noah"` (NOAA rows get `source = "noaa"`; additive, CC4). Log counts by source.
