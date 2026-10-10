@@ -139,6 +139,7 @@
   .legend { right: calc(var(--gap) + var(--sr)); top: calc(var(--gap) + var(--st)); display: flex; gap: 14px; align-items: center; }
   .legend i { display: inline-block; width: 22px; height: 5px; border-radius: 3px; vertical-align: middle; margin-right: 6px; }
   .legend .l-fl { background: var(--flood); }
+  .legend .l-us { background: repeating-linear-gradient(90deg, #6b6356 0 4px, transparent 4px 8px); }
   .legend .l-lt { background: var(--flood); opacity: .3; }
   .legend .l-un { background: repeating-linear-gradient(90deg, var(--amber) 0 6px, transparent 6px 10px); }
   .fab { position: fixed; z-index: 4; right: calc(var(--gap) + var(--sr)); bottom: calc(var(--gap) + var(--sb) + 80px); width: 52px; height: 52px; border-radius: 50%;
@@ -261,7 +262,7 @@
   </section>
 </aside>
 
-<div class="chip legend" aria-hidden="true"><span><i class="l-fl"></i>Do not cross</span><span><i class="l-un"></i>Risky</span><span><i class="l-lt"></i>Later today</span></div>
+<div class="chip legend" aria-hidden="true"><span><i class="l-fl"></i>Do not cross</span><span><i class="l-un"></i>Risky</span><span><i class="l-lt"></i>Later today</span><span><i class="l-us"></i>Usual way</span></div>
 <button class="fab" id="locate" type="button" aria-label="Show my location"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg></button>
 
 <div class="card suggest" id="suggest" role="dialog" aria-labelledby="sgHead" hidden>
@@ -392,6 +393,8 @@ mapReady.then(() => {
   map.addLayer({ id: "all-later", type: "line", source: "all", filter: ["==", ["get", "s"], "later"], layout: { "line-cap": "round" }, paint: { "line-color": FLOOD, "line-width": ["interpolate", ["linear"], ["zoom"], 10, 1.5, 14, 3], "line-opacity": 0.28 } });
   map.addLayer({ id: "all-unc", type: "line", source: "all", filter: ["==", ["get", "s"], "uncertain"], paint: { "line-color": AMBER, "line-width": ["interpolate", ["linear"], ["zoom"], 10, 2, 14, 4.5], "line-dasharray": [1.6, 1.2], "line-opacity": 0.85 } });
   map.addLayer({ id: "all-fl", type: "line", source: "all", filter: ["==", ["get", "s"], "flooded"], layout: { "line-cap": "round" }, paint: { "line-color": FLOOD, "line-width": ["interpolate", ["linear"], ["zoom"], 10, 2.5, 14, 5.5], "line-opacity": 0.9 } });
+  map.addSource("usual", { type: "geojson", data: empty }); // the fastest way when Noah's route leaves it
+  map.addLayer({ id: "usual", type: "line", source: "usual", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": "#6b6356", "line-width": 4, "line-dasharray": [1.2, 1.6], "line-opacity": 0.8 } });
   map.addSource("route", { type: "geojson", data: empty });
   map.addLayer({ id: "route-casing", type: "line", source: "route", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": "#fffdf9", "line-width": 11 } });
   map.addLayer({ id: "route", type: "line", source: "route", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": INK, "line-width": 6 } });
@@ -429,7 +432,7 @@ const depH = () => Math.min(18, Math.floor(depMin / 60));
 function drawAll() { mapReady.then(() => map.getSource("all").setData(featsAt(flood.keys(), depH(), true))); }
 function clearRoute() {
   markers.forEach((m) => m.remove()); markers = [];
-  mapReady.then(() => { map.getSource("route").setData(empty); map.getSource("haz").setData(empty); });
+  mapReady.then(() => { map.getSource("route").setData(empty); map.getSource("usual").setData(empty); map.getSource("haz").setData(empty); });
 }
 function pin(p, cls, text) {
   const el = document.createElement("div"); el.className = `pin ${cls}`; el.textContent = text; el.title = p.label || "";
@@ -658,19 +661,22 @@ async function run(fresh = false) {
     if (!series) { say("Can't confirm roads", "Treat low roads near creeks as impassable. In an emergency call 911."); rowsEl.innerHTML = '<div class="empty">No answer for this route right now.</div>'; }
     return;
   }
-  const e = series ? atDep(series, depMin) : { ...holdOwnStreet(t), m: depMin };
-  if (!series) renderPlan(null, e, o, s, d, t);
+  const e = series ? atDep(series, depMin) : s.length ? { ...holdOwnStreet(t), m: depMin } : { ...t, m: depMin };
+  if (!series || !s.length) renderPlan(series, e, o, s, d, t);
   // map
   await mapReady; if (my !== token) return;
   const coords = t.route?.geometry?.coordinates || [];
   map.getSource("route").setData(coords.length ? { type: "Feature", geometry: t.route.geometry, properties: {} } : empty);
+  const ug = t.route?.usual_geometry, hasDetour = (t.route?.avoided || []).length > 0;
+  map.getSource("usual").setData(hasDetour && ug?.coordinates?.length ? { type: "Feature", geometry: ug, properties: {} } : empty);
   const near = (t.route?.corridor || []).filter((c) => { const f = flood.get(c.seg_id); return f && nearLine(f.geometry.coordinates[0], coords, NEAR_M); });
-  map.getSource("haz").setData(featsAt(near.map((c) => c.seg_id), h));
+  const avoidedIds = (t.route?.avoided || []).map((a) => a.seg_id ?? a);
+  map.getSource("haz").setData(featsAt([...new Set([...near.map((c) => c.seg_id), ...avoidedIds])], h));
   markers.forEach((m) => m.remove()); markers = [];
   if (o !== me) pin(o, "start", "");
   (e.stops || []).forEach((x) => { const p = s[x.i]; if (!p) return; const el = pin(p, okStop(x) ? "" : "hold", okStop(x) ? x.i + 1 : "✕"); el.dataset.n = x.i + 1; });
   pin(d, okStop(e.dest) ? "end" : "hold end", okStop(e.dest) ? "" : "✕");
-  if (!s.length) renderRoadsOnWay(near, h, e, d, t);
+  if (!s.length) renderRoadsOnWay([...avoidedIds.map((id) => ({ seg_id: id })), ...near], h, e, d, t);
   if (!fitted) { fit([...coords, [o.lon, o.lat], [d.lon, d.lat], ...s.map((p) => [p.lon, p.lat])]); fitted = true; }
 }
 function renderPlan(series, e, o, s, d, t) {
@@ -681,6 +687,15 @@ function renderPlan(series, e, o, s, d, t) {
   const apiLb = t?.leave_by_min?.current; // the API's latest departure that keeps every stop; the window's end = no cut
   const lb = series ? window_(series, depMin, allOk) : apiLb != null && apiLb < MAX_MIN ? { ok: apiLb, fail: apiLb + STEP } : { ok: null, fail: null };
   const where = n ? `all ${n} stops` : short(d.label);
+  if (!n && t && okStop(e.dest)) { // a single trip: say what Noah did about the flooding, then any deadline
+    const av = t.route?.avoided?.length || 0, st = e.dest?.street, mins = Math.round(t.route?.minutes || 0);
+    const streetBit = st && st.state_at_arrival && st.state_at_arrival !== "no_forecast_flooding"
+      ? ` ${st.name || "Your street"} itself is forecast ${st.state_at_arrival === "flooded" ? "to flood" : "risky"} by then: stop at the nearest open corner.` : "";
+    if (av) say(`Route around ${av} flooded road${av === 1 ? "" : "s"}`, `Noah's way takes ${mins} min. The usual way is forecast cut by flooding.${streetBit}`);
+    else if (lb.fail != null && lb.ok != null && lb.ok >= depMin - 2) say(`Leave by ${clock(atMin(lb.ok))}`, `to reach ${where} before the roads there are forecast to flood.${streetBit}`);
+    else say("No forecast flooding", `on the way to ${where}, ${mins} min.${streetBit}`);
+    return;
+  }
   if (all && lb.fail != null && lb.ok != null && lb.ok >= depMin - 2) say(`Leave by ${clock(atMin(lb.ok))}`, `to reach ${where} before ${n ? "their streets flood" : "the roads there are forecast to flood"}.`);
   else if (all) say(n ? `All ${n} stops` : "No forecast flooding", `${n ? "No forecast flooding on the way" : "on this route"} through ${endText()}.`);
   else if (!n) say("Hold this trip", `Leaving ${leaving}, the way to ${short(d.label)} is forecast cut by flooding first.`);
