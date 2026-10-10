@@ -36,14 +36,16 @@ Personas below are **examples** (not real people): Jordan, a nurse who works at 
 **They score:** fit with "people and places that get overlooked: access, safety, mobility" · polish · presentation · compelling use case.
 **Angle:** safety + overlooked places (residential streets, small creeks, people without apps).
 
+**Decided Sat 09:32 (J19):** Maya, a delivery driver · **Saturday replay** (the storm is over by Sunday: Noah + map pinned to one Saturday run via `NOAH_CYCLE`, labeled "Saturday [H] AM forecast, replayed") · Maya's stops lie **on the north watched routes** (the ones Noah actually texted about) · the **laptop map carries the demo**; texting gets one line · camera frames **only if one passes** (water in ≥ 2 consecutive checks + a human look).
+
 | Time | Beat | What's on screen | Say (key lines) |
 |---|---|---|---|
-| 0:00–0:20 | Hook | Title + one photo-free fact card | "More than half of flood drownings happen in a car. Two years ago Helene put Atlanta under its first-ever Flash Flood Emergency; firefighters rescued 25 people along Peachtree Creek. Yesterday, Hurricane Isaias hit Georgia." |
-| 0:20–0:40 | The gap | Map: county-wide warning vs streets | "Warnings are county-wide. Map apps react after a road is reported closed. And NOAA's road-level data covers major roads only; the residential streets where people actually live are left out." |
-| 0:40–1:50 | **Live demo: Jordan's commute** | iPhone (mirrored) → map | Text Noah: *"Can I drive home from work at 6 PM?"* (home/work saved earlier) → Noah: the street, the time, the detour, map link → tap → map at 6 PM: roads near creeks red, route around them, a camera snapshot nearby. "Noah never says a road is safe; it says when it floods and what to avoid." |
-| 1:50–2:35 | **Proof** | Validation card (+ evidence card) | Variant A: "Saturday at 8 AM Noah flagged [N] roads. Of the [M] roads reported closed by flooding later that day, Noah had flagged [K], about [X] hours ahead." Helene: "13.2 hours of warning; Windsor Parkway: Noah said 10 PM, the city closed it at 10:15." |
-| 2:35–2:55 | Who it serves | Three icons: resident / business / city | "No app; a text works for anyone. Free for residents. It covers the neighborhoods official data skips. Dispatch boards for small businesses and barricade lists for cities pay for it." |
-| 2:55–3:00 | Close | Tagline | "Noah. Know before the water does." |
+| 0:00–0:20 | Hook | 1 slide | "Yesterday Hurricane Isaias hit Atlanta. Peachtree Creek went from 18 to [peak] cubic feet per second overnight. More than half of flood drownings happen in a car, and some people can't stay home: Maya delivers for a pharmacy." |
+| 0:20–0:35 | The gap | 1 slide | "Warnings cover whole counties. Map apps react after a road is reported closed. And NOAA's road data covers major roads only, not the side streets where Maya's stops are." |
+| 0:35–1:00 | **Noah texted first** | Phone (mirrored): the real Saturday alert thread | "Saturday morning, before anyone asked, Noah texted: [real alert, e.g. 'forecast cut by flooding from ~8 AM at McLendon Dr']." |
+| 1:00–1:50 | **Maya's day, on the map (replay)** | Laptop: map at Saturday [H] AM, Maya's depot + stops A–E, departure time | Plan her stops → per-stop leave-by, earliest cut first; the route avoids flagged streets, ✕ where the usual way is cut, with the hour. "She can also just text Noah about any trip." (true today: one trip per text) |
+| 1:50–2:35 | **Proof** | 1 card | Isaias: "Noah flagged [street] on Friday at 11:50 PM; [gauge/closure] came [N] h later" (BL-18/19). Helene backtest: 13.2 h of warning; Windsor Pkwy forecast 10 PM, closed ~10:15 PM. |
+| 2:35–3:00 | Who it serves + close | 1 slide | "Drivers, residents, anyone: no app, a text works. Free for people; small businesses get a dispatch board. Noah: know before the water does." |
 
 **Q&A answers (2 min)**
 - *How accurate?* Gauge level: 13.2 h warning on Helene; street level: Windsor Pkwy 10 PM vs 10:15 PM closure; Isaias: [N/M]. Residential thresholds match NOAA's where both exist (no bias, correlation 0.74).
@@ -105,6 +107,8 @@ Personas below are **examples** (not real people): Jordan, a nurse who works at 
 | 5 | Camera evidence card (auto, BL-22) → pick the best one | Margulan | Sun 03:00 |
 | 6 | Tiger Data minimal store + one query (J11) | Priyanshu | after E2E |
 | 7 | Noah texts first: route watch (spec 017) built; keep the loop + camera monitor running all Saturday, pick the best alert thread | Margulan | Sun 03:00 |
+| 7a | **Social Good (J19):** capture by hand during the storm: one live question to Noah on the phone (real timestamps) + phone screen recording of the alert thread | Margulan | Sat, during the rain |
+| 7b | **Social Good (J19):** pick the replay run (most flagging near Maya's stops) + choose Maya's depot and 3–5 stops on the north watched routes; map Delivery chip re-pointed (I17) | Margulan picks · Priyanshu chip | Sat 20:00 |
 | 8 | Demo phone: Noah thread pre-seeded (home/work), QuickTime screen mirroring tested | Margulan | Sun 07:00 |
 | 9 | Roles (J8): Margulan tells the story + takes hydrology Q&A; Priyanshu drives the map/dispatch | Both | Sat 20:00 |
 | 10 | Backup video recorded; Devpost + README final | Both | Sun 04:00 / 07:00 |
