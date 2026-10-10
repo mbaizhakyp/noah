@@ -218,6 +218,15 @@ def warm() -> None:
         log.exception("warm-up failed; endpoints will retry on first request")
 
 
+@app.middleware("http")
+async def pages_revalidate(request, call_next):
+    """Pages always revalidate (ETag -> 304), so the iPad never keeps a stale build after an update (J31)."""
+    resp = await call_next(request)
+    if request.url.path.endswith((".html", "/")):
+        resp.headers["Cache-Control"] = "no-cache"
+    return resp
+
+
 @app.get("/", include_in_schema=False)
 def home() -> RedirectResponse:
     """The web map was retired Sat Oct 10 (J25); the site opens on Noah Operations."""

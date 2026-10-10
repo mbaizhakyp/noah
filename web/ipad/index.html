@@ -68,7 +68,10 @@
   .folded .ed { flex: none; color: var(--accent-ink); font-weight: 800; font-size: 15px; }
   .mk { flex: none; width: 14px; height: 14px; border-radius: 50%; border: 3px solid var(--ink); background: var(--card); }
   .mk.me { border-color: var(--me); background: var(--me); box-shadow: 0 0 0 4px rgba(31,111,235,.18); }
-  .mk.end { border-radius: 4px; background: var(--ink); }
+  .mk.end { width: 16px; height: 20px; border: 0; border-radius: 0; background: none; }
+  .mk.end svg, .disc.end svg { display: block; width: 100%; height: 100%; }
+  .destsvg .pb { fill: var(--ink); stroke: var(--card); stroke-width: 2; } .destsvg.hold .pb { fill: var(--flood); }
+  .destsvg circle { fill: var(--card); } .destsvg .x { stroke: var(--card); stroke-width: 2.6; stroke-linecap: round; fill: none; }
   .mk.n { width: 24px; height: 24px; border: 0; background: var(--ink); color: var(--paper); font-weight: 900; font-size: 12px; display: grid; place-items: center; }
   .fx { flex: none; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; color: var(--ink-3); }
   .fx svg, .ib svg, .tb svg { width: 18px; height: 18px; }
@@ -116,7 +119,7 @@
   .row.changed::before { content: ""; position: absolute; left: -10px; top: 10px; bottom: 10px; width: 4px; border-radius: 2px; background: var(--accent); }
   .disc { flex: none; display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: var(--ink); color: var(--paper); font-weight: 900; font-size: 14px; }
   .disc.hold { background: var(--flood); } .disc.lite { background: var(--sand); color: var(--ink); }
-  .disc.end { width: 24px; height: 24px; margin: 0 4px; border-radius: 6px; }
+  .disc.end { width: 22px; height: 28px; margin: 0 5px; border-radius: 0; background: none; }
   .disc.fl { background: var(--flood); } .disc.unc { background: var(--amber); color: var(--ink); }
   .row .name { flex: 1; min-width: 0; font-size: 17px; font-weight: 800; line-height: 1.2; }
   .row .name small { display: block; font-size: 13.5px; font-weight: 600; color: var(--ink-3); margin-top: 2px; }
@@ -150,7 +153,10 @@
   .pin { z-index: 3; width: 32px; height: 32px; border-radius: 50%; background: var(--card); border: 3px solid var(--ink); color: var(--ink); display: grid; place-items: center;
     font: 900 13px/1 "Overpass", sans-serif; box-shadow: 0 2px 6px rgba(0,0,0,.2); }
   .pin.start { width: 22px; height: 22px; border-width: 5px; }
-  .pin.end { width: 26px; height: 26px; background: var(--ink); color: var(--paper); border-radius: 7px; }
+  .dest { z-index: 4; display: flex; align-items: flex-end; gap: 4px; pointer-events: none; }
+  .dest svg { width: 28px; height: 36px; flex: none; filter: drop-shadow(0 2px 3px rgba(0,0,0,.28)); }
+  .dest .lbl { margin-bottom: 22px; padding: 3px 10px; border-radius: 999px; background: var(--card); color: var(--ink); white-space: nowrap;
+    font: 800 13px/1.2 "Overpass", sans-serif; box-shadow: 0 1px 4px rgba(0,0,0,.2); }
   .pin.hold { border-color: var(--flood); color: var(--flood); }
   .pin.hot { transform: scale(1.25); }
   .campin { z-index: 1; width: 22px; height: 22px; padding: 0; border-radius: 50%; background: var(--ink); border: 2px solid #fffdf9; display: grid; place-items: center;
@@ -237,7 +243,7 @@
     <div class="fields" id="fields">
       <div class="field"><span class="mk me" id="fromMk"></span><input id="from" placeholder="Your location" autocomplete="off" aria-label="Start"></div>
       <div id="stopsBox"></div>
-      <div class="field"><span class="mk end"></span><input id="to" placeholder="Where to?" autocomplete="off" aria-label="Destination">
+      <div class="field"><span class="mk end"><svg class="destsvg" viewBox="0 0 28 36" aria-hidden="true"><path class="pb" d="M14 35s11-11.6 11-21A11 11 0 0 0 3 14c0 9.4 11 21 11 21z"/><circle cx="14" cy="14" r="4.5"/></svg></span><input id="to" placeholder="Where to?" autocomplete="off" aria-label="Destination">
         <button class="fx" id="toClear" type="button" aria-label="Clear destination" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
       <button class="swap" id="swap" type="button" aria-label="Swap start and destination"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4v16M7 4 3.5 7.5M7 4l3.5 3.5M17 20V4M17 20l-3.5-3.5M17 20l3.5-3.5"/></svg></button>
       <div class="sug" id="sug" hidden></div>
@@ -438,6 +444,12 @@ function drawAll() { mapReady.then(() => map.getSource("all").setData(featsAt(fl
 function clearRoute() {
   markers.forEach((m) => m.remove()); markers = [];
   mapReady.then(() => { map.getSource("route").setData(empty); map.getSource("usual").setData(empty); map.getSource("haz").setData(empty); });
+}
+const DEST = (hold) => `<svg class="destsvg${hold ? " hold" : ""}" viewBox="0 0 28 36" aria-hidden="true"><path class="pb" d="M14 35s11-11.6 11-21A11 11 0 0 0 3 14c0 9.4 11 21 11 21z"/>${hold ? '<path class="x" d="M10 10l8 8M18 10l-8 8"/>' : '<circle cx="14" cy="14" r="4.5"/>'}</svg>`;
+function destPin(p, hold) {  // point B: a map pin whose tip sits on the place, with its name (J31)
+  const el = document.createElement("div"); el.className = "dest"; el.title = p.label || "Destination";
+  el.innerHTML = DEST(hold) + `<span class="lbl">${esc(short(p.label || "Destination"))}</span>`;
+  markers.push(new maplibregl.Marker({ element: el, anchor: "bottom-left", offset: [-14, 0] }).setLngLat([p.lon, p.lat]).addTo(map)); return el;
 }
 function pin(p, cls, text) {
   const el = document.createElement("div"); el.className = `pin ${cls}`; el.textContent = text; el.title = p.label || "";
@@ -680,7 +692,7 @@ async function run(fresh = false) {
   markers.forEach((m) => m.remove()); markers = [];
   if (o !== me) pin(o, "start", "");
   (e.stops || []).forEach((x) => { const p = s[x.i]; if (!p) return; const el = pin(p, okStop(x) ? "" : "hold", okStop(x) ? x.i + 1 : "✕"); el.dataset.n = x.i + 1; });
-  pin(d, okStop(e.dest) ? "end" : "hold end", okStop(e.dest) ? "" : "✕");
+  destPin(d, !okStop(e.dest));
   if (!s.length) renderRoadsOnWay([...avoidedIds.map((id) => ({ seg_id: id })), ...near], h, e, d, t);
   if (!fitted) { fit([...coords, [o.lon, o.lat], [d.lon, d.lat], ...s.map((p) => [p.lon, p.lat])]); fitted = true; }
 }
@@ -743,7 +755,7 @@ function renderPlan(series, e, o, s, d, t) {
       <div class="more"><div><p>${esc(wd.why)}</p><p>${wd.cls === "hold" ? "" : "Not a safety guarantee. "}${SAFETY}</p></div></div></button>`;
   });
   const dw = words(e.dest, series, (ee) => okStop(ee.dest), d.label);
-  html.push(`<button class="row" type="button" data-lat="${d.lat}" data-lon="${d.lon}"><div class="main"><span class="disc end${dw.cls === "hold" ? " hold" : ""}"></span>
+  html.push(`<button class="row" type="button" data-lat="${d.lat}" data-lon="${d.lon}"><div class="main"><span class="disc end">${DEST(dw.cls === "hold")}</span>
     <span class="name">${esc(short(d.label))}<small class="num">${okStop(e.dest) && e.dest?.arrive_min != null ? "End · arrive " + clock(atMin(depMin + e.dest.arrive_min)) : "End · skipped"}</small></span><span class="st ${dw.cls} num">${stHtml(dw.word)}</span></div>
     <div class="more"><div><p>${esc(dw.why)}</p><p>${SAFETY}</p></div></div></button>`);
   rowsEl.innerHTML = html.join("");
@@ -762,7 +774,7 @@ function renderRoadsOnWay(near, h, e, d, t) {
   }
   list.sort((a, b) => b.av - a.av || a.first - b.first);
   const arrive = e.dest?.arrive_min != null ? `Arrive ${clock(atMin(depMin + e.dest.arrive_min))}` : "";
-  const head = `<div class="row" data-lat="${d.lat}" data-lon="${d.lon}"><div class="main"><span class="disc end"></span><span class="name">${esc(short(d.label))}<small class="num">${esc(arrive)}${t.route?.minutes ? ` · ${Math.round(t.route.minutes)} min` : ""}</small></span></div></div>`;
+  const head = `<div class="row" data-lat="${d.lat}" data-lon="${d.lon}"><div class="main"><span class="disc end">${DEST(false)}</span><span class="name">${esc(short(d.label))}<small class="num">${esc(arrive)}${t.route?.minutes ? ` · ${Math.round(t.route.minutes)} min` : ""}</small></span></div></div>`;
   $("listHead").hidden = !list.length;
   if (!list.length) { rowsEl.innerHTML = head; return; }
   rowsEl.innerHTML = head + list.slice(0, 12).map((r) => {
