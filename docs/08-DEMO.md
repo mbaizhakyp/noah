@@ -70,4 +70,4 @@ They score: people and places that get overlooked (access, safety, mobility), po
 Replit (pinned), Tiger Data (not built), the sensor node / flood simulator / satellite build (pinned for after Hacklanta).
 
 ## Credits (Devpost, J23)
-Noah is Margulan's entry. Priyanshu Sethi built, during Hacklanta, the web map, the trip planner and routing API, the live-checks engine and the iPad app; he competes separately in Fintech.
+Noah is Margulan's entry. Priyanshu Sethi built, during Hacklanta, the web map, the trip planner and routing API, the live-checks engine and the iPad app, and competes separately in Fintech.
