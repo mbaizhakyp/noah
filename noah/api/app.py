@@ -39,24 +39,28 @@ def failed(what: str) -> dict:
 @app.get("/health")
 def health() -> dict:
     try:
-        return {"ok": True, "cycle": dispatch.active_cycle()}
+        return {"ok": True, "cycle": routing.current_cycle()}
     except Exception:  # noqa: BLE001 (spec 006: any failure -> conservative reply, never a crash)
         return {"ok": False, **failed("health")}
 
 
 @app.get("/status")
-def status(lat: float, lon: float, hours: int = config.MAX_LEAD_H) -> dict:
+def status(
+    lat: float, lon: float, hours: int = config.MAX_LEAD_H, cycle: str | None = None
+) -> dict:
     try:
-        return routing.status(lat, lon, hours)
+        return routing.status(lat, lon, hours, cycle)
     except Exception:  # noqa: BLE001 (spec 006: any failure -> conservative reply, never a crash)
         return failed("status")
 
 
 @app.get("/route")
-def route(from_: str = Query(alias="from"), to: str = Query(), depart_h: int = 0) -> dict:
+def route(
+    from_: str = Query(alias="from"), to: str = Query(), depart_h: int = 0, cycle: str | None = None
+) -> dict:
     try:
         (a_lat, a_lon), (b_lat, b_lon) = parse_latlon(from_), parse_latlon(to)
-        return routing.route(a_lat, a_lon, b_lat, b_lon, depart_h)
+        return routing.route(a_lat, a_lon, b_lat, b_lon, depart_h, cycle)
     except Exception:  # noqa: BLE001 (spec 006: any failure -> conservative reply, never a crash)
         return failed("route")
 
@@ -66,7 +70,7 @@ def warm() -> None:
     """Load graph + active cycle once at startup so the first request is fast."""
     try:
         dispatch.graph_state()
-        routing.flood_index(dispatch.active_cycle())
+        routing.flood_index(routing.current_cycle())
         routing.coverage()
     except Exception:
         log.exception("warm-up failed; endpoints will retry on first request")

@@ -8,7 +8,7 @@
 - Official warnings are county-wide, not street-level.
 - Map apps react only after someone reports a closure.
 - Small ungauged creeks get the least warning.
-- Local story: Hurricane Helene, Sep 26–27, 2024. Peachtree Creek at Atlanta (USGS 02336300 / NWS AANG1) crossed minor flood stage (17 ft) at **9:15 PM EDT Sep 26** and crested at **23.75 ft at 8:15 AM Sep 27**, nearly 4 ft above major flood stage (20 ft). Source: USGS IV data, pulled Oct 9, 2026.
+- Flooding hits Georgia roads in ordinary storms, not only hurricanes: urban creeks rise within hours of heavy rain.
 
 ## What Noah does
 1. **Forecasts road flooding.** For every drivable road segment in the coverage area: will it flood in the next 18 h, and from roughly which hour.
@@ -23,11 +23,11 @@ People anywhere in Georgia who have to drive during a flood event, especially al
 Noah covers **every road in Georgia's 159 counties** in two layers:
 1. **Statewide hazard layer (all of Georgia from day 1).** NWS flood and flash-flood warnings, MRMS flash-flood nowcasts, NWPS river forecasts and flood categories, the NWM per-reach forecast, crowd/NWS storm reports, traffic cameras (Windy, 2,467 in Georgia), live TomTom incidents (closures, flooding category) and Synoptic rain gauges (289 GA stations). 511GA was dropped (not doable). See `07-DATA_SOURCES.md`.
 2. **Road-level flood timing (NWM + HAND), rolled out one HUC8 at a time.** HAND data is public and free (CIROH bucket, about 250 MB per HUC8; 53 HUC8s touch Georgia). Order:
-   1. `03130001` Upper Chattahoochee (metro Atlanta, already downloading). It likely includes **Big Creek at Alpharetta, forecast to reach minor flood Sun 8 PM from Isaias (verify the HUC)**.
+   1. `03130001` Upper Chattahoochee (metro Atlanta, already downloading).
    2. The HUC8s covering the Yellow and South rivers (east metro, action stage forecast).
-   3. Southwest Georgia basins under Isaias flood warnings.
+   3. Southwest Georgia basins (frequent river flooding).
    4. The rest of Georgia.
-- **Peachtree Creek (HUC10 `0313000112`, gauge 02336300)** stays our **Helene validation site** (spec 005). It's no longer the coverage limit.
+- Peachtree Creek (HUC10 `0313000112`) is no longer the coverage limit.
 - Inside Georgia but in a HUC8 not processed yet: Noah still gives the statewide hazards and official warnings, and says plainly that road-level timing isn't available there yet (proposed state `no_road_forecast`, CC6).
 
 ## What Noah is not (state these to judges)
@@ -107,16 +107,17 @@ Both build with Claude Code. No lab code is reused; everything is built fresh du
 | D1 | Team | Margulan + Priyanshu |
 | D2 | Track + side challenges | **FINAL (Oct 9, Margulan):** main track **Social Good**. Side challenges (max 3): **Photon iMessage + MLH Gemini + Replit Small Business**. Mercedes CV, Tiger Data, Domain Name and Zero Data are out. |
 | D3 | Name / domain | Noah; no domain purchase |
-| D4 | Coverage | **DECIDED (Margulan, Fri Oct 9 23:25; CC6 narrowed).** Road-level flood timing (NWM + HAND) covers **HUC8 03130001, Upper Chattahoochee** (metro Atlanta, incl. Big Creek at Alpharetta for Isaias). Elsewhere in Georgia: `no_road_forecast` + official warnings (statewide warning layer = Priyanshu, after the Sat 14:00 E2E). All of Georgia, basin by basin, is the roadmap (13 GB of HAND + a statewide graph won't fit this weekend). Peachtree Creek HUC10 = Helene validation site. Checks only within 5 km of the user / 1 km of a searched route (CC6 #2). |
-| D5 | Replay clock | **FINAL (Margulan, Oct 9): demo "now" = NWM cycle `20240926T12Z` (8:00 AM EDT, Sep 26).** It was the first run to forecast Peachtree Creek above minor flood flow, 13.2 h before the observed crossing (9:15 PM), and the most accurate on timing. It also fits the commute story: leave for work at 8 AM, ask about the drive home at ~6 PM (+10 h). |
+| D4 | Coverage | **DECIDED (Margulan, Fri Oct 9 23:25; CC6 narrowed).** Road-level flood timing (NWM + HAND) covers **HUC8 03130001, Upper Chattahoochee** (metro Atlanta, incl. Big Creek at Alpharetta). Elsewhere in Georgia: `no_road_forecast` + official warnings (statewide warning layer = Priyanshu, after the Sat 14:00 E2E). All of Georgia, basin by basin, is the roadmap (13 GB of HAND + a statewide graph won't fit this weekend). Checks only within 5 km of the user / 1 km of a searched route (CC6 #2). |
+| D5 | Forecast clock | **CHANGED (Priyanshu, Sat Oct 10 ~01:30 ET): no replay demo. Noah is an everyday app for all days and conditions.** "Now" is always the **newest live NWM cycle** (C6 cycles tagged `"event": "live"`), refreshed hourly. Historic event replays are not part of the product, UI or demo. |
 | D6 | Output wording | Four frozen states: **Do not cross / Uncertain: treat as impassable / No forecast flooding (not a safety guarantee) / Outside coverage** (now = outside Georgia; CC6 proposes adding **No road-level forecast here yet**). Exact text in `02-ARCHITECTURE.md` §5. |
 | D7 | Data store | No database. Parquet + GeoJSON files, loaded into memory by the API. |
-| D10 | Forecast vs real-time | **Forecast first (Margulan, Oct 9).** The product predicts which roads flood in the next 18 h. "Now" is hour 0 of the same map, from NWM's current-conditions analysis: same pipeline, one extra file per cycle. Observed real-time data (gauge, team photos, cameras) is a **confirmation layer**, never the core. We prove the forecast was real with the Helene replay (005) and, if GO, Isaias (011). |
+| D10 | Forecast vs real-time | **Forecast first (Margulan, Oct 9).** The product predicts which roads flood in the next 18 h. "Now" is hour 0 of the same map, from NWM's current-conditions analysis: same pipeline, one extra file per cycle. Observed real-time data (gauge, team photos, cameras) is a **confirmation layer**, never the core. Runs on the newest live cycle every hour (D5, Sat 01:30); no event replays in the product. |
 | D8 | Hosting | Static map on GitHub Pages (`/web`). API + iMessage relay run on a laptop, exposed with a `cloudflared` quick tunnel during judging. |
 
-## Demo script (target, 3 min)
-1. **Hook (20 s).** This weekend Hurricane Isaias put all of Georgia under a state of emergency. Two years ago Helene sent Peachtree Creek to a record while people were driving home.
-2. **Map replay (60 s).** It's 8:00 AM. Drag the slider and watch roads along Peachtree and Nancy Creek go amber, then red, from about 9 PM, hours before the crest. Show the lead-time number from spec 005 and 2–3 streets confirmed by news photos.
-3. **Live iMessage (60 s).** On a real phone: "can I get home to [address] tonight?" Noah answers "Do not cross X; here's a detour" with a map link.
-4. **How + limits (30 s).** NWM → rating curves → HAND → roads, statewide hazard feeds for all of Georgia. Road timing is river/creek only. Never says safe.
-5. **Ask/close (10 s).**
+## Demo script (target, 3 min): live, any day
+1. **Hook (20 s).** Map apps tell you a road is flooded after someone reports it. Noah tells you hours before, for your street and your drive, every day.
+2. **Present (40 s).** Open Noah, tap **Use my location** (or type a Georgia address) → **Check my area**: what's happening within 5 km *right now* (forecast hour 0, live NWS warnings, rain, closures, cameras near you).
+3. **Future (40 s).** Drag the time bar or press Play: roads within 5 km turn amber, then red, across the next 18 hours from the latest NOAA forecast. Show the days-ahead outlook for the area.
+4. **Route (40 s).** Search a destination → Noah's route around forecast-flooded roads, the hazards along it, then **Start in Google Maps / Apple Maps**.
+5. **Text (20 s).** Same answer by text: "can I get to work at 8?" → plain-language reply + map link.
+6. **How + limits (20 s).** NOAA forecast → road thresholds → routing, plus live statewide feeds. Road timing = creek/river flooding in metro Atlanta for now. Never says a road is safe.

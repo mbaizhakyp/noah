@@ -48,3 +48,15 @@ def test_trip_box_keeps_nodes_near_the_trip_only():
     xy = np.array([[-84.40, 33.80], [-84.39, 33.81], [-84.00, 34.50]])  # node 3 is ~80 km away
     kept = trip_nodes(ids, xy, (-84.40, 33.80), (-84.39, 33.81), margin_km=5)
     assert set(kept) == {1, 2}
+
+
+def test_latest_live_cycle_ignores_historic_runs():
+    from noah.api.routing import latest_live
+
+    cycles = [
+        {"cycle": "20240926T12Z", "event": "helene", "issue_time": "2024-09-26T12:00:00Z"},
+        {"cycle": "20261010T02Z", "event": "live", "issue_time": "2026-10-10T02:00:00Z"},
+        {"cycle": "20261010T03Z", "event": "live", "issue_time": "2026-10-10T03:00:00Z"},
+    ]
+    assert latest_live(cycles) == "20261010T03Z"
+    assert latest_live(cycles[:1]) is None

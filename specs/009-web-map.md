@@ -16,10 +16,10 @@
 >   - A **destination search box**: Photon geocoder, verified CORS-friendly and keyless, limited to the Georgia bbox.
 >   - After a route: **"Start in Google Maps" / "Start in Apple Maps"** buttons, with up to 3 waypoints sampled from Noah's route, plus a note that those apps pick their own roads between the points.
 > - **Same design as `web/dispatch.html`** (I12): palette, header, side panel + map, cards, badges, legend, and a mobile stack.
-> - **Footer follows the scenario:** "Forecast replay of Hurricane Helene…" for Helene cycles; "Live forecast…" for current cycles.
+> - **Live only (Sat 01:30): no replay, no scenario switch, no validation panel.** The page always shows the newest live cycle (C6 `event == "live"`) with "Latest forecast … issued …"; `?cycle=` pins a cycle for agent links. No live cycle yet → a banner, and the inputs are disabled.
 > - **Served by the API** (same origin), not GitHub Pages.
 
-The judge-facing visual. Drag an hour slider and watch Georgia roads turn amber, then red, hours before the water reaches them (Helene replay on Peachtree Creek, live Isaias statewide). The same page is the link the agent texts, so it must work on a phone.
+The judge-facing visual. Drag an hour slider and watch Georgia roads turn amber, then red, hours before the water reaches them (always the latest live forecast). The same page is the link the agent texts, so it must work on a phone.
 
 ## Non-goals
 Base-road rendering (the base map already draws roads), user accounts, editing, multiple cycles on screen at once, a build step.
@@ -38,19 +38,19 @@ A single static `web/index.html`.
    - amber line `#f59e0b` (width 3): `t_uncertain <= t` and not red
    - hidden otherwise.
    Plus a "Play" button that steps through one hour per second.
-4. **Legend** with text labels: "Do not cross (forecast flooded)", "Uncertain: treat as impassable". Footer: "Forecast replay of Hurricane Helene, Sep 26–27, 2024. River/creek flooding only. Not a safety guarantee. Emergency: 911."
+4. **Legend** with text labels: "Do not cross (forecast flooded)", "Uncertain: treat as impassable". Footer: coverage + "River/creek flooding only. Not a safety guarantee. Emergency: 911."
 5. **Route mode:** if `from`, `to` and `api` are in the URL, call `{api}/route?...&depart_h={t}`, draw the cyan `#22d3ee` line with start/end markers, and show minutes plus the count of avoided segments. Show `no_route` and `out_of_coverage` as plain banners using the §5 wording.
 6. Click a red or amber segment → popup with the street name, the state from §5, and the local time it enters that state.
 7. **Validation panel** (collapsible, if C8 exists): lead time ("NWM-based warning N h before Peachtree Creek reached flood stage") plus `validation.png`.
 8. Mobile: full-screen map, the slider docked at the bottom, tap targets ≥ 44 px, no horizontal scroll.
-9. **Scenario switch** (spec 011): if C6 has more than one `events` entry, show a small dropdown ("Helene 2024 / Isaias 2026") that reloads with that event's `demo_cycle`. Hidden if there's only one event.
+9. ~~Scenario switch~~ removed (everyday live app).
 10. **Optional layers** (each only if its source exists; a toggle in the legend; off by default on mobile):
     - Low spots (C11, spec 012): dotted violet `#a78bfa` lines, popup with the §5 low-spot text.
     - Cameras (the `cameras` field of the `/status` or `/route` response, spec 013): markers for those cameras only. The popup shows the water result and time, plus a **"View camera" button that loads the current snapshot only on tap** (still image, no video), linked to the camera's Windy page, its assessment and time, and the credit "Webcams provided by Windy.com" (image links to its webcam page). Needs `api` in the URL.
 
 ## Acceptance criteria
 - [ ] Open `web/index.html` via `python -m http.server -d web` → fixture roads change color as the slider moves.
-- [ ] With the real C5 for `DEMO_CYCLE`, Peachtree and Nancy Creek roads go amber, then red, as the slider advances. Screenshot in PROGRESS.
+- [ ] With the newest live C5, flagged roads in the checked area go amber, then red, as the slider advances.
 - [ ] A C10 URL with `from`, `to` and `api` draws a route from the running API.
 - [ ] Works in iPhone Safari (open the link from an actual iMessage) and in the 375 px-wide browser preset.
 - [ ] No banned words (§5) anywhere in the page text.

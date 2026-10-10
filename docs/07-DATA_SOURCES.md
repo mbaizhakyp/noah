@@ -89,7 +89,7 @@ Verified and working (each one fetched with real data, Oct 9, 2026). Coverage: G
 72. **Landsat**: Planetary Computer `landsat-c2-l2`
 73. **Copernicus Global Flood Monitoring**: `stac.eodc.eu/api/v1/collections/GFM`
 74. **NASA LANCE MODIS flood product**: NASA CMR `MCDWD_L3_F3_NRT`
-75. **Maxar Open Data (Helene before/after)**: `maxar-opendata.s3.amazonaws.com/events/HurricaneHelene-Oct24/`
+75. **Maxar Open Data** (high-res imagery after major events): `maxar-opendata.s3.amazonaws.com/events/`
 76. **NAIP aerial imagery**: Planetary Computer `naip`
 
 ## Population and community

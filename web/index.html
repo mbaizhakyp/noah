@@ -96,8 +96,7 @@
 </header>
 <main>
   <aside>
-    <label for="cycle">Forecast</label>
-    <select id="cycle"></select>
+    <div id="issued" class="summary">Loading the latest forecast…</div>
 
     <div class="section">
       <h2>Where are you?</h2>
@@ -132,12 +131,6 @@
     </div>
     <div id="results"></div>
 
-    <details id="validation" hidden>
-      <summary>Does the forecast work? (Helene check)</summary>
-      <div id="valText" class="summary"></div>
-      <img src="data/validation.png" alt="NWM forecast vs observed stage at Peachtree Creek during Helene">
-    </details>
-
     <footer id="footer"></footer>
   </aside>
   <div class="mapwrap">
@@ -169,9 +162,9 @@ let meta = null, cyc = null, issue = null, flood = new Map();
 let origin = null, dest = null, mode = null, lastRoute = null, playing = null, rerouteTimer = null;
 let markers = [], shown = [], lastRows = [];
 
+const live = () => (meta?.cycles || []).filter((c) => c.event === "live").sort((a, b) => a.issue_time.localeCompare(b.issue_time));
 const hourTime = (h) => new Date(issue.getTime() + h * 3600e3);
 const local = (d) => fmt.format(d);
-const isHelene = () => cyc && cyc.event === "helene";
 
 // ---------- map ----------
 const map = new maplibregl.Map({ container: "map", style: "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
@@ -335,7 +328,7 @@ async function checkArea() {
   mode = "area"; dest = null; lastRoute = null; $("directions").hidden = true; $("toPicked").textContent = "";
   busy("area", true);
   try {
-    const r = await fetch(`${API}/status?lat=${origin.lat}&lon=${origin.lon}&hours=18`).then((x) => x.json());
+    const r = await fetch(`${API}/status?lat=${origin.lat}&lon=${origin.lon}&hours=18&cycle=${cyc.cycle}`).then((x) => x.json());
     await mapReady; clearMarkers();
     map.getSource("route").setData(empty);
     map.getSource("area").setData(circle(origin.lat, origin.lon, RADIUS_KM));
@@ -365,7 +358,7 @@ async function findRoute() {
   mode = "route"; busy("go", true);
   const h = +$("hour").value;
   try {
-    const r = await fetch(`${API}/route?from=${origin.lat},${origin.lon}&to=${dest.lat},${dest.lon}&depart_h=${h}`).then((x) => x.json());
+    const r = await fetch(`${API}/route?from=${origin.lat},${origin.lon}&to=${dest.lat},${dest.lon}&depart_h=${h}&cycle=${cyc.cycle}`).then((x) => x.json());
     lastRoute = r;
     await mapReady; clearMarkers();
     map.getSource("area").setData(empty);
@@ -483,36 +476,27 @@ $("play").onclick = () => {
 
 // ---------- forecast cycle ----------
 async function loadCycle(id) {
-  cyc = meta.cycles.find((c) => c.cycle === id) || meta.cycles.find((c) => c.cycle === meta.demo_cycle);
+  cyc = live().find((c) => c.cycle === id) || live().at(-1);
   issue = new Date(cyc.issue_time);
+  $("issued").textContent = `Latest forecast: NOAA National Water Model, issued ${fmtDay.format(issue)}. Updates hourly.`;
   const gj = await fetch(`data/flood_${cyc.cycle}.geojson`).then((r) => r.json());
   flood = new Map(gj.features.map((f) => [f.properties.seg_id, f]));
-  $("footer").textContent = (isHelene()
-    ? `Forecast replay of ${meta.events?.helene?.label || "Hurricane Helene"} from NOAA National Water Model forecasts (issued ${fmtDay.format(issue)}). `
-    : `Live forecast from the NOAA National Water Model, issued ${fmtDay.format(issue)}. `) +
-    "Road-level timing covers metro Atlanta (Upper Chattahoochee). River and creek flooding only. Not a safety guarantee. Never drive into water. Emergency: 911.";
+  $("footer").textContent = "Road-level timing covers metro Atlanta (Upper Chattahoochee). River and creek flooding only. Not a safety guarantee. Never drive into water. Emergency: 911.";
   applyHour();
   if (mode === "area") checkArea(); else if (mode === "route") findRoute();
 }
 
 (async () => {
-  meta = await fetch("data/cycles.json").then((r) => r.json());
-  const pick = P.get("cycle") || meta.demo_cycle;
-  const sorted = [...meta.cycles].sort((a, b) => a.issue_time.localeCompare(b.issue_time));
-  $("cycle").replaceChildren(...sorted.map((c) => {
-    const o = document.createElement("option"); o.value = c.cycle;
-    const ev = meta.events?.[c.event]?.label?.split(",")[0] || c.event;
-    o.textContent = `${fmtDay.format(new Date(c.issue_time))} · ${ev}${c.cycle === meta.demo_cycle ? " (demo)" : ""}`;
-    o.selected = c.cycle === pick; return o;
-  }));
-  $("cycle").onchange = () => loadCycle($("cycle").value);
+  meta = await fetch("data/cycles.json", { cache: "no-store" }).then((r) => r.json());
+  if (!live().length) {
+    $("issued").textContent = "";
+    banner("No live forecast has been published yet. The forecast pipeline updates hourly; check back shortly. In an emergency call 911.", "warn");
+    for (const id of ["locate", "area", "go"]) $(id).disabled = true;
+    return;
+  }
+  const pick = P.get("cycle"); // agent links may pin the cycle they answered from
   if (P.get("t")) $("hour").value = Math.max(0, Math.min(18, +P.get("t")));
   await loadCycle(pick);
-  fetch("data/validation.json").then((r) => (r.ok ? r.json() : null)).then((v) => {
-    if (!v || v.lead_time_h == null) return;
-    $("validation").hidden = false;
-    $("valText").textContent = `In the Helene replay, the NOAA National Water Model forecast Peachtree Creek reaching flood stage ${v.lead_time_h} hours before it actually did (USGS gauge ${v.gauge.usgs}, observed ${fmtDay.format(new Date(v.observed.minor_cross_utc))}).`;
-  }).catch(() => {});
   // C10 links from the agent: ?from=lat,lon&to=lat,lon  or  ?near=lat,lon
   const ll = (s) => { const [lat, lon] = (s || "").split(",").map(Number); return isFinite(lat) && isFinite(lon) ? { lat, lon } : null; };
   const f = ll(P.get("from")), t = ll(P.get("to")), n = ll(P.get("near"));

@@ -21,9 +21,9 @@ A FastAPI server that answers "what's flooding near here" and "route me from A t
 Auth, a database, multiple simultaneous cycles per request, turn-by-turn directions, travel-time-aware flooding along the route (`ROUTE_BUFFER_H` covers it).
 
 ## Inputs
-- C4 `graph.graphml`, C5 `flood_<DEMO_CYCLE>.geojson`, C6 `cycles.json`, C7 `aoi.geojson`.
+- C4 `graph.graphml`, C5 `flood_<cycle>.geojson` (newest live cycle), C6 `cycles.json`, C7 `aoi.geojson`.
 - Paths from `config.py`, with a `NOAH_DATA=fixtures` env override for fixture mode.
-- Active cycle: env `NOAH_CYCLE` if set (e.g., an Isaias cycle for spec 011), otherwise C6 `demo_cycle`. Switching scenario means a restart with a different env and no code change.
+- Active cycle: optional `cycle` query param (the map sends the cycle it shows); else env `NOAH_CYCLE` (testing); else **the newest C6 cycle with `event == "live"`** (`routing.current_cycle()`, Sat 01:30). No live cycle → the §5 error reply.
 
 ## Outputs
 C9 exactly. `map_url` follows C10.

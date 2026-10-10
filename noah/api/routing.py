@@ -7,6 +7,7 @@ graph is held in memory once (integration items I4/I5).
 import itertools
 import json
 import logging
+import os
 from dataclasses import dataclass
 from functools import lru_cache
 
@@ -20,8 +21,8 @@ from shapely.ops import transform
 
 from noah import config
 from noah.api.dispatch import (
-    active_cycle,
     blocked_weight,
+    cycles_meta,
     flood_state,
     graph_state,
     nearest_node,
@@ -30,6 +31,23 @@ from noah.api.dispatch import (
 log = logging.getLogger("routing")
 _to_metric = Transformer.from_crs("EPSG:4326", config.METRIC_CRS, always_xy=True).transform
 SEVERITY = {"flooded": 2, "uncertain": 1, "no_forecast_flooding": 0}
+
+
+# ---------- which forecast ----------
+
+
+def latest_live(cycles: list[dict]) -> str | None:
+    """Newest cycle tagged event == "live" (everyday app: always the latest forecast)."""
+    live = sorted((c for c in cycles if c.get("event") == "live"), key=lambda c: c["issue_time"])
+    return live[-1]["cycle"] if live else None
+
+
+def current_cycle() -> str:
+    """Env NOAH_CYCLE pins a cycle (testing); otherwise the newest live cycle in C6."""
+    c = os.environ.get("NOAH_CYCLE") or latest_live(cycles_meta()["cycles"])
+    if not c:
+        raise LookupError("no live forecast published yet")
+    return c
 
 
 # ---------- pure logic ----------
@@ -160,7 +178,7 @@ def segment_row(fi: FloodIndex, p: dict, h: int) -> dict:
 
 
 def status(lat: float, lon: float, hours: int, cycle: str | None = None) -> dict:
-    cycle = cycle or active_cycle()
+    cycle = cycle or current_cycle()
     pt = Point(lon, lat)
     reason = coverage_state(pt, *coverage())
     if reason:
@@ -189,7 +207,7 @@ def map_url(cycle: str, depart_h: int, a: tuple, b: tuple) -> str:
 
 
 def route(a_lat, a_lon, b_lat, b_lon, depart_h: int, cycle: str | None = None) -> dict:
-    cycle = cycle or active_cycle()
+    cycle = cycle or current_cycle()
     a, b = (a_lon, a_lat), (b_lon, b_lat)
     empty = {"geometry": None, "minutes": None, "avoided": [], "corridor": [], "cycle": cycle}
     if depart_h > config.MAX_LEAD_H:
