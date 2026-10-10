@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | Owner | Margulan |
-| Status | Draft |
+| Status | Approved (Margulan, Fri 22:05) |
 | Time box | 1 h (about 250 MB of downloads) |
 | Depends on | — (public bucket, **no AWS account needed**) |
 | Produces | rasters in `data/raw/hand/03130001/`, C2 `data/interim/rating.parquet` |

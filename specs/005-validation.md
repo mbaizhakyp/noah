@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | Owner | Margulan |
-| Status | Draft |
+| Status | Approved (Margulan, Fri 22:05) |
 | Time box | 3 h (part A ≤ 45 min before midnight) |
 | Depends on | C1 (gauge-only is enough for part A), C5 for part C |
 | Produces | C8 `web/data/validation.json`, `web/data/validation.png`, final `DEMO_CYCLE` (D5) |

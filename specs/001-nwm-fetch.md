@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | Owner | Margulan |
-| Status | Draft |
+| Status | Approved (Margulan, Fri 22:05) |
 | Time box | 2 h |
 | Depends on | — (AOI reach list improves once 002 lands; the gauge reach alone is enough for the go/no-go) |
 | Produces | C1 `data/interim/nwm/<cycle>.parquet` |

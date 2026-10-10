@@ -38,11 +38,11 @@ Never start a lower priority while a higher one in your lane is unfinished, **ex
 ## Specs
 | Spec | Title | Owner | Pri | Time box | Status |
 |---|---|---|---|---|---|
-| 001 | NWM forecast fetch + subset | Margulan | P0 | 2 h | Draft |
-| 002 | FIM HAND + rating curves fetch | Margulan | P0 | 2 h | Draft |
+| 001 | NWM forecast fetch + subset | Margulan | P0 | 2 h | In progress (Helene download running) |
+| 002 | FIM HAND + rating curves fetch | Margulan | P0 | 1 h | **Done** (21:57) |
 | 003 | AOI, road graph, HAND sampling | Margulan | P0 | 3 h | Draft |
 | 004 | Flood times per segment | Margulan | P0 | 2 h | Draft |
-| 005 | Validation: lead time + street truth | Margulan | P1 | 3 h | Draft |
+| 005 | Validation: lead time + street truth | Margulan | P1 | 3 h | Part A coded, waiting on 001 |
 | 011 | Hurricane Isaias live run (bonus demo) | Margulan | P1 | 2 h | Draft |
 | 012 | Street low spots (storm-drain stand-in) | Margulan | P3 | 2 h | Draft |
 | 006 | Routing + HTTP API | Priyanshu | P0 | 3 h | Draft |
@@ -99,6 +99,9 @@ _Append-only. Format: `HH:MM Name — what was done — how verified (command)`.
 - 20:45 — Live NWM latency measured: cycle t22z (Oct 9) f018 landed in GCS at 23:48Z (~1 h 45 min). — GCS JSON API listing, prefix `nwm.20261009/short_range/nwm.t22z...f018`
 - 20:45 — Isaias check: 20261009T22Z forecast at 2047989 = 1.1 / 1.6 / 4.1 / 17.5 / 30.0 / 25.5 m³/s at f003/6/9/12/15/18 (peak ≈ 1,061 cfs, below action 3,630). Observed 2026-10-09 20:00 EDT: 2.08 ft, 18 cfs. Reading NWM needed `h5py` alongside `h5netcdf`. — `uv run --with xarray --with h5netcdf --with h5py`, `xr.open_dataset(..., engine="h5netcdf")["streamflow"].sel(feature_id=2047989)`
 - 21:45 — HAND data found in a public bucket, no AWS account needed: `s3://ciroh-owp-hand-fim/hand_fim_4_9_9_0/03130001/` (OWP HAND-FIM v4.9.9.0, 461 files, 0.79 GB). Branch 0: HAND 106 MB, catchments 3.7 MB, hydroTable 110.6 MB; HUC-level `hydrotable.parquet` 3.3 MB. — anonymous S3 ListObjectsV2 over HTTPS
+- 21:57 — **Spec 002 done.** HAND + catchments (EPSG:5070, 10 m, bounds 1042230,1247150 – 1147330,1385760; HAND nodata 32767, catchments nodata 0) and `hydrotable.parquet` from the public CIROH bucket. Catchment rasters store short IDs: **HydroID = 1274·10000 + raster value** (`branches/0/hydroid_prefix.txt`). C2 written: 190 AOI HydroIDs, 187 with monotonic curves (3 missing), 107 reaches, 15,708 rows. Gauge HydroID 12740437: (stage m, q m³/s) = (4.3, 218), (8.5, 795), (12.8, 2052). — `uv run python -m noah.pipeline.fetch_hand`
+- 21:57 — **R15 finding:** `osm_roads_fimpact.csv` has, per OSM way × HydroID, `threshold_hand` (m) and `threshold_discharge` (m³/s), i.e. the flow at which that road gets wet. 23,835 rows, 11,534 OSM ways, 37 branches. Northside Dr NW at the gauge reach: 277 m³/s (9,792 cfs) on the level-path branch, 367 m³/s on branch 0. Helene's observed peak was 566 m³/s. See R15 for the proposal.
+- 21:52 — Spec 001 running: `fetch_nwm --event helene --huc8` (all 1,895 HUC8 reaches, a superset of the AOI, so one 6 GB pass covers 004 too; raw files deleted per lead because only 7 GB of disk is free). Deviation from spec 001's reach list, logged here.
 
 ### Priyanshu
 - _(Priyanshu's section: only Priyanshu or Priyanshu's agent edits it)_
