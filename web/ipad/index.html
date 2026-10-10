@@ -1,0 +1,719 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Noah</title>
+<meta name="description" content="Which streets are forecast to flood, and when to leave.">
+<meta name="theme-color" content="#faf7f2">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Noah">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Overpass:wght@400;600;700;800;900&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<style>
+  /* Spec 021, docs/09-IPAD_APP.md: warm paper. Orange is for controls only; roads and stops use ink, red and amber. */
+  :root {
+    --paper: #faf7f2; --card: #fffdf9; --sand: #efe8dc; --line: #e7dfd2;
+    --ink: #1c1a17; --ink-2: #4f4a42; --ink-3: #6b6356;
+    --accent: #c2410c; --accent-soft: #fbe9dc;
+    --flood: #d92d20; --flood-ink: #a8231a; --flood-soft: #fbe4e1;
+    --amber: #f2a100; --amber-ink: #8a5100; --amber-soft: #fbefd5;
+    --water: #bfd3d6;
+    --shadow: 0 1px 2px rgba(28,26,23,.06), 0 14px 36px -12px rgba(28,26,23,.28);
+    --ease: cubic-bezier(.2,.9,.25,1);
+    --top: 76px; --banner: 150px;
+    --sl: env(safe-area-inset-left, 0px); --sr: env(safe-area-inset-right, 0px); --st: env(safe-area-inset-top, 0px); --sb: env(safe-area-inset-bottom, 0px);
+  }
+  * { box-sizing: border-box; margin: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; overflow: hidden; background: var(--paper); color: var(--ink);
+    font: 18px/1.4 "Overpass", system-ui, -apple-system, sans-serif; -webkit-font-smoothing: antialiased;
+    -webkit-user-select: none; user-select: none; overscroll-behavior: none; }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+  .num { font-variant-numeric: tabular-nums; }
+  [hidden] { display: none !important; }
+
+  /* ---------- top bar ---------- */
+  .top { position: fixed; left: 0; right: 0; top: 0; height: calc(var(--top) + var(--st)); padding: var(--st) calc(24px + var(--sr)) 0 calc(24px + var(--sl));
+    display: flex; align-items: center; gap: 22px; background: var(--paper); border-bottom: 1px solid var(--line); z-index: 5; }
+  .brand { font-size: 27px; font-weight: 900; letter-spacing: -.02em; color: var(--accent); }
+  .seg { display: inline-flex; background: var(--sand); border-radius: 14px; padding: 4px; gap: 2px; }
+  .seg button { min-height: 48px; padding: 0 22px; border-radius: 11px; font-weight: 700; color: var(--ink-2); transition: background .2s var(--ease), color .2s var(--ease); }
+  .seg button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+  .livebtn { margin-left: auto; display: inline-flex; align-items: center; gap: 10px; min-height: 48px; padding: 0 18px; border-radius: 999px;
+    background: var(--card); border: 1.5px solid var(--line); font-weight: 800; font-size: 16px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--flood); flex: none; }
+
+  /* ---------- banner: the answer, as one sentence ---------- */
+  .banner { position: fixed; left: 0; right: 0; top: calc(var(--top) + var(--st)); min-height: var(--banner); z-index: 4;
+    background: var(--ink); color: var(--paper); display: flex; align-items: center; gap: 28px; padding: 18px calc(32px + var(--sr)) 18px calc(32px + var(--sl)); }
+  .say { flex: 1; min-width: 0; display: flex; align-items: center; gap: 26px; transition: opacity .2s var(--ease); }
+  .say.in { animation: sayin .3s var(--ease); }
+  @keyframes sayin { from { opacity: .3; transform: translateY(4px); } }
+  #big { font-size: 58px; font-weight: 900; letter-spacing: -.025em; line-height: 1; white-space: nowrap; }
+  #rest { font-size: 20px; font-weight: 600; line-height: 1.3; opacity: .9; max-width: 360px; }
+  .when { flex: none; display: inline-flex; align-items: center; gap: 10px; min-height: 56px; padding: 0 22px; border-radius: 14px;
+    background: var(--accent); color: #fff; font-weight: 800; font-size: 18px; }
+  .when svg { width: 16px; height: 16px; }
+
+  /* ---------- body: map + list ---------- */
+  .body { position: fixed; left: 0; right: 0; bottom: 0; top: calc(var(--top) + var(--st) + var(--banner)); display: grid; grid-template-columns: 1fr minmax(420px, 40%); }
+  #map { position: relative; background: var(--sand); }
+  .issued { position: absolute; left: calc(16px + var(--sl)); bottom: calc(16px + var(--sb)); z-index: 2; background: var(--card); border-radius: 12px;
+    padding: 9px 14px; font-size: 14px; font-weight: 700; color: var(--ink-2); box-shadow: var(--shadow); }
+  .list { border-left: 1px solid var(--line); background: var(--paper); display: flex; flex-direction: column; min-height: 0; }
+  .lh { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 20px calc(28px + var(--sr)) 8px 28px; }
+  .k { font-size: 13px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+  .best { min-height: 44px; padding: 0 14px; border-radius: 12px; background: var(--accent-soft); color: #a3360a; font-weight: 800; font-size: 15px; }
+  .rows { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 0 calc(28px + var(--sr)) calc(24px + var(--sb)) 28px; }
+  .row { width: 100%; text-align: left; display: block; border-top: 1px solid var(--line); padding: 0; position: relative; }
+  .row .main { display: flex; align-items: center; gap: 14px; min-height: 80px; }
+  .row.changed::before { content: ""; position: absolute; left: -14px; top: 12px; bottom: 12px; width: 4px; border-radius: 2px; background: var(--accent); }
+  .disc { flex: none; display: inline-grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: var(--ink); color: var(--paper); font-weight: 900; font-size: 16px; }
+  .disc.hold { background: var(--flood); }
+  .row .name { flex: 1; min-width: 0; font-size: 19px; font-weight: 800; line-height: 1.2; }
+  .row .name small { display: block; font-size: 14px; font-weight: 600; color: var(--ink-3); margin-top: 2px; }
+  .st { flex: none; font-weight: 900; font-size: 18px; text-align: right; }
+  .st.go { color: var(--amber-ink); } .st.hold { color: var(--flood-ink); } .st.no { color: var(--ink-2); font-weight: 800; }
+  .more { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .28s var(--ease); }
+  .row.open .more { grid-template-rows: 1fr; }
+  .more > div { overflow: hidden; }
+  .more p { font-size: 16px; font-weight: 600; color: var(--ink-2); padding: 0 0 6px 50px; }
+  .more p:last-child { padding-bottom: 18px; color: var(--ink-3); font-size: 14px; }
+  .check .main { min-height: 72px; }
+  .check .ico { flex: none; width: 36px; height: 36px; border-radius: 10px; background: var(--sand); display: grid; place-items: center; color: var(--ink-2); }
+  .check .ico.warn { background: var(--amber-soft); color: var(--amber-ink); }
+  .check .ico svg { width: 18px; height: 18px; }
+  .empty { padding: 28px 0; color: var(--ink-3); font-weight: 600; }
+  .skel { height: 80px; border-top: 1px solid var(--line); display: flex; align-items: center; gap: 14px; }
+  .skel i { display: block; height: 14px; border-radius: 7px; background: var(--sand); }
+
+  /* ---------- departure popover ---------- */
+  .scrim { position: fixed; inset: 0; z-index: 8; background: rgba(28,26,23,.0); transition: background .25s var(--ease); }
+  .scrim.dim { background: rgba(28,26,23,.32); }
+  .pop { position: fixed; z-index: 9; right: calc(24px + var(--sr)); top: calc(var(--top) + var(--st) + var(--banner) - 18px); width: 520px; background: var(--card); color: var(--ink);
+    border-radius: 20px; box-shadow: var(--shadow); padding: 22px 24px 20px; transform-origin: top right; animation: popin .22s var(--ease); }
+  @keyframes popin { from { opacity: 0; transform: scale(.96) translateY(-6px); } }
+  .pop h3 { font-size: 15px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
+  .pop .val { font-size: 40px; font-weight: 900; letter-spacing: -.02em; margin: 4px 0 14px; }
+  input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 44px; background: transparent; }
+  input[type=range]::-webkit-slider-runnable-track { height: 8px; border-radius: 4px; background: linear-gradient(90deg, var(--accent) 0 var(--p, 0%), var(--sand) var(--p, 0%)); }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 36px; height: 36px; margin-top: -14px; border-radius: 50%; background: #fff; border: 4px solid var(--accent); box-shadow: 0 2px 8px rgba(0,0,0,.18); }
+  input[type=range]::-moz-range-track { height: 8px; border-radius: 4px; background: var(--sand); }
+  input[type=range]::-moz-range-thumb { width: 28px; height: 28px; border-radius: 50%; background: #fff; border: 4px solid var(--accent); }
+  .ticks { display: flex; justify-content: space-between; font-size: 13px; font-weight: 700; color: var(--ink-3); margin-top: 2px; }
+  .pop .foot { display: flex; justify-content: space-between; align-items: center; margin-top: 14px; }
+  .pop .foot span { font-size: 14px; color: var(--ink-3); font-weight: 600; }
+  .tb { min-height: 44px; padding: 0 16px; border-radius: 12px; background: var(--sand); font-weight: 800; font-size: 15px; }
+
+  /* ---------- live sheet ---------- */
+  .sheet { position: fixed; z-index: 9; top: 0; right: 0; bottom: 0; width: min(480px, 92vw); background: var(--paper); box-shadow: var(--shadow);
+    display: flex; flex-direction: column; padding-top: var(--st); transform: translateX(100%); transition: transform .32s var(--ease); }
+  .sheet.open { transform: none; }
+  .sh { display: flex; align-items: center; justify-content: space-between; padding: 22px calc(24px + var(--sr)) 14px 24px; }
+  .sh h2 { display: flex; align-items: center; gap: 10px; font-size: 24px; font-weight: 900; }
+  .x { width: 48px; height: 48px; border-radius: 50%; background: var(--sand); display: grid; place-items: center; }
+  .x svg { width: 20px; height: 20px; }
+  .tabs { display: flex; gap: 2px; margin: 0 calc(24px + var(--sr)) 6px 24px; background: var(--sand); border-radius: 14px; padding: 4px; }
+  .tabs button { flex: 1; min-height: 46px; border-radius: 11px; font-weight: 800; font-size: 16px; color: var(--ink-2); }
+  .tabs button[aria-selected="true"] { background: var(--card); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+  .pane { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 12px calc(24px + var(--sr)) calc(28px + var(--sb)) 24px; }
+  .cam { background: var(--card); border: 1px solid var(--line); border-radius: 18px; overflow: hidden; margin-bottom: 16px; }
+  .frame { position: relative; aspect-ratio: 16 / 9; background: #2b2925; display: grid; place-items: center; color: #cfc6b8; font-weight: 700; font-size: 15px; }
+  .frame img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .frame .tag { position: absolute; left: 12px; top: 12px; display: inline-flex; align-items: center; gap: 8px; background: rgba(28,26,23,.78); color: #fff;
+    font-size: 13px; font-weight: 800; padding: 6px 10px; border-radius: 999px; }
+  .cam .txt { padding: 14px 16px 16px; }
+  .cam .txt b { display: block; font-size: 17px; font-weight: 800; }
+  .cam .txt .v { margin-top: 6px; font-size: 16px; font-weight: 700; color: var(--ink-2); }
+  .cam .txt .v.wet { color: var(--flood-ink); } .cam .txt .v.maybe { color: var(--amber-ink); }
+  .cam .txt small { display: block; margin-top: 4px; font-size: 13px; color: var(--ink-3); font-weight: 600; }
+  .sig { border-top: 1px solid var(--line); padding: 14px 0; }
+  .sig b { display: block; font-size: 16px; font-weight: 800; }
+  .sig span { display: block; font-size: 14px; color: var(--ink-3); font-weight: 600; margin-top: 2px; }
+  .sum { font-size: 16px; font-weight: 600; color: var(--ink-2); background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; margin-bottom: 12px; }
+  .gauge { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 16px; margin-bottom: 14px; }
+  .gauge b { display: block; font-size: 17px; font-weight: 800; }
+  .gauge p { font-size: 15px; font-weight: 600; color: var(--ink-2); margin-top: 4px; }
+  .gauge svg { width: 100%; height: 90px; margin-top: 10px; }
+  .credit { font-size: 13px; color: var(--ink-3); font-weight: 600; margin-top: 4px; }
+
+  /* ---------- map markers ---------- */
+  .pin { z-index: 3; width: 34px; height: 34px; border-radius: 50%; background: var(--card); border: 3px solid var(--ink); color: var(--ink); display: grid; place-items: center;
+    font: 900 14px/1 "Overpass", sans-serif; box-shadow: 0 2px 6px rgba(0,0,0,.2); }
+  .pin.depot { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .pin.end { background: var(--ink); color: var(--paper); }
+  .pin.hold { border-color: var(--flood); color: var(--flood); }
+  .pin.hot { transform: scale(1.25); transition: transform .2s var(--ease); }
+  .campin { z-index: 1; width: 24px; height: 24px; border-radius: 7px; opacity: .85; background: var(--card); border: 2px solid var(--ink-2); display: grid; place-items: center; box-shadow: 0 2px 6px rgba(0,0,0,.18); }
+  .campin svg { width: 13px; height: 13px; }
+  .maplibregl-popup-content { border-radius: 14px; padding: 12px 14px; font: 600 15px/1.4 "Overpass", sans-serif; color: var(--ink); background: var(--card); box-shadow: var(--shadow); max-width: 280px; }
+  .maplibregl-ctrl-attrib { font-family: "Overpass", sans-serif; }
+
+  /* ---------- portrait: banner, map, list stacked ---------- */
+  @media (orientation: portrait) {
+    :root { --banner: 196px; }
+    .banner { flex-wrap: wrap; gap: 14px 24px; }
+    .say { flex-direction: column; align-items: flex-start; gap: 10px; flex-basis: 100%; }
+    #rest { max-width: none; }
+    .body { grid-template-columns: 1fr; grid-template-rows: 44% 1fr; }
+    .list { border-left: 0; border-top: 1px solid var(--line); }
+    .banner .when { position: absolute; right: calc(32px + var(--sr)); top: 22px; }
+  }
+  @media (max-width: 900px) and (orientation: landscape) { #big { font-size: 44px; } }
+  @media (prefers-reduced-motion: reduce) { *, *::before { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<header class="top">
+  <span class="brand">Noah</span>
+  <nav class="seg" aria-label="Places">
+    <button type="button" data-place="home" aria-pressed="false">Home</button>
+    <button type="button" data-place="work" aria-pressed="false">Work</button>
+    <button type="button" data-place="delivery" aria-pressed="true">Delivery</button>
+  </nav>
+  <button class="livebtn" id="liveBtn" type="button" aria-controls="sheet"><span class="dot"></span><span id="liveLbl">Live</span></button>
+</header>
+
+<section class="banner" aria-live="polite">
+  <div class="say" id="say"><div id="big" class="num">Checking roads…</div><div id="rest"></div></div>
+  <button class="when num" id="when" type="button" aria-haspopup="dialog" aria-expanded="false" hidden>
+    <span id="whenLbl">Leaving</span>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+  </button>
+</section>
+
+<main class="body">
+  <div id="map"><div class="issued num" id="issued"></div></div>
+  <aside class="list">
+    <div class="lh"><span class="k" id="listHead">Your stops</span><button class="best num" id="best" type="button" hidden></button></div>
+    <div class="rows" id="rows"></div>
+  </aside>
+</main>
+
+<div class="scrim" id="scrim" hidden></div>
+<div class="pop" id="pop" role="dialog" aria-label="When are you leaving?" hidden>
+  <h3>When are you leaving?</h3>
+  <div class="val num" id="popVal"></div>
+  <input type="range" id="dep" aria-label="Departure time">
+  <div class="ticks num" id="ticks"></div>
+  <div class="foot"><span id="popNote"></span><button class="tb" id="nowBtn" type="button">Now</button></div>
+</div>
+
+<aside class="sheet" id="sheet" aria-label="Live">
+  <div class="sh"><h2><span class="dot"></span>Live</h2>
+    <button class="x" id="closeSheet" type="button" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+  <div class="tabs" role="tablist">
+    <button role="tab" data-tab="cams" aria-selected="true">Cameras</button>
+    <button role="tab" data-tab="checks" aria-selected="false">Live checks</button>
+    <button role="tab" data-tab="past" aria-selected="false">Last 18 h</button>
+  </div>
+  <div class="pane" id="pane"></div>
+</aside>
+
+<script>
+// Spec 021: Noah for iPad. Answers come from the recorded run under /demo/snapshot (spec 020's lookup: path + params,
+// nearest departure); camera frames come live from GET /cam/{id}. No user-facing text names the recording.
+const SNAP = "/demo/snapshot/index.json", SNAP_BASE = "/demo/snapshot/";
+const CORRIDOR_M = 3000, STEP = 5, MAX_MIN = 18 * 60;
+const FLOOD = "#d92d20", AMBER = "#f2a100", INK = "#1c1a17";
+const $ = (id) => document.getElementById(id);
+const tz = { timeZone: "America/New_York" };
+const fClock = new Intl.DateTimeFormat("en-US", { ...tz, hour: "numeric", minute: "2-digit" });
+const fHour = new Intl.DateTimeFormat("en-US", { ...tz, hour: "numeric" });
+const fDay = new Intl.DateTimeFormat("en-US", { ...tz, weekday: "short", hour: "numeric", minute: "2-digit" });
+const fDayHour = new Intl.DateTimeFormat("en-US", { ...tz, weekday: "short", hour: "numeric" });
+const ICON = {
+  cam: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>',
+  road: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 21 8 3M20 21 16 3M12 4v2M12 10v3M12 17v3"/></svg>',
+  info: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg>',
+};
+
+let snap = null, issue = null, cycle = null, nowMin = 0, places = null;
+let flood = new Map();
+let place = "delivery", depMin = 0, order = null;
+let lastStatus = new Map(); // stop label -> status word, for the "changed" mark
+let markers = [], camMarkers = [], live = { cams: [], signals: [], sources: 0, summary: null, gauges: [] };
+let token = 0, liveToken = 0;
+
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const atMin = (m) => new Date(issue.getTime() + m * 60e3);
+const atHour = (h) => new Date(issue.getTime() + h * 3600e3);
+const clock = (d) => fClock.format(d);
+const endText = () => fDay.format(atHour(18));
+
+// ---------- recorded answers (spec 020 lookup) ----------
+const num = (x) => (x == null ? NaN : parseFloat(x));
+function same(a, b) {
+  if (a === b) return true;
+  if (a == null || b == null) return false;
+  const as = String(a).split(/[;,]/), bs = String(b).split(/[;,]/);
+  return as.length === bs.length && as.every((x, i) => { const na = num(x), nb = num(bs[i]); return isFinite(na) && isFinite(nb) ? Math.abs(na - nb) < 1e-4 : x === bs[i]; });
+}
+function lookup(path, p) {
+  let best = null, bestD = Infinity;
+  for (const e of snap.responses) {
+    if (e.path !== path) continue;
+    let ok = true, d = 0;
+    for (const k of new Set([...Object.keys(p), ...Object.keys(e.p)])) {
+      if (k === "depart_h") { d = Math.abs(num(p[k] ?? 0) - num(e.p[k] ?? 0)); continue; }
+      if (!same(p[k], e.p[k])) { ok = false; break; }
+    }
+    if (ok && d < bestD) { best = e; bestD = d; }
+  }
+  return best?.file || null;
+}
+async function ask(path, p) {
+  const f = lookup(path, p);
+  if (!f) return null;
+  try { return await fetch(SNAP_BASE + f).then((r) => (r.ok ? r.json() : null)); } catch { return null; }
+}
+const ll = (x) => `${x.lat},${x.lon}`;
+
+// ---------- map ----------
+const map = new maplibregl.Map({ container: "map", style: "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
+  center: [-84.39, 33.84], zoom: 11.5, attributionControl: { compact: true }, pitchWithRotate: false, dragRotate: false });
+map.touchZoomRotate.disableRotation();
+const empty = { type: "FeatureCollection", features: [] };
+const mapReady = new Promise((res) => (map.isStyleLoaded() ? res() : map.once("style.load", res)));
+function warmStyle() { // Carto Positron recoloured to warm paper: sand land, muted water, white streets, peach arterials
+  for (const l of map.getStyle().layers) {
+    const id = l.id;
+    try {
+      if (l.type === "background") map.setPaintProperty(id, "background-color", "#efe8dc");
+      else if (l.type === "fill" && /water/.test(id)) map.setPaintProperty(id, "fill-color", "#c9dadc");
+      else if (l.type === "fill" && /park|landcover|wood|grass/.test(id)) map.setPaintProperty(id, "fill-color", "#e2e4cc");
+      else if (l.type === "fill" && /building/.test(id)) map.setPaintProperty(id, "fill-color", "#e8e0d2");
+      else if (l.type === "fill" && /landuse|residential/.test(id)) map.setPaintProperty(id, "fill-color", "#ece4d6");
+      else if (l.type === "line" && /waterway/.test(id)) map.setPaintProperty(id, "line-color", "#bcd0d3");
+      else if (l.type === "line" && /motorway|trunk|primary/.test(id) && !/casing/.test(id)) map.setPaintProperty(id, "line-color", "#f3d4ad");
+      else if (l.type === "line" && /highway|road|street|minor|service|secondary|tertiary/.test(id) && !/casing/.test(id)) map.setPaintProperty(id, "line-color", "#fffdf9");
+      else if (l.type === "symbol" && l.paint && "text-color" in l.paint) map.setPaintProperty(id, "text-color", "#8f8677");
+    } catch {}
+  }
+}
+mapReady.then(() => {
+  warmStyle();
+  map.addSource("all", { type: "geojson", data: empty });
+  map.addLayer({ id: "all-unc", type: "line", source: "all", filter: ["==", ["get", "s"], "uncertain"], paint: { "line-color": AMBER, "line-width": 2.5, "line-dasharray": [1.6, 1.2], "line-opacity": 0.4 } });
+  map.addLayer({ id: "all-fl", type: "line", source: "all", filter: ["==", ["get", "s"], "flooded"], layout: { "line-cap": "round" }, paint: { "line-color": FLOOD, "line-width": 3, "line-opacity": 0.4 } });
+  map.addSource("area", { type: "geojson", data: empty });
+  map.addLayer({ id: "area", type: "line", source: "area", paint: { "line-color": INK, "line-width": 2, "line-dasharray": [2, 2], "line-opacity": 0.55 } });
+  map.addSource("route", { type: "geojson", data: empty });
+  map.addLayer({ id: "route-casing", type: "line", source: "route", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": "#fffdf9", "line-width": 11 } });
+  map.addLayer({ id: "route", type: "line", source: "route", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": INK, "line-width": 6 } });
+  map.addSource("haz", { type: "geojson", data: empty });
+  map.addLayer({ id: "haz-unc", type: "line", source: "haz", filter: ["==", ["get", "s"], "uncertain"], paint: { "line-color": AMBER, "line-width": 5.5, "line-dasharray": [1.6, 1.2] } });
+  map.addLayer({ id: "haz-casing", type: "line", source: "haz", filter: ["==", ["get", "s"], "flooded"], layout: { "line-cap": "round" }, paint: { "line-color": "#fffdf9", "line-width": 10 } });
+  map.addLayer({ id: "haz-fl", type: "line", source: "haz", filter: ["==", ["get", "s"], "flooded"], layout: { "line-cap": "round" }, paint: { "line-color": FLOOD, "line-width": 6 } });
+  for (const id of ["haz-unc", "haz-fl", "all-unc", "all-fl"]) map.on("click", id, (e) => {
+    new maplibregl.Popup({ closeButton: false }).setLngLat(e.lngLat).setText(roadSentence(e.features[0].properties)).addTo(map);
+  });
+});
+function stateAt(p, h) {
+  if (p.t_flood != null && p.t_flood !== "null" && +p.t_flood <= h) return "flooded";
+  if (p.t_uncertain != null && p.t_uncertain !== "null" && +p.t_uncertain <= h) return "uncertain";
+  return null;
+}
+function roadSentence(p) { // §5
+  const name = p.name && p.name !== "null" ? p.name : "This road";
+  if (p.s === "flooded") return `Do not cross ${name}. Forecast shows water reaching it around ${fDay.format(atHour(+p.t_flood))}.`;
+  return `${name}: uncertain, treat as impassable from around ${fDay.format(atHour(+p.t_uncertain))}.`;
+}
+function featsAt(ids, h) {
+  const out = [];
+  for (const id of ids) {
+    const f = flood.get(id); if (!f) continue;
+    const s = stateAt(f.properties, h); if (!s) continue;
+    out.push({ ...f, properties: { ...f.properties, s } });
+  }
+  return { type: "FeatureCollection", features: out };
+}
+function drawAll(h) { mapReady.then(() => map.getSource("all").setData(featsAt(flood.keys(), h))); }
+function clearMarkers() { markers.forEach((m) => m.remove()); markers = []; }
+function pin(lon, lat, cls, text, title) {
+  const el = document.createElement("div"); el.className = `pin ${cls}`; el.textContent = text; if (title) el.title = title;
+  const m = new maplibregl.Marker({ element: el }).setLngLat([lon, lat]).addTo(map); markers.push(m); return el;
+}
+function fit(coords, padding = 60) {
+  if (!coords.length) return;
+  const xs = coords.map((c) => c[0]), ys = coords.map((c) => c[1]);
+  map.fitBounds([[Math.min(...xs), Math.min(...ys)], [Math.max(...xs), Math.max(...ys)]], { padding, duration: 700, maxZoom: 14 });
+}
+function circle(lat, lon, km, n = 72) {
+  const pts = [];
+  for (let i = 0; i <= n; i++) { const a = (i / n) * 2 * Math.PI; pts.push([lon + (km / (111.32 * Math.cos(lat * Math.PI / 180))) * Math.cos(a), lat + (km / 110.57) * Math.sin(a)]); }
+  return pts;
+}
+
+// ---------- banner ----------
+function say(big, rest) {
+  const s = $("say");
+  if ($("big").textContent === big && $("rest").textContent === rest) return;
+  $("big").textContent = big; $("rest").textContent = rest;
+  s.classList.remove("in"); void s.offsetWidth; s.classList.add("in"); // replay the fade-in
+}
+function setWhen(show) {
+  $("when").hidden = !show;
+  $("whenLbl").textContent = depMin <= nowMin ? "Leaving now" : `Leaving ${clock(atMin(depMin))}`;
+}
+
+// ---------- list ----------
+const rowsEl = $("rows");
+function skeleton(n = 5) {
+  rowsEl.innerHTML = Array.from({ length: n }, () => '<div class="skel"><i style="width:36px;height:36px;border-radius:50%"></i><i style="width:46%"></i><i style="width:22%;margin-left:auto"></i></div>').join("");
+}
+rowsEl.addEventListener("click", (e) => {
+  const row = e.target.closest(".row"); if (!row) return;
+  row.classList.remove("changed");
+  const open = !row.classList.contains("open");
+  rowsEl.querySelectorAll(".row.open").forEach((r) => r.classList.remove("open"));
+  if (open && row.querySelector(".more")) row.classList.add("open");
+  const lon = +row.dataset.lon, lat = +row.dataset.lat;
+  if (isFinite(lon) && isFinite(lat)) map.flyTo({ center: [lon, lat], zoom: 14.5, duration: 800 });
+  document.querySelectorAll(".pin.hot").forEach((p) => p.classList.remove("hot"));
+  if (row.dataset.n) document.querySelector(`.pin[data-n="${row.dataset.n}"]`)?.classList.add("hot");
+});
+
+// ---------- Delivery ----------
+// Leave-by and each stop's "Go before" come from every recorded /trip for this stop order (ipad_plans.json), with the
+// J20 rule the map and the board use: a stop whose own street is forecast impassable on arrival is a Hold.
+let plans = null;
+const planKey = (stops) => { const d = places.delivery; return `${ll(d.depot)}|${ll(d.destination)}|${stops.map(ll).join(";")}`; };
+function holdOwnStreet(e) {
+  const c = structuredClone(e);
+  for (const x of [...c.stops, c.dest].filter(Boolean)) {
+    const st = x.street;
+    if (x.state !== "hold" && st && st.state_at_arrival && st.state_at_arrival !== "no_forecast_flooding")
+      Object.assign(x, { state: "hold", reached: false, cut_h: st.t_uncertain, street_hold: true });
+  }
+  return c;
+}
+const okStop = (x) => x && x.reached && x.state !== "hold";
+function seriesFor(stops) {
+  const raw = plans?.[planKey(stops)];
+  return raw ? raw.map(holdOwnStreet) : null;
+}
+const atDep = (series, m) => series.reduce((best, e) => (Math.abs(e.m - m) < Math.abs(best.m - m) ? e : best), series[0]);
+// Latest recorded departure from `from` on that still passes test(e), and the first one that doesn't (null = holds all window)
+function window_(series, from, test) {
+  let ok = null, fail = null;
+  for (const e of series) {
+    if (e.m < from - 2) continue;
+    if (test(e)) ok = e.m; else { fail = e.m; break; }
+  }
+  return { ok, fail };
+}
+function stopWords(x, series, idx, label) {
+  const st = x.street, name = st?.name || label.split(",")[0];
+  const streetLine = st && (st.t_uncertain != null || st.t_flood != null)
+    ? (st.t_flood != null && (st.t_uncertain == null || st.t_flood <= st.t_uncertain)
+      ? `Do not cross ${name} from around ${fHour.format(atHour(st.t_flood))}.`
+      : `${name}: uncertain, treat as impassable from around ${fHour.format(atHour(st.t_uncertain))}.${st.t_flood != null ? ` Do not cross from around ${fHour.format(atHour(st.t_flood))}.` : ""}`)
+    : "";
+  if (!okStop(x)) {
+    const why = x.street_hold ? `Hold this delivery. ${name} is forecast ${st.state_at_arrival === "flooded" ? "under water" : "uncertain"} by the time you get there.`
+      : x.cut_h != null ? `Hold this delivery. The way there is forecast cut by flooding from around ${fHour.format(atHour(x.cut_h))}.`
+      : "Hold this delivery. It can't be reached in time after the stops before it.";
+    return { cls: "hold", word: "Hold", why };
+  }
+  const w = window_(series, depMin, (e) => okStop(idx == null ? e.dest : e.stops.find((s) => s.i === idx)));
+  if (w.fail != null) return { cls: "go", word: `Go before ${clock(atMin(w.fail))}`, why: `Go before about ${clock(atMin(w.fail))}. ${streetLine}`.trim() };
+  return { cls: "no", word: "No forecast flooding", why: `No forecast flooding on the way there through ${endText()}. ${streetLine}`.trim() };
+}
+async function renderDelivery() {
+  const my = ++token, d = places.delivery;
+  const stops = order.map((i) => d.stops[i]);
+  const series = seriesFor(stops);
+  setWhen(true);
+  if (!series) { say("Can't confirm roads", "Treat low roads near creeks as impassable. In an emergency call 911."); rowsEl.innerHTML = '<div class="empty">No answer for this trip right now.</div>'; return; }
+  const e = atDep(series, depMin);
+  const n = stops.length, k = e.stops.filter(okStop).length, all = k === n && okStop(e.dest);
+  const allOk = (x) => x.stops.every(okStop) && okStop(x.dest);
+  const w = window_(series, depMin, allOk);
+  const leaving = depMin <= nowMin ? "now" : `at ${clock(atMin(depMin))}`;
+  if (all && w.fail != null) say(`Leave by ${clock(atMin(w.ok))}`, `to reach all ${n} stops before their streets flood.`);
+  else if (all) say(`All ${n} stops`, `No forecast flooding on the way through ${endText()}. Not a safety guarantee.`);
+  else if (k === 0) say("Hold all stops", `Leaving ${leaving}, every stop is forecast cut off by flooding first.`);
+  else say(`${k} of ${n} stops`, `leaving ${leaving}. The rest are forecast cut off by flooding first.`);
+  $("listHead").textContent = "Your stops";
+  // best order: shown when it reaches more stops, or keeps every stop open longer
+  const b = e.best, bStops = b?.order ? b.order.map((i) => stops[i]) : null, bSeries = bStops && seriesFor(bStops);
+  let bestText = null;
+  if (b?.differs && bSeries) {
+    const be = atDep(bSeries, depMin), bk = be.stops.filter(okStop).length;
+    const bw = window_(bSeries, depMin, allOk);
+    if (bk > k) bestText = `Best order reaches ${bk} of ${n} stops`;
+    else if (all && bw.ok != null && w.ok != null && bw.fail != null && bw.ok > w.ok) bestText = `Best order · leave by ${clock(atMin(bw.ok))}`;
+  }
+  $("best").hidden = !bestText;
+  if (bestText) { $("best").textContent = bestText; $("best").onclick = () => { order = b.order.map((i) => order[i]); lastStatus.clear(); renderDelivery(); }; }
+  // rows, in driving order of the request
+  const html = [];
+  e.stops.forEach((x) => {
+    const p = stops[x.i], label = p.label, nmb = x.i + 1;
+    const st = stopWords(x, series, x.i, label);
+    const prev = lastStatus.get(label); lastStatus.set(label, st.cls + st.word);
+    const changed = prev && prev !== st.cls + st.word;
+    const arrive = okStop(x) && x.arrive_min != null ? `Arrive ${clock(atMin(depMin + x.arrive_min))}` : "Skipped on this run";
+    html[x.i] = `<button class="row${changed ? " changed" : ""}" type="button" data-n="${nmb}" data-lat="${p.lat}" data-lon="${p.lon}">
+      <div class="main"><span class="disc${st.cls === "hold" ? " hold" : ""}">${nmb}</span>
+      <span class="name">${esc(label.split(",")[0])}<small class="num">${esc(arrive)}</small></span><span class="st ${st.cls} num">${esc(st.word)}</span></div>
+      <div class="more"><div><p>${esc(st.why)}</p><p>${st.cls === "hold" ? "" : "Not a safety guarantee. "}Never drive into water. Turn Around Don't Drown. In an emergency call 911.</p></div></div></button>`;
+  });
+  const dw = stopWords(e.dest, series, null, d.destination.label);
+  html.push(`<button class="row" type="button" data-lat="${d.destination.lat}" data-lon="${d.destination.lon}"><div class="main"><span class="disc${dw.cls === "hold" ? " hold" : ""}" style="${dw.cls === "hold" ? "" : "background:var(--sand);color:var(--ink)"}">E</span>
+    <span class="name">${esc(d.destination.label.split(",")[0])}<small class="num">${okStop(e.dest) && e.dest.arrive_min != null ? "End of run · arrive " + clock(atMin(depMin + e.dest.arrive_min)) : "End of run · skipped"}</small></span><span class="st ${dw.cls} num">${esc(dw.word)}</span></div>
+    <div class="more"><div><p>${esc(dw.why)}</p></div></div></button>`);
+  rowsEl.innerHTML = html.join("");
+  // map: the recorded /trip for this departure carries the route geometry
+  const h = Math.min(18, Math.floor(depMin / 60));
+  loadLiveDelivery(stops, h);
+  const t = await ask("/trip", { from: ll(d.depot), to: ll(d.destination), stops: stops.map(ll).join(";"), depart_h: (depMin / 60).toFixed(3), cycle, corridor_m: String(CORRIDOR_M) });
+  await mapReady; if (my !== token) return;
+  drawAll(h);
+  map.getSource("area").setData(empty);
+  const coords = t?.route?.geometry?.coordinates || [];
+  map.getSource("route").setData(coords.length ? { type: "Feature", geometry: t.route.geometry, properties: {} } : empty);
+  map.getSource("haz").setData(featsAt((t?.route?.corridor || []).map((c) => c.seg_id), h));
+  clearMarkers();
+  pin(d.depot.lon, d.depot.lat, "depot", "D", d.depot.label);
+  e.stops.forEach((x) => { const p = stops[x.i]; const el = pin(p.lon, p.lat, okStop(x) ? "" : "hold", okStop(x) ? x.i + 1 : "✕", p.label); el.dataset.n = x.i + 1; });
+  pin(d.destination.lon, d.destination.lat, okStop(e.dest) ? "end" : "hold", okStop(e.dest) ? "E" : "✕", d.destination.label);
+  if (!renderDelivery.fitted) { fit([...coords, ...stops.map((p) => [p.lon, p.lat])], { top: 60, bottom: 60, left: 60, right: 60 }); renderDelivery.fitted = true; }
+}
+
+// ---------- Home / Work ----------
+function checksList(signals, title) {
+  $("listHead").textContent = title; $("best").hidden = true;
+  if (!signals.length) { rowsEl.innerHTML = '<div class="empty">Nothing reported nearby right now.</div>'; return; }
+  rowsEl.innerHTML = signals.slice(0, 12).map((s) => `<button class="row check" type="button" data-lat="${s.lat ?? ""}" data-lon="${s.lon ?? ""}"><div class="main">
+    <span class="ico${s.severity === "warning" || s.severity === "danger" ? " warn" : ""}">${s.source === "Traffic cameras" ? ICON.cam : /closed|road|incident/i.test(s.title) ? ICON.road : ICON.info}</span>
+    <span class="name">${esc(s.title)}<small>${esc(s.source)}</small></span></div></button>`).join("");
+}
+function roadsSentence(segs, where) { // §5 for an area or a route
+  const fl = segs.filter((s) => s.state === "flooded"), un = segs.filter((s) => s.state === "uncertain");
+  if (!fl.length && !un.length) return null;
+  const first = fl[0] || un[0];
+  return [`${fl.length + un.length} roads ${where}`, `${fl.length ? `forecast to flood, starting with ${first.name || "an unnamed road"}.` : "uncertain: treat them as impassable."} Do not cross.`];
+}
+async function renderHome() {
+  const my = ++token, p = places.home;
+  setWhen(false); $("best").hidden = true;
+  const [s, a] = await Promise.all([ask("/status", { lat: String(p.lat), lon: String(p.lon), hours: "18", cycle }), ask("/assess", { lat: String(p.lat), lon: String(p.lon), cycle })]);
+  if (my !== token) return;
+  const r = s && roadsSentence(s.segments || [], "near Home");
+  if (r) say(r[0], r[1]);
+  else if (s && s.state === "no_forecast_flooding") say("No forecast flooding", `near Home through ${endText()}. Not a safety guarantee. Never drive into water.`);
+  else say("Can't confirm roads", "Treat low roads near creeks as impassable. In an emergency call 911.");
+  checksList(a?.signals || [], "Live checks near Home");
+  await mapReady; if (my !== token) return;
+  drawAll(Math.floor(nowMin / 60));
+  clearMarkers(); map.getSource("route").setData(empty); map.getSource("haz").setData(empty);
+  const ring = circle(p.lat, p.lon, 5);
+  map.getSource("area").setData({ type: "Feature", geometry: { type: "LineString", coordinates: ring }, properties: {} });
+  pin(p.lon, p.lat, "depot", "H", p.label);
+  fit(ring, 50);
+  setLive({ cams: a?.cameras || [], signals: a?.signals || [], sources: (a?.sources_ok || []).length, summary: a?.assessment?.now?.summary, gauges: null }, my);
+  loadPast("/past", { lat: String(p.lat), lon: String(p.lon), cycle }, my);
+}
+async function renderWork() {
+  const my = ++token, a = places.home, b = places.work;
+  setWhen(true); $("best").hidden = true;
+  const h = Math.min(18, Math.max(1, Math.floor(depMin / 60)));
+  const q = { from: ll(a), to: ll(b), depart_h: String(h), cycle };
+  const [r, as] = await Promise.all([ask("/route", { ...q, corridor_m: String(CORRIDOR_M) }), ask("/assess/route", q)]);
+  if (my !== token) return;
+  if (r && r.state === "route_found") {
+    const avoided = r.avoided || [];
+    const rs = roadsSentence((r.corridor || []).filter((c) => c.state), "near your route to Work");
+    if (avoided.length) say(`Route around ${avoided.length} roads`, `forecast to flood on the usual way to Work. ${Math.round(r.minutes)} min.`);
+    else if (rs) say(rs[0], rs[1]);
+    else say("No forecast flooding", `on your route to Work through ${endText()}. ${Math.round(r.minutes)} min. Not a safety guarantee.`);
+  } else say("Can't confirm roads", "Treat low roads near creeks as impassable. In an emergency call 911.");
+  checksList(as?.signals || [], "Live checks on the way to Work");
+  await mapReady; if (my !== token) return;
+  drawAll(h);
+  clearMarkers(); map.getSource("area").setData(empty);
+  const coords = r?.geometry?.coordinates || [];
+  map.getSource("route").setData(coords.length ? { type: "Feature", geometry: r.geometry, properties: {} } : empty);
+  map.getSource("haz").setData(featsAt((r?.corridor || []).map((c) => c.seg_id), h));
+  pin(a.lon, a.lat, "depot", "H", a.label); pin(b.lon, b.lat, "end", "W", b.label);
+  fit([...coords, [a.lon, a.lat], [b.lon, b.lat]], 70);
+  setLive({ cams: as?.cameras || [], signals: as?.signals || [], sources: (as?.sources_ok || []).length, summary: as?.assessment?.now?.summary, gauges: null }, my);
+  loadPast("/past/route", { from: ll(a), to: ll(b), cycle }, my);
+}
+
+// ---------- Live: cameras (live frames), checks, last 18 h ----------
+async function loadLiveDelivery(stops, h) {
+  const my = token, d = places.delivery;
+  const pts = [d.depot, ...stops, d.destination];
+  const legs = pts.slice(1).map((p, i) => [pts[i], p]);
+  const res = await Promise.all(legs.map(([a, b]) => ask("/assess/route", { from: ll(a), to: ll(b), depart_h: String(Math.max(1, h)), cycle })));
+  if (my !== token) return;
+  const cams = new Map(), sigs = new Map(); let sources = 0, summary = null;
+  for (const a of res) {
+    if (!a) continue;
+    for (const c of a.cameras || []) if (!cams.has(c.cam_id)) cams.set(c.cam_id, c);
+    for (const s of a.signals || []) if (!sigs.has(s.title)) sigs.set(s.title, s);
+    sources = Math.max(sources, (a.sources_ok || []).length);
+    summary = summary || a.assessment?.now?.summary;
+  }
+  setLive({ cams: [...cams.values()], signals: [...sigs.values()], sources, summary, gauges: null }, my);
+  const past = await Promise.all(legs.map(([a, b]) => ask("/past/route", { from: ll(a), to: ll(b), cycle })));
+  if (my !== token) return;
+  const g = new Map(); for (const p of past) for (const x of p?.gauges || []) if (!g.has(x.site)) g.set(x.site, x);
+  live.gauges = [...g.values()]; if (tab === "past") renderPane();
+}
+async function loadPast(path, p, my) {
+  const r = await ask(path, p); if (my !== token) return;
+  live.gauges = r?.gauges || []; if (tab === "past") renderPane();
+}
+function setLive(l, my) {
+  if (my !== token) return;
+  l.signals = (l.signals || []).filter((x) => !/-999|out of service/i.test(`${x.title} ${x.detail || ""}`)); // a dead gauge reading is not a check
+  live = { ...l, gauges: l.gauges ?? live.gauges };
+  $("liveLbl").textContent = live.cams.length ? `Live · ${live.cams.length} camera${live.cams.length === 1 ? "" : "s"}` : "Live";
+  camMarkers.forEach((m) => m.remove()); camMarkers = [];
+  for (const c of live.cams) {
+    const el = document.createElement("button"); el.className = "campin"; el.type = "button"; el.innerHTML = ICON.cam; el.setAttribute("aria-label", `Camera ${c.name}`);
+    el.onclick = (e) => { e.stopPropagation(); openSheet("cams", c.cam_id); };
+    camMarkers.push(new maplibregl.Marker({ element: el }).setLngLat([c.lon, c.lat]).addTo(map));
+  }
+  if (!$("sheet").hidden && $("sheet").classList.contains("open")) renderPane();
+}
+const WET = ["curb", "half_tire", "door_sill_or_above"];
+function verdict(c) {
+  const when = c.checked_utc ? `AI check at ${clock(new Date(c.checked_utc))}` : "AI check";
+  if (WET.includes(c.bucket)) return { cls: "wet", text: `Camera shows water around ${c.reference_object || c.bucket.replace(/_/g, " ")} level. Treat nearby roads as impassable.`, when };
+  if (c.bucket === "possible_water") return { cls: "maybe", text: "Possible water near the road, not confirmed.", when };
+  if (c.bucket === "none") return { cls: "", text: "No water on the road seen.", when };
+  if (c.bucket === "cant_tell") return { cls: "", text: "Can't tell from the image.", when };
+  return { cls: "", text: "AI check still running.", when };
+}
+const camFrames = new Map(); // cam_id -> promise of /cam answer
+function liveFrame(id) {
+  if (!camFrames.has(id)) camFrames.set(id, fetch(`/cam/${id}`).then((r) => (r.ok ? r.json() : null)).catch(() => null));
+  return camFrames.get(id);
+}
+setInterval(() => camFrames.clear(), 5 * 60e3); // fresh frames every 5 min
+let tab = "cams", focusCam = null;
+let camIO = null;
+function showFrame(art) { // live frame, fetched when its card scrolls into view
+  liveFrame(art.dataset.cam).then((f) => {
+        const fr = art.querySelector(".frame");
+        if (!f || !f.image_url) { fr.innerHTML = "<span>Camera not responding</span>"; return; }
+        const img = new Image(); img.alt = `Live camera: ${f.title || ""}`; img.onerror = () => (fr.innerHTML = "<span>Camera not responding</span>");
+        img.onload = () => { fr.replaceChildren(img); const t = document.createElement("span"); t.className = "tag num";
+          t.innerHTML = `<span class="dot"></span>Live${f.updated_utc ? " · " + esc(clock(new Date(f.updated_utc))) : ""}`; fr.append(t); };
+        img.src = f.image_url;
+      });
+}
+function renderPane() {
+  const pane = $("pane");
+  if (tab === "cams") {
+    if (!live.cams.length) { pane.innerHTML = '<div class="empty">No traffic cameras along this trip.</div>'; return; }
+    const cams = focusCam ? [...live.cams].sort((a, b) => (b.cam_id === focusCam) - (a.cam_id === focusCam)) : live.cams;
+    pane.innerHTML = cams.map((c) => { const v = verdict(c); return `<article class="cam" data-cam="${c.cam_id}">
+      <div class="frame"><span>Loading camera…</span></div>
+      <div class="txt"><b>${esc(c.name)}</b><div class="v ${v.cls}">${esc(v.text)}</div><small class="num">${esc(v.when)}</small></div></article>`; }).join("")
+      + '<p class="credit">Webcams provided by Windy.com</p>';
+    camIO?.disconnect();
+    camIO = new IntersectionObserver((ents) => ents.forEach((en) => { if (en.isIntersecting) { camIO.unobserve(en.target); showFrame(en.target); } }), { root: pane, rootMargin: "300px" });
+    pane.querySelectorAll(".cam").forEach((art) => camIO.observe(art));
+  } else if (tab === "checks") {
+    const head = live.summary ? `<div class="sum">${esc(live.summary)}</div>` : "";
+    pane.innerHTML = head + (live.signals.length ? live.signals.map((s) => `<div class="sig"><b>${esc(s.title)}</b><span>${esc(s.source)}${s.detail ? " · " + esc(s.detail) : ""}</span></div>`).join("") : '<div class="empty">Nothing reported nearby right now.</div>')
+      + (live.sources ? `<p class="credit">${live.sources} sources checked</p>` : "");
+  } else {
+    const g = live.gauges || [];
+    pane.innerHTML = g.length ? g.map((x) => `<div class="gauge"><b>${esc(x.name || "USGS gauge " + x.site.replace("USGS-", ""))}</b>
+      <p class="num">${x.change_ft >= 0 ? "Rose" : "Fell"} ${Math.abs(x.change_ft).toFixed(1)} ft in the last 18 h · peak ${x.max} ${esc(x.units)}${x.max_time_local ? " at " + esc(x.max_time_local) : ""}</p>${spark(x.series || [])}
+      <p class="credit">USGS stream gauge, observed</p></div>`).join("") : '<div class="empty">No stream gauges along this trip.</div>';
+  }
+}
+function spark(series) {
+  const v = series.map((s) => (Array.isArray(s) ? s[1] : s.v ?? s.value)).filter((x) => x != null && isFinite(x));
+  if (v.length < 2) return "";
+  const lo = Math.min(...v), hi = Math.max(...v), W = 400, H = 90;
+  const pts = v.map((y, i) => `${(i / (v.length - 1)) * W},${H - 6 - ((y - lo) / (hi - lo || 1)) * (H - 12)}`).join(" ");
+  return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true"><polyline points="${pts}" fill="none" stroke="${INK}" stroke-width="3" stroke-linejoin="round" vector-effect="non-scaling-stroke"/></svg>`;
+}
+const reveal = (el, cls) => { el.hidden = false; void el.offsetWidth; el.classList.add(cls); }; // reflow, then transition
+function openSheet(t = tab, cam = null) {
+  tab = t; focusCam = cam;
+  document.querySelectorAll(".tabs button").forEach((b) => b.setAttribute("aria-selected", b.dataset.tab === tab));
+  renderPane();
+  reveal($("scrim"), "dim");
+  reveal($("sheet"), "open");
+}
+function closeAll() {
+  $("sheet").classList.remove("open"); $("pop").hidden = true; $("when").setAttribute("aria-expanded", "false");
+  $("scrim").classList.remove("dim"); setTimeout(() => ($("scrim").hidden = true), 250);
+}
+$("liveBtn").onclick = () => openSheet("cams");
+$("closeSheet").onclick = closeAll;
+$("scrim").onclick = closeAll;
+document.querySelector(".tabs").onclick = (e) => { const b = e.target.closest("button"); if (b) openSheet(b.dataset.tab); };
+
+// ---------- departure ----------
+const dep = $("dep");
+function paintRange() { dep.style.setProperty("--p", `${((dep.value - dep.min) / (dep.max - dep.min)) * 100}%`); }
+function popText() {
+  $("popVal").textContent = +dep.value <= nowMin ? `Now · ${clock(atMin(+dep.value))}` : fDay.format(atMin(+dep.value));
+  paintRange();
+}
+let depTimer = null;
+dep.addEventListener("input", () => {
+  popText(); clearTimeout(depTimer);
+  depTimer = setTimeout(() => { depMin = +dep.value; setWhen(true); render(); }, 90);
+});
+$("when").onclick = () => {
+  const open = $("pop").hidden;
+  if (!open) return closeAll();
+  dep.value = depMin; popText();
+  $("pop").hidden = false; $("when").setAttribute("aria-expanded", "true");
+  reveal($("scrim"), "dim");
+};
+$("nowBtn").onclick = () => { dep.value = nowMin; dep.dispatchEvent(new Event("input")); };
+
+// ---------- places ----------
+function render() { return place === "delivery" ? renderDelivery() : place === "work" ? renderWork() : renderHome(); }
+document.querySelector(".seg").onclick = (e) => {
+  const b = e.target.closest("button"); if (!b || b.dataset.place === place) return;
+  place = b.dataset.place;
+  document.querySelectorAll(".seg button").forEach((x) => x.setAttribute("aria-pressed", x === b));
+  renderDelivery.fitted = false; skeleton(); say("Checking roads…", "");
+  render();
+};
+
+// ---------- start ----------
+(async function start() {
+  skeleton(7);
+  try { snap = await fetch(SNAP, { cache: "no-store" }).then((r) => r.json()); }
+  catch { say("Can't confirm roads", "Treat low roads near creeks as impassable. In an emergency call 911."); rowsEl.innerHTML = ""; return; }
+  cycle = snap.cycle; places = snap.places; nowMin = snap.now_min || 0; depMin = nowMin;
+  const m = cycle.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})Z$/);
+  issue = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4]));
+  order = places.delivery.stops.map((_, i) => i);
+  $("issued").textContent = `Forecast issued ${fDay.format(issue)}`;
+  dep.min = nowMin; dep.max = MAX_MIN; dep.step = STEP;
+  $("ticks").innerHTML = [0, 3, 6, 9, 12, 15, 18].map((h) => `<span>${fHour.format(atMin(nowMin + (h / 18) * (MAX_MIN - nowMin)))}</span>`).join("");
+  $("popNote").textContent = `Forecast window ends ${endText()}`;
+  try {
+    const fc = await fetch(`/data/flood_${cycle}.geojson`).then((r) => r.json());
+    for (const f of fc.features) flood.set(f.properties.seg_id, f);
+  } catch {}
+  try { plans = await fetch(SNAP_BASE + "ipad_plans.json").then((r) => r.json()); } catch {}
+  render();
+})();
+</script>
+</body>
+</html>

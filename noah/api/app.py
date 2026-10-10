@@ -4,14 +4,18 @@ Also mounts spec 014's dispatch router (I3) and serves web/ from the same origin
 """
 
 import logging
+import os
+import time
 from pathlib import Path
 
+import httpx
 from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).resolve().parents[2] / ".env")  # keys before anything reads os.environ
 
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from noah import (
@@ -155,6 +159,42 @@ def past_route(
         return past.route(a_lat, a_lon, b_lat, b_lon, cycle)
     except Exception:  # noqa: BLE001
         return failed("past/route")
+
+
+_cam_live: dict[int, tuple[float, dict]] = {}
+
+
+@app.get("/cam/{cam_id}")
+def cam(cam_id: int) -> JSONResponse:
+    """Spec 021: one camera's current frame from Windy (signed preview URL + the frame's own time), cached 5 min."""
+    hit = _cam_live.get(cam_id)
+    if hit and time.time() - hit[0] < 300:
+        return JSONResponse(hit[1])
+    key = os.environ.get("WINDY_API_KEY")
+    if not key:
+        return JSONResponse({"state": "error"}, status_code=502)
+    try:
+        r = httpx.get(
+            f"https://api.windy.com/webcams/api/v3/webcams/{cam_id}",
+            headers={"x-windy-api-key": key},
+            params={"include": "images"},
+            timeout=8,
+        )
+        if r.status_code == 404:
+            return JSONResponse({"state": "unknown_camera"}, status_code=404)
+        r.raise_for_status()
+        w = r.json()
+        out = {
+            "cam_id": cam_id,
+            "title": w.get("title"),
+            "image_url": w["images"]["current"]["preview"],
+            "updated_utc": w.get("lastUpdatedOn"),
+        }
+    except Exception:  # one camera failing must not break the page
+        log.exception("camera %s live frame failed", cam_id)
+        return JSONResponse({"state": "error"}, status_code=502)
+    _cam_live[cam_id] = (time.time(), out)
+    return JSONResponse(out)
 
 
 @app.on_event("startup")

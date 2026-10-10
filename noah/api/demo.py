@@ -5,6 +5,7 @@ answers, so judging has no live calls and no surprises. Timestamps stay truthful
   uv run python -m noah.api.demo record     call the running API for every answer the page can ask
                                             for and save them under web/demo/snapshot/
   uv run python -m noah.api.demo all        both
+  uv run python -m noah.api.demo ipad       web/demo/snapshot/ipad_plans.json for the iPad app (spec 021; record runs it too)
 
 The page looks up answers by path + parameters; a departure time that was not recorded falls back to
 the nearest recorded one (web/index.html, snapLookup).
@@ -225,7 +226,9 @@ def record_trip_family(
                 nxt = [cur[i] for i in [*order, *rest]]
                 if tuple((s["lat"], s["lon"]) for s in nxt) not in seen_orders and nxt not in queue:
                     queue.append(nxt)
-        rec.get("/past/route", {"from": ll(origin), "to": ll(dest), "cycle": CYCLE})  # the page's past tab: start to end
+        rec.get(
+            "/past/route", {"from": ll(origin), "to": ll(dest), "cycle": CYCLE}
+        )  # the page's past tab: start to end
         if cur:
             for a, b in leg_pairs(origin, cur, dest):
                 for h in range(NOW_MIN // 60, config.MAX_LEAD_H + 1):
@@ -269,10 +272,51 @@ def record(api: str = API, corridor_m: int = 3000, refresh: set[str] | None = No
     rec.write_index(places)
 
 
+def ipad_plans() -> Path:
+    """Spec 021: every recorded /trip, per stop order, reduced to what the iPad needs to compute leave-by and each stop's
+    'Go before' (stops, destination, best order) without loading ~30 MB of route geometry per order."""
+    idx = json.loads((SNAP / "index.json").read_text())
+    keep_stop = ("i", "state", "reached", "arrive_min", "cut_h", "in_best")
+    out: dict[str, list] = {}
+    for e in idx["responses"]:
+        if e["path"] != "/trip":
+            continue
+        r = json.loads((SNAP / e["file"]).read_text())
+        if r.get("state") != "ok":
+            continue
+        p = e["p"]
+        stops = [
+            {**{k: s.get(k) for k in keep_stop}, "street": s.get("street")}
+            for s in r.get("stops", [])
+        ]
+        dest = r.get("dest") or {}
+        out.setdefault(f"{p['from']}|{p['to']}|{p.get('stops', '')}", []).append(
+            {
+                "m": round(float(p["depart_h"]) * 60),
+                "stops": stops,
+                "dest": {
+                    k: dest.get(k) for k in ("state", "reached", "arrive_min", "cut_h", "street")
+                },
+                "current": r.get("current"),
+                "best": {
+                    k: (r.get("best") or {}).get(k)
+                    for k in ("order", "reached", "dest_reached", "minutes", "differs", "skipped")
+                },
+                "leave_by_min": r.get("leave_by_min"),
+            }
+        )
+    for v in out.values():
+        v.sort(key=lambda x: x["m"])
+    path = SNAP / "ipad_plans.json"
+    path.write_text(json.dumps(out, separators=(",", ":")))
+    log.info("wrote %s (%d stop orders, %d KB)", path, len(out), path.stat().st_size // 1024)
+    return path
+
+
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("what", choices=["build", "record", "all"])
+    p.add_argument("what", choices=["build", "record", "ipad", "all"])
     p.add_argument("--api", default=API)
     p.add_argument("--refresh", default="", help="comma-separated paths to call again, e.g. /trip")
     a = p.parse_args()
@@ -280,6 +324,8 @@ def main() -> None:
         build()
     if a.what in ("record", "all"):
         record(a.api, refresh={x for x in a.refresh.split(",") if x})
+    if a.what in ("ipad", "record", "all"):
+        ipad_plans()
 
 
 if __name__ == "__main__":
