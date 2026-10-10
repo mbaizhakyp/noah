@@ -1,0 +1,70 @@
+{
+ "business": "Peachtree Corner Pharmacy (sample)",
+ "depot": {
+  "label": "Peachtree Road Northeast",
+  "lat": 33.83991,
+  "lon": -84.3792
+ },
+ "stops": [
+  {
+   "id": "S1",
+   "label": "Woodward Way Northwest",
+   "lat": 33.8214,
+   "lon": -84.41226
+  },
+  {
+   "id": "S2",
+   "label": "Windsor Parkway Northeast",
+   "lat": 33.88506,
+   "lon": -84.36256
+  },
+  {
+   "id": "S3",
+   "label": "Hanover West Court",
+   "lat": 33.82242,
+   "lon": -84.43179
+  },
+  {
+   "id": "S4",
+   "label": "Peachtree Battle Circle Northwest",
+   "lat": 33.82259,
+   "lon": -84.41893
+  },
+  {
+   "id": "S5",
+   "label": "Bohler Road Northwest",
+   "lat": 33.82133,
+   "lon": -84.42926
+  },
+  {
+   "id": "S6",
+   "label": "Collier Road Northwest",
+   "lat": 33.80995,
+   "lon": -84.4338
+  },
+  {
+   "id": "S7",
+   "label": "Caldwell Road Northeast at East Osborne Road Northeast",
+   "lat": 33.86417,
+   "lon": -84.33391
+  },
+  {
+   "id": "S8",
+   "label": "Ansley Circle Northeast at Monroe Drive Northeast",
+   "lat": 33.80053,
+   "lon": -84.37163
+  },
+  {
+   "id": "S9",
+   "label": "Fairwood Lane Northeast at Fisher Trail Northeast",
+   "lat": 33.84091,
+   "lon": -84.30568
+  },
+  {
+   "id": "S10",
+   "label": "Airport cargo area (outside coverage)",
+   "lat": 33.6407,
+   "lon": -84.4277
+  }
+ ]
+}
