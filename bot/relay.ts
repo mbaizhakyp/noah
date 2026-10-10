@@ -30,7 +30,7 @@ export function senderHash(id: string | undefined): string {
  * Reply for one inbound text.
  * - echo: "echo: <text>" (Phase 0 go/no-go).
  * - chat: POST {apiBase}/chat {sender, text, image_b64: null} -> reply (C9).
- * - auto: chat, but echo while /chat doesn't exist yet (404), so the relay switches by itself when 007 lands.
+ * - auto: chat, but echo while /chat doesn't exist yet (404/405), so the relay switches by itself when 007 lands.
  * Any other failure or a slow agent (> timeout) -> ERROR_REPLY, never silence.
  */
 export async function replyFor(
@@ -46,7 +46,8 @@ export async function replyFor(
       body: JSON.stringify({ sender, text, image_b64: null }),
       signal: AbortSignal.timeout(timeoutMs),
     });
-    if (res.status === 404 && mode === "auto") return { reply: `echo: ${text}`, via: "echo" };
+    // 404/405: no /chat route yet (app.py mounts static files at "/", so a missing POST route is 405).
+    if ((res.status === 404 || res.status === 405) && mode === "auto") return { reply: `echo: ${text}`, via: "echo" };
     if (!res.ok) return { reply: ERROR_REPLY, via: "error" };
     const data = (await res.json()) as { reply?: unknown };
     return typeof data.reply === "string" && data.reply.trim()

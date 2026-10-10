@@ -18,8 +18,10 @@ test("echo mode", async () => {
 test("auto: relays to /chat when it exists, echoes on 404", async () => {
   const ok = await replyFor("is Northside flooding?", "u", { mode: "auto", apiBase: "http://a", fetchFn: fakeFetch(200, { reply: "Do not cross Northside Dr." }) });
   assert.deepEqual(ok, { reply: "Do not cross Northside Dr.", via: "chat" });
-  const missing = await replyFor("hi", "u", { mode: "auto", apiBase: "http://a", fetchFn: fakeFetch(404, {}) });
-  assert.deepEqual(missing, { reply: "echo: hi", via: "echo" });
+  for (const status of [404, 405]) {
+    const missing = await replyFor("hi", "u", { mode: "auto", apiBase: "http://a", fetchFn: fakeFetch(status, {}) });
+    assert.deepEqual(missing, { reply: "echo: hi", via: "echo" });
+  }
 });
 
 test("failures and slow agent -> error template, never silence", async () => {

@@ -5,11 +5,13 @@
 //
 // Env (../.env): SPECTRUM_PROJECT_ID, SPECTRUM_PROJECT_SECRET, API_BASE (default http://localhost:8000),
 //                BOT_MODE = auto (default: relay to /chat, echo while /chat doesn't exist) | echo | chat
+import { fileURLToPath } from "node:url";
 import { config as loadEnv } from "dotenv";
 import { Spectrum } from "spectrum-ts";
 import { type Mode, replyFor, senderHash, textOf } from "./relay.ts";
 
-loadEnv({ path: new URL("../.env", import.meta.url).pathname, quiet: true });
+// fileURLToPath, not URL.pathname: the latter keeps %20 for spaces ("Application Support") and misses the file.
+loadEnv({ path: fileURLToPath(new URL("../.env", import.meta.url)), quiet: true });
 
 const local = process.argv.includes("--terminal");
 const mode = (process.env.BOT_MODE ?? "auto") as Mode;
