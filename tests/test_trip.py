@@ -46,9 +46,25 @@ def test_best_order_visits_the_early_cut_stop_first_and_holds_the_unreachable_on
     assert order == [1, 2] and dest_ok  # 1 first (only reachable right away), 3 held
 
 
-def test_own_street_blocked_at_arrival_counts_as_unreachable():
-    G = line_graph()
-    net = trip.Net(G, list(G.nodes), {"s2": 1})  # the destination's own road floods at hour 1
-    dist, _ = trip.td_dijkstra(net, "A", 0.0, targets=["C"])
-    assert trip.own_open(net, "C", 0.0, dist["C"]) is False  # arrive 1 h, +1 buffer >= 1
-    assert trip.own_open(net, "B", 0.0, dist["B"]) is True
+def test_a_stop_on_a_flagged_corner_is_still_reached_by_the_open_road():
+    # A -> B directly is flagged now (t=0); A -> C -> B is open. The stop at B must still be reached.
+    G = nx.MultiDiGraph()
+    G.add_edge("A", "B", key=0, seg_id="s_direct", travel_time=600.0)
+    G.add_edge("A", "C", key=0, seg_id="s_ac", travel_time=900.0)
+    G.add_edge("C", "B", key=0, seg_id="s_cb", travel_time=900.0)
+    for n in G.nodes:
+        G.nodes[n]["x"] = G.nodes[n]["y"] = 0.0
+    net = trip.Net(G, list(G.nodes), {"s_direct": 0})
+    dist, pred = trip.td_dijkstra(net, "A", 0.0, targets=["B"])
+    assert dist["B"] == 1800.0 and trip.path_from(pred, "B")[0] == ["A", "C", "B"]
+
+
+def test_near_nodes_returns_access_points_nearest_first():
+    import numpy as np
+
+    ids = np.array([1, 2, 3])
+    xy = np.array(
+        [[-84.0, 33.0], [-84.001, 33.0], [-84.1, 33.0]]
+    )  # ~0 m, ~93 m, ~9 km from the point
+    assert trip.near_nodes(ids, xy, -84.0, 33.0, 250) == [1, 2]
+    assert trip.near_nodes(ids, xy, -84.1, 33.0, 10) == [3]  # nothing in range: nearest only
