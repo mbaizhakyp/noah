@@ -270,7 +270,7 @@ def dispatch(req: DispatchRequest) -> dict:
         raise HTTPException(400, "max 50 stops")
     if not aoi.contains(Point(req.depot.lon, req.depot.lat)):
         raise HTTPException(
-            400, "depot is outside Noah's coverage (Peachtree Creek watershed, Atlanta)"
+            400, "depot is outside Noah's road-level coverage (metro Atlanta creeks)"
         )
     src = nearest_node(ids, xy, req.depot.lon, req.depot.lat)
     # Search only the trip box (depot + covered stops + margin), like /route: keeps big graphs fast.

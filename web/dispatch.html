@@ -92,7 +92,7 @@
 <body>
 <header>
   <h1>Noah Dispatch</h1>
-  <span class="sub">Flood-aware delivery planning for small businesses · Peachtree Creek, Atlanta</span>
+  <span class="sub">Flood-aware delivery planning for small businesses · metro Atlanta</span>
   <a href="index.html">Open flood map →</a>
 </header>
 <main>
@@ -172,7 +172,7 @@ function detailText(s) {
   if (s.state === "go_before") return `Go before ~${local(s.go_before_utc)}${where}. No forecast flooding on this route if you leave before then. Not a safety guarantee.`;
   if (s.state === "hold") return `Hold this delivery. The route is forecast cut by flooding from ~${local(s.cut_from_utc)}${where}.`;
   if (s.state === "no_forecast_flooding") return `No forecast flooding on this route through ${local(data.valid_until)}. Not a safety guarantee.`;
-  return "Outside Noah's coverage (Peachtree Creek watershed, Atlanta). Check local official warnings.";
+  return "Outside Noah's road-level coverage (metro Atlanta creeks). Check local official warnings.";
 }
 function showError(msg) { const e = $("error"); e.textContent = msg; e.style.display = msg ? "block" : "none"; }
 
