@@ -36,6 +36,8 @@ Video. Pothole detection (parking lot). Anything with people or license plates. 
 7. Override rule (same as 010): a `bucket ≥ curb` assessment can only upgrade C4 segments within 100 m to `flooded` for that time onward. Never downgrade.
 
 ## Discovered
+- Fri Oct 9, ~21:27 ET: key requested from a logged-in 511GA account (Margulan). The form asks for "reasons" (≥10 chars). Status shows **Pending Approval**; a confirmation email from notifications@511ga.org says "we will process your request shortly." No terms were shown at request time. Watch for the approval email; record any terms it contains here.
+
 _Fill in: API base, key signup and terms text (summary), camera count in the AOI, image URL format, whether image fetches count against the rate limit._
 
 ## Acceptance criteria
