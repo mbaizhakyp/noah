@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { alertCommand, ERROR_REPLY, replyFor, senderHash, textOf } from "./relay.ts";
+import { alertCommand, ERROR_REPLY, photoKey, photosOf, replyFor, senderHash, textOf } from "./relay.ts";
 
 const fakeFetch = (status: number, body: unknown, delayMs = 0) =>
   (async (_url: string, init?: RequestInit) => {
@@ -46,4 +46,14 @@ test("alertCommand", () => {
   assert.equal(alertCommand(" Alerts OFF! "), "off");
   assert.equal(alertCommand("watch on"), "on");
   assert.equal(alertCommand("are alerts on for Northside Dr?"), null);
+});
+
+test("camera photos: https only, at most 6, numbered key with Windy credit (J32)", async () => {
+  const p = (url: string) => ({ url, caption: "Cam · 1.2 km · no water on the road seen" });
+  assert.deepEqual(photosOf({ photos: [p("http://x"), p("https://a"), { url: 1 }] }), [p("https://a")]);
+  assert.equal(photosOf({ photos: Array.from({ length: 9 }, () => p("https://a")) }).length, 6);
+  assert.deepEqual(photosOf({ reply: "x" }), []);
+  assert.equal(photoKey(["A", "B"]), "1. A\n2. B\nWebcams provided by Windy.com");
+  const r = await replyFor("cams", "u", { mode: "chat", apiBase: "http://a", fetchFn: fakeFetch(200, { reply: "ok", photos: [p("https://a")] }) });
+  assert.deepEqual(r, { reply: "ok", via: "chat", photos: [p("https://a")] });
 });

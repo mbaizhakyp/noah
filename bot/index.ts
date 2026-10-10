@@ -12,8 +12,8 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { basename } from "node:path";
 import { fileURLToPath } from "node:url";
 import { config as loadEnv } from "dotenv";
-import { attachment, type Space, Spectrum } from "spectrum-ts";
-import { alertCommand, type Mode, replyFor, senderHash, textOf } from "./relay.ts";
+import { attachment, group, type Space, Spectrum } from "spectrum-ts";
+import { alertCommand, type Mode, type Photo, photoKey, replyFor, senderHash, textOf } from "./relay.ts";
 
 // fileURLToPath, not URL.pathname: the latter keeps %20 for spaces ("Application Support") and misses the file.
 loadEnv({ path: fileURLToPath(new URL("../.env", import.meta.url)), quiet: true });
@@ -86,6 +86,30 @@ async function flushOutbox() {
 }
 setInterval(() => void flushOutbox(), 20_000);
 
+// J32: live camera frames as one album, then a numbered key. Held in memory only (Windy frames are never stored).
+async function sendPhotos(space: Space, photos: Photo[]) {
+  const got: { att: ReturnType<typeof attachment>; caption: string }[] = [];
+  for (const [i, p] of photos.entries()) {
+    try {
+      const res = await fetch(p.url, { signal: AbortSignal.timeout(10_000) });
+      if (!res.ok) continue;
+      const mimeType = res.headers.get("content-type") ?? "image/jpeg";
+      got.push({ att: attachment(Buffer.from(await res.arrayBuffer()), { name: `camera-${i + 1}.jpg`, mimeType }), caption: p.caption });
+    } catch {
+      // one camera failing must not block the others
+    }
+  }
+  if (!got.length) return;
+  try {
+    if (got.length >= 2) await space.send(group(...(got.map((g) => g.att) as Parameters<typeof group>)));
+    else await space.send(got[0].att);
+  } catch (e) {
+    console.error(`album send failed, sending one by one: ${(e as Error).message}`);
+    for (const g of got) await space.send(g.att);
+  }
+  await space.send(photoKey(got.map((g) => g.caption)));
+}
+
 for await (const [space, message] of app.messages) {
   if (message.direction !== "inbound") continue;
   const text = textOf(message.content as { type: string; text?: string });
@@ -107,11 +131,12 @@ for await (const [space, message] of app.messages) {
     console.error(`alerts ${cmd} from=${senderHash(sender)}`);
     continue;
   }
-  const { reply, via } = await space.responding(async () => {
+  const { reply, via, photos } = await space.responding(async () => {
     const r = await replyFor(text, sender, { mode, apiBase });
     await message.reply(r.reply);
+    if (r.photos?.length) await sendPhotos(space, r.photos);
     return r;
   });
   // One line per message: sender hash, text length, latency, path. Never the content or the number.
-  console.error(`msg from=${senderHash(sender)} len=${text.length} via=${via} ms=${Date.now() - t0} out=${reply.length}`);
+  console.error(`msg from=${senderHash(sender)} len=${text.length} via=${via} ms=${Date.now() - t0} out=${reply.length} photos=${photos?.length ?? 0}`);
 }

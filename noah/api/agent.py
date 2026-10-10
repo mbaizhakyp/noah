@@ -30,13 +30,15 @@ ET = "America/New_York"
 MAX_CHARS = 480
 ENGINE_BUDGET_S = 12
 ENDPOINT_M = 200  # a flagged street this close to the start/destination is "your street"
+CAM_BUNDLE = 6  # J32: live camera photos per answer (one iMessage album)
 WET = ("curb", "half_tire", "door_sill_or_above")
 GEORGIA_VIEWBOX = "-85.61,35.00,-80.84,30.36"  # left,top,right,bottom
 BANNED = re.compile(r"\b(safe|safely|clear|passable|you're fine|no risk)\b", re.IGNORECASE)
 # Reassurance beyond what a forecast can promise (same spirit as §5): also forces a rewrite.
 REASSURING = re.compile(
     r"\b(do not|don't) expect\b|\bwon'?t (flood|be (flooded|underwater))\b|\bwill not flood\b"
-    r"|\bno need to worry\b|\bnothing to worry\b|\bshould be (fine|ok|okay)\b|\byou'll be (fine|ok|okay)\b",
+    r"|\bno need to worry\b|\bnothing to worry\b|\bshould be (fine|ok|okay)\b|\byou'll be (fine|ok|okay)\b"
+    r"|\blow(er)? risk\b|\brisk is (low|minimal)\b|\bminimal risk\b",
     re.IGNORECASE,
 )
 ERROR_REPLY = (
@@ -44,6 +46,7 @@ ERROR_REPLY = (
     "In an emergency call 911."
 )
 _pool = ThreadPoolExecutor(max_workers=4)
+_cam_pool = ThreadPoolExecutor(max_workers=6)  # J32: camera frames are AI-checked in parallel
 _geo_cache: dict[str, dict] = {}
 _geo_lock = threading.Lock()
 _last_geo = [0.0]
@@ -73,6 +76,13 @@ How to answer:
 - check_area: only say the asked street/place itself floods if flooding_at_this_place lists it. Roads in
   nearby_flagged_roads are other roads: say how far away they are (km_away). If flooding_at_this_place
   is empty, say no flooding is forecast at that spot (not a safety guarantee), then the nearby roads.
+- Cameras, CCTV, photos or "what does it look like": call camera_check (radius_miles default 5). Begin the reply
+  with its say_first sentence word for word, then add the rest. Its photos are sent
+  right after your text with a numbered key, so refer to cameras by name, never by number. Say how many cameras are
+  in the radius and how many photos you're sending (AI-checked), and whether any photo shows water (water counts
+  only when confirmed twice; "no water seen" is one look, don't call it confirmed); then official_warnings; then noah_forecast; then one line on
+  what those facts mean for risk, as facts (e.g. no camera shows water and no warning is in effect). Never say safe,
+  low risk or no risk; finish with "not a safety guarantee".
 - If a tool returns an error, say so plainly and ask for a street address. Never claim a place was
   saved or checked unless the tool result says so.
 - Plain text, no markdown, at most 480 characters."""
@@ -111,6 +121,22 @@ TOOLS = [
                     },
                 },
                 "required": ["origin", "destination"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "camera_check",
+            "description": "Live traffic-camera photos around a place, each AI-checked for water, plus official NWS "
+            "warnings and Noah's latest live road forecast there. The photos are sent to the user automatically.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "place": {"type": "string"},
+                    "radius_miles": {"type": "number", "description": "default 5, max 10"},
+                },
+                "required": ["place"],
             },
         },
     },
@@ -237,7 +263,187 @@ def flagged(rows: list[dict], limit: int = 5) -> list[dict]:
     return out
 
 
+def spread(items: list, k: int) -> list:
+    """k items spread evenly from the first (nearest) to the last (farthest), order kept."""
+    if len(items) <= k:
+        return list(items)
+    return [items[round(i * (len(items) - 1) / (k - 1))] for i in range(k)]
+
+
+def camera_lead(n_radius: int, miles: float, checks: list[dict]) -> str:
+    """The reply's first sentence, from the real counts (the model kept merging 'found' and 'checked')."""
+    if not checks:
+        return f"I couldn't get any live camera images within {miles:g} miles right now."
+    wet = [c["title"] for c in checks if c["wet"]]
+    seen = (
+        f"water on the road is confirmed at {', '.join(wet)}"
+        if wet
+        else f"none of the {len(checks)} shows water on the road"
+    )
+    return (
+        f"{n_radius} traffic cameras are within {miles:g} miles; here are {len(checks)} live photos "
+        f"spread across the area, AI-checked: {seen}."
+    )
+
+
+def cam_verdict(res: dict) -> str:
+    """Plain words for one two-look AI check (noah.api.photo.verified); water counts only when seen twice."""
+    b = res.get("bucket")
+    if res.get("blank"):
+        return "camera feed unavailable"
+    if b in WET and res.get("verified") is True:
+        return f"water on the road, about {b.replace('_', ' ')} level (AI-checked twice)"
+    if b in WET:
+        return "possible water, not confirmed on a second look"
+    return "no water on the road seen" if b == "none" else "can't tell from the image"
+
+
+def compass(lat1: float, lon1: float, lat2: float, lon2: float) -> str:
+    """8-point direction from point 1 to point 2, for camera captions ("3.1 km NE")."""
+    import math
+
+    p1, p2, dl = math.radians(lat1), math.radians(lat2), math.radians(lon2 - lon1)
+    y = math.sin(dl) * math.cos(p2)
+    x = math.cos(p1) * math.sin(p2) - math.sin(p1) * math.cos(p2) * math.cos(dl)
+    return ["N", "NE", "E", "SE", "S", "SW", "W", "NW"][
+        round(math.degrees(math.atan2(y, x)) % 360 / 45) % 8
+    ]
+
+
+def km_between(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    import math
+
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    a = (
+        math.sin((p2 - p1) / 2) ** 2
+        + math.cos(p1) * math.cos(p2) * math.sin(math.radians(lon2 - lon1) / 2) ** 2
+    )
+    return 12742 * math.asin(math.sqrt(a))
+
+
 # ---------------------------------------------------------------- tools
+
+
+def windy_nearby(lat: float, lon: float, radius_km: float) -> list[dict]:
+    """Active Windy webcams within radius_km, nearest first (current frame URL only; nothing is stored)."""
+    key = os.environ.get("WINDY_API_KEY")
+    if not key:
+        return []
+    webcams = []
+    for offset in range(
+        0, 250, 50
+    ):  # downtown alone fills the first 50 (all within ~1.6 km): page out to the edge
+        r = httpx.get(
+            "https://api.windy.com/webcams/api/v3/webcams",
+            headers={"x-windy-api-key": key},
+            params={
+                "nearby": f"{lat:.4f},{lon:.4f},{max(1, round(radius_km))}",  # Windy wants whole km
+                "limit": 50,
+                "offset": offset,
+                "include": "location,images",
+            },
+            timeout=10,
+        )
+        r.raise_for_status()
+        page = r.json().get("webcams", [])
+        webcams += page
+        if len(page) < 50:
+            break
+    cams = []
+    for w in webcams:
+        loc, img = (
+            w.get("location") or {},
+            ((w.get("images") or {}).get("current") or {}).get("preview"),
+        )
+        if w.get("status") == "active" and img and "latitude" in loc:
+            d = km_between(lat, lon, loc["latitude"], loc["longitude"])
+            cams.append(
+                {
+                    "title": w.get("title") or f"Camera {w['webcamId']}",
+                    "km": round(d, 1),
+                    "dir": compass(lat, lon, loc["latitude"], loc["longitude"]),
+                    "image_url": img,
+                }
+            )
+    return sorted(cams, key=lambda c: c["km"])
+
+
+def nws_warnings(lat: float, lon: float) -> list[str]:
+    """Active NWS alerts at the point (official government warnings)."""
+    r = httpx.get(
+        "https://api.weather.gov/alerts/active",
+        params={"point": f"{lat:.4f},{lon:.4f}"},
+        headers={"User-Agent": "noah-hacklanta/0.1 (+https://github.com/mbaizhakyp/noah)"},
+        timeout=8,
+    )
+    r.raise_for_status()
+    out = []
+    for f in r.json().get("features", [])[:3]:
+        pr = f.get("properties") or {}
+        end = pr.get("ends") or pr.get("expires")
+        out.append(f"{pr.get('event')}" + (f" until {local(end)}" if end else ""))
+    return out
+
+
+def live_cycle() -> str:
+    """Newest live run, even when the demo pins a recorded one: camera frames are live, so the forecast must be too."""
+    cyc = json.loads((config.WEB_DATA / "cycles.json").read_text())["cycles"]
+    live = [c["cycle"] for c in cyc if c.get("event") == "live"]
+    return max(live) if live else routing.current_cycle()
+
+
+def camera_check(geo: dict, miles: float, session: dict) -> dict:
+    from noah.api import photo
+
+    try:
+        cams = windy_nearby(geo["lat"], geo["lon"], miles * 1.609)
+    except Exception:
+        log.exception("windy nearby failed")
+        cams = []
+    pick = spread(cams, CAM_BUNDLE)
+    futs = [_cam_pool.submit(photo.verified, c["image_url"]) for c in pick]
+    checks = []
+    for c, f in zip(pick, futs):
+        try:
+            res = f.result(timeout=40)
+        except Exception:
+            log.exception("camera check failed")
+            res = {"bucket": "cant_tell"}
+        checks.append(
+            {
+                **c,
+                "ai": cam_verdict(res),
+                "wet": res.get("bucket") in WET and res.get("verified") is True,
+            }
+        )
+    try:
+        warnings: list[str] | str = nws_warnings(geo["lat"], geo["lon"]) or "none in effect"
+    except Exception:
+        log.exception("nws alerts failed")
+        warnings = "couldn't reach the National Weather Service"
+    cycle = live_cycle()
+    st = routing.status(geo["lat"], geo["lon"], config.MAX_LEAD_H, cycle)
+    session["photos_out"] = [
+        {"url": c["image_url"], "caption": f"{c['title']} · {c['km']} km {c['dir']} · {c['ai']}"}
+        for c in checks
+    ]
+    return {
+        "place": geo["name"],
+        "radius_miles": miles,
+        "state": st["state"],
+        "say_first": camera_lead(len(cams), miles, checks),
+        "cameras_in_radius": len(cams),
+        "photos_sent_and_ai_checked": [
+            {"name": c["title"], "km_away": c["km"], "direction": c["dir"], "ai_check": c["ai"]}
+            for c in checks
+        ],
+        "photos_with_water_confirmed_twice": sum(c["wet"] for c in checks),
+        "official_warnings": warnings,
+        "noah_forecast": {
+            "issued": local(pd.Timestamp(config.parse_cycle(cycle))),
+            "flagged_roads_within_5_km": flagged(st.get("segments", [])),
+        },
+    }
 
 
 ABBREV = {
@@ -430,6 +636,13 @@ def run_tool(name: str, args: dict, session: dict, ctx: dict) -> dict:
         if st["state"] not in ("out_of_coverage",):
             out["live"] = engine_extra("area", geo["lat"], geo["lon"], ctx["cycle"])
         return out
+    if name == "camera_check":
+        geo = resolve(session, args["place"])
+        if not geo:
+            return {
+                "error": f"couldn't find '{args['place']}' in Georgia; ask for a street address"
+            }
+        return camera_check(geo, min(max(float(args.get("radius_miles") or 5), 0.5), 10), session)
     if name == "check_route":
         a, b = resolve(session, args["origin"]), resolve(session, args["destination"])
         if not a or not b:
@@ -491,6 +704,7 @@ def context() -> dict:
 
 def answer(sender: str, text: str) -> str:
     session = SESSIONS.setdefault(sender, {"history": deque(maxlen=12), "places": {}})
+    session.pop("photos_out", None)
     ctx = context()
     system = SYSTEM.format(
         now=local(ctx["now"]),
@@ -539,6 +753,14 @@ def answer(sender: str, text: str) -> str:
             reply = template_reply(last_result)
     if needs_guarantee(last_result, reply):
         reply = finalize(reply[: MAX_CHARS - 40].rstrip() + " This is not a safety guarantee.")
+    if (
+        last_result
+        and "say_first" in last_result
+        and not last_result.get("photos_with_water_confirmed_twice")
+    ):
+        reply = re.sub(
+            r"(AI[- ]checked)\s+twice", r"\1", reply, flags=re.IGNORECASE
+        )  # dry photos get one look, not two
     reply = config.road_alias(reply)  # never longer: aliases are shorter than the official names
     session["history"].extend(
         [{"role": "user", "content": text}, {"role": "assistant", "content": reply}]
@@ -560,5 +782,14 @@ def chat(body: ChatIn) -> dict:
     except Exception:
         log.exception("chat failed")
         reply = ERROR_REPLY
-    log.info("chat len=%d out=%d %.1fs", len(body.text), len(reply), time.time() - t0)
-    return {"reply": reply}
+    photos = SESSIONS.get(body.sender, {}).pop(
+        "photos_out", []
+    )  # J32: live camera frames for the relay to attach
+    log.info(
+        "chat len=%d out=%d photos=%d %.1fs",
+        len(body.text),
+        len(reply),
+        len(photos),
+        time.time() - t0,
+    )
+    return {"reply": reply, "photos": photos}

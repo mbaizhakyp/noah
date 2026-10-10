@@ -1,6 +1,18 @@
 import pandas as pd
 
-from noah.api.agent import MAX_CHARS, depart_hour, finalize, flagged, is_banned, template_reply
+from noah.api.agent import (
+    MAX_CHARS,
+    cam_verdict,
+    camera_lead,
+    compass,
+    depart_hour,
+    finalize,
+    flagged,
+    is_banned,
+    km_between,
+    spread,
+    template_reply,
+)
 
 
 def test_banned_words_whole_word_only():
@@ -163,3 +175,38 @@ def test_reassurance_phrases_force_rewrite():
     assert not is_banned(
         "Northside Drive itself is not forecast to flood. This is not a safety guarantee."
     )
+
+
+def test_camera_bundle_spreads_near_to_far():
+    assert spread([1, 2, 3], 6) == [1, 2, 3]
+    picked = spread(list(range(20)), 6)
+    assert picked[0] == 0 and picked[-1] == 19 and len(picked) == 6 and picked == sorted(picked)
+
+
+def test_camera_verdict_counts_water_only_when_seen_twice():
+    assert "twice" in cam_verdict({"bucket": "curb", "verified": True})
+    assert "not confirmed" in cam_verdict({"bucket": "curb", "verified": False})
+    assert cam_verdict({"bucket": "none"}) == "no water on the road seen"
+    assert cam_verdict({"bucket": "cant_tell", "blank": True}) == "camera feed unavailable"
+    assert not any(is_banned(cam_verdict({"bucket": b})) for b in ("none", "cant_tell", "curb"))
+
+
+def test_km_between_gsu_and_midtown():
+    assert 2.0 < km_between(33.7531, -84.3853, 33.7816, -84.3830) < 3.5
+
+
+def test_compass_and_low_risk_wording():
+    assert compass(33.75, -84.39, 33.80, -84.39) == "N"
+    assert compass(33.75, -84.39, 33.70, -84.30) == "SE"
+    assert is_banned("Flood risk is low based on these facts.")
+    assert is_banned("This is a low risk area.")
+    assert not is_banned("No camera shows water and no warning is in effect.")
+
+
+def test_camera_lead_counts_found_vs_sent():
+    checks = [{"title": "A", "wet": False}, {"title": "B", "wet": True}]
+    lead = camera_lead(149, 5, checks)
+    assert lead.startswith("149 traffic cameras are within 5 miles; here are 2 live photos")
+    assert "confirmed at B" in lead
+    assert "none of the 1 shows water" in camera_lead(3, 5, checks[:1])
+    assert "couldn't get any" in camera_lead(0, 5, [])

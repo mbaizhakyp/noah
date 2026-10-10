@@ -7,6 +7,26 @@ export const ERROR_REPLY =
 
 export type Mode = "auto" | "echo" | "chat";
 
+/** J32: a live camera frame /chat wants attached (the relay downloads it into memory; nothing is stored). */
+export interface Photo {
+  url: string;
+  caption: string;
+}
+
+/** Photos from a /chat answer: https only, at most 6 (one iMessage album). */
+export function photosOf(data: unknown): Photo[] {
+  const list = (data as { photos?: unknown } | null)?.photos;
+  if (!Array.isArray(list)) return [];
+  return list
+    .filter((p): p is Photo => typeof p?.url === "string" && p.url.startsWith("https://") && typeof p?.caption === "string")
+    .slice(0, 6);
+}
+
+/** The numbered key sent after the album, in album order, with the Windy credit. */
+export function photoKey(captions: string[]): string {
+  return [...captions.map((c, i) => `${i + 1}. ${c}`), "Webcams provided by Windy.com"].join("\n");
+}
+
 export interface ReplyOptions {
   mode: Mode;
   apiBase: string;
@@ -37,7 +57,7 @@ export async function replyFor(
   text: string,
   sender: string,
   { mode, apiBase, timeoutMs = 45_000, fetchFn = fetch }: ReplyOptions,
-): Promise<{ reply: string; via: "echo" | "chat" | "error" }> {
+): Promise<{ reply: string; via: "echo" | "chat" | "error"; photos?: Photo[] }> {
   if (mode === "echo") return { reply: `echo: ${text}`, via: "echo" };
   try {
     const res = await fetchFn(`${apiBase.replace(/\/$/, "")}/chat`, {
@@ -50,8 +70,9 @@ export async function replyFor(
     if ((res.status === 404 || res.status === 405) && mode === "auto") return { reply: `echo: ${text}`, via: "echo" };
     if (!res.ok) return { reply: ERROR_REPLY, via: "error" };
     const data = (await res.json()) as { reply?: unknown };
+    const photos = photosOf(data);
     return typeof data.reply === "string" && data.reply.trim()
-      ? { reply: data.reply, via: "chat" }
+      ? { reply: data.reply, via: "chat", ...(photos.length ? { photos } : {}) }
       : { reply: ERROR_REPLY, via: "error" };
   } catch {
     return { reply: ERROR_REPLY, via: "error" };
