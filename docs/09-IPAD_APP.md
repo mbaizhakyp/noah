@@ -1,6 +1,6 @@
 # 09 — Noah for iPad: design plan
 
-_Draft, Sat Oct 10 2026, 12:45 PM ET (Priyanshu + Claude). This is the design brief, not a spec: code waits for spec 021 with `Status: Approved`._
+_Sat Oct 10 2026 (Priyanshu + Claude). Spec 021. **Sat 13:10 revision:** the opening screen is now a maps app (section 4b); sections 4–5 describe the first build and stay valid for the route result._
 
 Reference sketch (the chosen composition): `.impeccable/mocks/decision/ipad-headline.html` (1180 × 820, warm paper).
 Rejected along the way (too hard to read): calendar day view, departure dial, cut-off chart, transit-line strip, sidebar split. **Lesson: one plain sentence beats any chart.**
@@ -65,6 +65,12 @@ Rejected along the way (too hard to read): calendar day view, departure dial, cu
   - Home: area status in §5 words ("Do not cross {road} from {time}." plus a count of the rest), built from the recorded `/status` + `/assess` answers. Wording is settled at build time from real answers, never invented.
   - Work: the route sentence, built from `/route` + `/trip`.
 - **Stop list** (by stop number, matching the map discs): number disc, street, status word on the right. Statuses: `Go before {t}` (amber-ink), `Do not cross` (red pill, when already cut at arrival), `No forecast flooding` (ink-2). A stop that can't be reached shows a red ✕ disc and "Can't reach before its street floods."
+
+## 4b. Opening screen, revised Sat 13:10 (Priyanshu: "like Google Maps")
+- **Full-bleed map** with every flagged road in the run at the departure hour (red = forecast flooded, dashed amber = uncertain) and a blue dot at the device's live location, plus a locate button and a small legend (top right).
+- **Floating panel** (420 px, left; a bottom sheet in portrait): Noah word mark + Live chip; then From ("Your location" when empty) / stops / To, a Swap button, Add stop, "Leaving …", Check route; then **Saved routes** (Maya's deliveries, Home → Work, Sandy Springs → Piedmont Hospital).
+- **Picking or checking a route** swaps the saved list for the route card: the dark answer block ("Leave by 7:30 PM / to reach all 6 stops before their streets flood."), then the stop rows (or, for a trip without stops, the flagged roads next to the route). More than two stops fold into one "6 stops · Edit" row so the card keeps its room.
+- Blue is the one new colour: it marks *you* (location dot, locate button), the convention every maps app uses. Orange stays on controls only.
 
 ## 5. Interactions
 1. **Place switch** (segmented, top bar): swaps banner, map and list with one crossfade (200 ms). The map flies to the new extent.

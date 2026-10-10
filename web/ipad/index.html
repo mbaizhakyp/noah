@@ -19,185 +19,258 @@
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <style>
-  /* Spec 021, docs/09-IPAD_APP.md: warm paper. Orange is for controls only; roads and stops use ink, red and amber. */
+  /* Spec 021, docs/09-IPAD_APP.md: warm paper, maps-app shell. Orange is for controls only; roads use red and amber. */
   :root {
     --paper: #faf7f2; --card: #fffdf9; --sand: #efe8dc; --line: #e7dfd2;
     --ink: #1c1a17; --ink-2: #4f4a42; --ink-3: #6b6356;
-    --accent: #c2410c; --accent-soft: #fbe9dc;
+    --accent: #c2410c; --accent-ink: #a3360a; --accent-soft: #fbe9dc;
     --flood: #d92d20; --flood-ink: #a8231a; --flood-soft: #fbe4e1;
     --amber: #f2a100; --amber-ink: #8a5100; --amber-soft: #fbefd5;
-    --water: #bfd3d6;
-    --shadow: 0 1px 2px rgba(28,26,23,.06), 0 14px 36px -12px rgba(28,26,23,.28);
+    --me: #1f6feb;
+    --shadow: 0 1px 2px rgba(28,26,23,.06), 0 14px 36px -12px rgba(28,26,23,.30);
     --ease: cubic-bezier(.2,.9,.25,1);
-    --top: 76px; --banner: 150px;
+    --gap: 16px; --panel: 420px;
     --sl: env(safe-area-inset-left, 0px); --sr: env(safe-area-inset-right, 0px); --st: env(safe-area-inset-top, 0px); --sb: env(safe-area-inset-bottom, 0px);
   }
   * { box-sizing: border-box; margin: 0; -webkit-tap-highlight-color: transparent; }
-  html, body { height: 100%; overflow: hidden; background: var(--paper); color: var(--ink);
-    font: 18px/1.4 "Overpass", system-ui, -apple-system, sans-serif; -webkit-font-smoothing: antialiased;
-    -webkit-user-select: none; user-select: none; overscroll-behavior: none; }
+  html, body { height: 100%; overflow: hidden; background: var(--sand); color: var(--ink);
+    font: 17px/1.4 "Overpass", system-ui, -apple-system, sans-serif; -webkit-font-smoothing: antialiased; overscroll-behavior: none; }
   button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+  input { font: inherit; color: inherit; }
   .num { font-variant-numeric: tabular-nums; }
   [hidden] { display: none !important; }
+  #map { position: fixed; inset: 0; }
 
-  /* ---------- top bar ---------- */
-  .top { position: fixed; left: 0; right: 0; top: 0; height: calc(var(--top) + var(--st)); padding: var(--st) calc(24px + var(--sr)) 0 calc(24px + var(--sl));
-    display: flex; align-items: center; gap: 22px; background: var(--paper); border-bottom: 1px solid var(--line); z-index: 5; }
-  .brand { font-size: 27px; font-weight: 900; letter-spacing: -.02em; color: var(--accent); }
-  .seg { display: inline-flex; background: var(--sand); border-radius: 14px; padding: 4px; gap: 2px; }
-  .seg button { min-height: 48px; padding: 0 22px; border-radius: 11px; font-weight: 700; color: var(--ink-2); transition: background .2s var(--ease), color .2s var(--ease); }
-  .seg button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
-  .livebtn { margin-left: auto; display: inline-flex; align-items: center; gap: 10px; min-height: 48px; padding: 0 18px; border-radius: 999px;
-    background: var(--card); border: 1.5px solid var(--line); font-weight: 800; font-size: 16px; }
+  /* ---------- floating panel (left in landscape, bottom sheet in portrait) ---------- */
+  .panel { position: fixed; z-index: 5; left: calc(var(--gap) + var(--sl)); top: calc(var(--gap) + var(--st)); width: var(--panel);
+    max-height: calc(100dvh - 2 * var(--gap) - var(--st) - var(--sb)); overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain;
+    display: flex; flex-direction: column; gap: 12px; padding-bottom: 2px; scrollbar-width: none; }
+  .panel::-webkit-scrollbar { display: none; }
+  .panel > * { flex-shrink: 0; }
+  .card { background: var(--card); border-radius: 20px; box-shadow: var(--shadow); }
+  .brandrow { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px 12px 18px; }
+  .brand { font-size: 27px; font-weight: 900; letter-spacing: -.03em; color: var(--ink); }
+  .livebtn { display: inline-flex; align-items: center; gap: 9px; min-height: 44px; padding: 0 16px; border-radius: 999px; background: var(--paper);
+    border: 1.5px solid var(--line); font-weight: 800; font-size: 15px; }
   .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--flood); flex: none; }
 
-  /* ---------- banner: the answer, as one sentence ---------- */
-  .banner { position: fixed; left: 0; right: 0; top: calc(var(--top) + var(--st)); min-height: var(--banner); z-index: 4;
-    background: var(--ink); color: var(--paper); display: flex; align-items: center; gap: 28px; padding: 18px calc(32px + var(--sr)) 18px calc(32px + var(--sl)); }
-  .say { flex: 1; min-width: 0; display: flex; align-items: center; gap: 26px; transition: opacity .2s var(--ease); }
+  /* planner */
+  .planner { padding: 14px 14px 12px; }
+  .fields { position: relative; padding-right: 54px; }
+  .field { position: relative; display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 0 12px; border-radius: 14px; background: var(--paper); border: 1.5px solid var(--line); }
+  .field + .field, #stopsBox .field, #stopsBox + .field { margin-top: 8px; }
+  .field:focus-within { border-color: var(--ink-3); }
+  .field input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font-weight: 700; font-size: 17px; padding: 14px 0 12px; }
+  .field input::placeholder { color: var(--ink-3); font-weight: 600; }
+  .folded { width: 100%; text-align: left; }
+  .folded .ft { flex: 1; min-width: 0; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .folded .ed { flex: none; color: var(--accent-ink); font-weight: 800; font-size: 15px; }
+  .mk { flex: none; width: 14px; height: 14px; border-radius: 50%; border: 3px solid var(--ink); background: var(--card); }
+  .mk.me { border-color: var(--me); background: var(--me); box-shadow: 0 0 0 4px rgba(31,111,235,.18); }
+  .mk.end { border-radius: 4px; background: var(--ink); }
+  .mk.n { width: 24px; height: 24px; border: 0; background: var(--ink); color: var(--paper); font-weight: 900; font-size: 12px; display: grid; place-items: center; }
+  .fx { flex: none; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; color: var(--ink-3); }
+  .fx svg, .ib svg, .tb svg { width: 18px; height: 18px; }
+  .swap { position: absolute; right: 0; top: 50%; transform: translateY(-50%); width: 44px; height: 44px; border-radius: 50%; background: var(--sand); display: grid; place-items: center; }
+  .swap svg { width: 20px; height: 20px; }
+  .sug { position: absolute; z-index: 3; left: 0; right: 0; top: calc(100% + 6px); background: var(--card); border-radius: 14px; box-shadow: var(--shadow); padding: 6px; }
+  .sug button { width: 100%; text-align: left; display: block; padding: 11px 12px; border-radius: 10px; font-weight: 700; font-size: 16px; }
+  .sug button small { display: block; font-weight: 600; color: var(--ink-3); font-size: 13px; }
+  .sug button:active, .sug button:focus { background: var(--sand); outline: 0; }
+  .actions { display: flex; align-items: center; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  .tb { display: inline-flex; align-items: center; gap: 7px; min-height: 44px; padding: 0 14px; border-radius: 12px; background: var(--sand); font-weight: 800; font-size: 15px; }
+  .when { background: var(--accent-soft); color: var(--accent-ink); }
+  .go { margin-left: auto; background: var(--accent); color: #fff; padding: 0 18px; }
+  .go[disabled] { opacity: .45; }
+
+  /* saved routes */
+  .saved { padding: 16px 14px 8px; }
+  .k { font-size: 12.5px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); padding: 0 6px 8px; }
+  .sv { width: 100%; text-align: left; display: flex; align-items: center; gap: 14px; min-height: 72px; padding: 10px 8px; border-radius: 14px; }
+  .sv + .sv { border-top: 1px solid var(--line); border-radius: 0 0 14px 14px; }
+  .sv:active { background: var(--sand); }
+  .sv .ic { flex: none; width: 44px; height: 44px; border-radius: 12px; background: var(--sand); display: grid; place-items: center; color: var(--ink); }
+  .sv .ic svg { width: 22px; height: 22px; }
+  .sv b { display: block; font-size: 17px; font-weight: 800; line-height: 1.2; }
+  .sv small { display: block; font-size: 14px; color: var(--ink-3); font-weight: 600; margin-top: 2px; }
+  .sv .chev { margin-left: auto; color: var(--ink-3); }
+  .sv .chev svg { width: 18px; height: 18px; }
+
+  /* result */
+  .result { display: flex; flex-direction: column; }
+  .answer { background: var(--ink); color: var(--paper); padding: 18px 20px 18px; border-radius: 20px 20px 0 0; }
+  .answer .top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .answer .lbl { font-size: 13px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; opacity: .75; }
+  .answer .x { width: 40px; height: 40px; border-radius: 50%; background: rgba(250,247,242,.14); display: grid; place-items: center; color: var(--paper); }
+  .answer .x svg { width: 18px; height: 18px; }
+  #big { font-size: 40px; font-weight: 900; letter-spacing: -.025em; line-height: 1.02; }
+  #rest { font-size: 17px; font-weight: 600; opacity: .9; margin-top: 6px; line-height: 1.3; }
   .say.in { animation: sayin .3s var(--ease); }
   @keyframes sayin { from { opacity: .3; transform: translateY(4px); } }
-  #big { font-size: 58px; font-weight: 900; letter-spacing: -.025em; line-height: 1; white-space: nowrap; }
-  #rest { font-size: 20px; font-weight: 600; line-height: 1.3; opacity: .9; max-width: 360px; }
-  .when { flex: none; display: inline-flex; align-items: center; gap: 10px; min-height: 56px; padding: 0 22px; border-radius: 14px;
-    background: var(--accent); color: #fff; font-weight: 800; font-size: 18px; }
-  .when svg { width: 16px; height: 16px; }
-
-  /* ---------- body: map + list ---------- */
-  .body { position: fixed; left: 0; right: 0; bottom: 0; top: calc(var(--top) + var(--st) + var(--banner)); display: grid; grid-template-columns: 1fr minmax(420px, 40%); }
-  #map { position: relative; background: var(--sand); }
-  .issued { position: absolute; left: calc(16px + var(--sl)); bottom: calc(16px + var(--sb)); z-index: 2; background: var(--card); border-radius: 12px;
-    padding: 9px 14px; font-size: 14px; font-weight: 700; color: var(--ink-2); box-shadow: var(--shadow); }
-  .list { border-left: 1px solid var(--line); background: var(--paper); display: flex; flex-direction: column; min-height: 0; }
-  .lh { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 20px calc(28px + var(--sr)) 8px 28px; }
-  .k { font-size: 13px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
-  .best { min-height: 44px; padding: 0 14px; border-radius: 12px; background: var(--accent-soft); color: #a3360a; font-weight: 800; font-size: 15px; }
-  .rows { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 0 calc(28px + var(--sr)) calc(24px + var(--sb)) 28px; }
-  .row { width: 100%; text-align: left; display: block; border-top: 1px solid var(--line); padding: 0; position: relative; }
-  .row .main { display: flex; align-items: center; gap: 14px; min-height: 80px; }
-  .row.changed::before { content: ""; position: absolute; left: -14px; top: 12px; bottom: 12px; width: 4px; border-radius: 2px; background: var(--accent); }
-  .disc { flex: none; display: inline-grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: var(--ink); color: var(--paper); font-weight: 900; font-size: 16px; }
-  .disc.hold { background: var(--flood); }
-  .row .name { flex: 1; min-width: 0; font-size: 19px; font-weight: 800; line-height: 1.2; }
-  .row .name small { display: block; font-size: 14px; font-weight: 600; color: var(--ink-3); margin-top: 2px; }
-  .st { flex: none; font-weight: 900; font-size: 18px; text-align: right; }
-  .st.go { color: var(--amber-ink); } .st.hold { color: var(--flood-ink); } .st.no { color: var(--ink-2); font-weight: 800; }
+  .lh { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 18px 6px; }
+  .best { min-height: 40px; padding: 0 12px; border-radius: 10px; background: var(--accent-soft); color: var(--accent-ink); font-weight: 800; font-size: 14px; }
+  .rows { padding: 0 18px 14px; }
+  .row { width: 100%; text-align: left; display: block; border-top: 1px solid var(--line); position: relative; }
+  .row .main { display: flex; align-items: center; gap: 12px; min-height: 68px; }
+  .row.changed::before { content: ""; position: absolute; left: -10px; top: 10px; bottom: 10px; width: 4px; border-radius: 2px; background: var(--accent); }
+  .disc { flex: none; display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: var(--ink); color: var(--paper); font-weight: 900; font-size: 14px; }
+  .disc.hold { background: var(--flood); } .disc.lite { background: var(--sand); color: var(--ink); }
+  .disc.end { width: 24px; height: 24px; margin: 0 4px; border-radius: 6px; }
+  .disc.fl { background: var(--flood); } .disc.unc { background: var(--amber); color: var(--ink); }
+  .row .name { flex: 1; min-width: 0; font-size: 17px; font-weight: 800; line-height: 1.2; }
+  .row .name small { display: block; font-size: 13.5px; font-weight: 600; color: var(--ink-3); margin-top: 2px; }
+  .st { flex: none; font-weight: 800; font-size: 15px; line-height: 1.15; text-align: center; max-width: 48%; padding: 7px 11px; border-radius: 10px; }
+  .st.go { background: #ffe9b8; color: #3d2600; }
+  .st small { display: block; font-size: 11.5px; font-weight: 800; letter-spacing: .02em; opacity: .75; }
+  .st b { display: block; font-size: 16.5px; font-weight: 900; }
+  .st.hold { background: var(--flood); color: #fff; }
+  .st.no { background: var(--sand); color: var(--ink-2); }
   .more { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .28s var(--ease); }
   .row.open .more { grid-template-rows: 1fr; }
   .more > div { overflow: hidden; }
-  .more p { font-size: 16px; font-weight: 600; color: var(--ink-2); padding: 0 0 6px 50px; }
-  .more p:last-child { padding-bottom: 18px; color: var(--ink-3); font-size: 14px; }
-  .check .main { min-height: 72px; }
-  .check .ico { flex: none; width: 36px; height: 36px; border-radius: 10px; background: var(--sand); display: grid; place-items: center; color: var(--ink-2); }
-  .check .ico.warn { background: var(--amber-soft); color: var(--amber-ink); }
-  .check .ico svg { width: 18px; height: 18px; }
-  .empty { padding: 28px 0; color: var(--ink-3); font-weight: 600; }
-  .skel { height: 80px; border-top: 1px solid var(--line); display: flex; align-items: center; gap: 14px; }
-  .skel i { display: block; height: 14px; border-radius: 7px; background: var(--sand); }
+  .more p { font-size: 15px; font-weight: 600; color: var(--ink-2); padding: 0 0 6px 44px; }
+  .more p:last-child { padding-bottom: 14px; color: var(--ink-3); font-size: 13.5px; }
+  .empty { padding: 20px 0; color: var(--ink-3); font-weight: 600; }
+  .skel { height: 68px; border-top: 1px solid var(--line); display: flex; align-items: center; gap: 12px; }
+  .skel i { display: block; height: 13px; border-radius: 7px; background: var(--sand); }
 
-  /* ---------- departure popover ---------- */
-  .scrim { position: fixed; inset: 0; z-index: 8; background: rgba(28,26,23,.0); transition: background .25s var(--ease); }
-  .scrim.dim { background: rgba(28,26,23,.32); }
-  .pop { position: fixed; z-index: 9; right: calc(24px + var(--sr)); top: calc(var(--top) + var(--st) + var(--banner) - 18px); width: 520px; background: var(--card); color: var(--ink);
-    border-radius: 20px; box-shadow: var(--shadow); padding: 22px 24px 20px; transform-origin: top right; animation: popin .22s var(--ease); }
-  @keyframes popin { from { opacity: 0; transform: scale(.96) translateY(-6px); } }
-  .pop h3 { font-size: 15px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
-  .pop .val { font-size: 40px; font-weight: 900; letter-spacing: -.02em; margin: 4px 0 14px; }
-  input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 44px; background: transparent; }
-  input[type=range]::-webkit-slider-runnable-track { height: 8px; border-radius: 4px; background: linear-gradient(90deg, var(--accent) 0 var(--p, 0%), var(--sand) var(--p, 0%)); }
-  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 36px; height: 36px; margin-top: -14px; border-radius: 50%; background: #fff; border: 4px solid var(--accent); box-shadow: 0 2px 8px rgba(0,0,0,.18); }
-  input[type=range]::-moz-range-track { height: 8px; border-radius: 4px; background: var(--sand); }
-  input[type=range]::-moz-range-thumb { width: 28px; height: 28px; border-radius: 50%; background: #fff; border: 4px solid var(--accent); }
-  .ticks { display: flex; justify-content: space-between; font-size: 13px; font-weight: 700; color: var(--ink-3); margin-top: 2px; }
-  .pop .foot { display: flex; justify-content: space-between; align-items: center; margin-top: 14px; }
-  .pop .foot span { font-size: 14px; color: var(--ink-3); font-weight: 600; }
-  .tb { min-height: 44px; padding: 0 16px; border-radius: 12px; background: var(--sand); font-weight: 800; font-size: 15px; }
-
-  /* ---------- live sheet ---------- */
-  .sheet { position: fixed; z-index: 9; top: 0; right: 0; bottom: 0; width: min(480px, 92vw); background: var(--paper); box-shadow: var(--shadow);
-    display: flex; flex-direction: column; padding-top: var(--st); transform: translateX(100%); transition: transform .32s var(--ease); }
-  .sheet.open { transform: none; }
-  .sh { display: flex; align-items: center; justify-content: space-between; padding: 22px calc(24px + var(--sr)) 14px 24px; }
-  .sh h2 { display: flex; align-items: center; gap: 10px; font-size: 24px; font-weight: 900; }
-  .x { width: 48px; height: 48px; border-radius: 50%; background: var(--sand); display: grid; place-items: center; }
-  .x svg { width: 20px; height: 20px; }
-  .tabs { display: flex; gap: 2px; margin: 0 calc(24px + var(--sr)) 6px 24px; background: var(--sand); border-radius: 14px; padding: 4px; }
-  .tabs button { flex: 1; min-height: 46px; border-radius: 11px; font-weight: 800; font-size: 16px; color: var(--ink-2); }
-  .tabs button[aria-selected="true"] { background: var(--card); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
-  .pane { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 12px calc(24px + var(--sr)) calc(28px + var(--sb)) 24px; }
-  .cam { background: var(--card); border: 1px solid var(--line); border-radius: 18px; overflow: hidden; margin-bottom: 16px; }
-  .frame { position: relative; aspect-ratio: 16 / 9; background: #2b2925; display: grid; place-items: center; color: #cfc6b8; font-weight: 700; font-size: 15px; }
-  .frame img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-  .frame .tag { position: absolute; left: 12px; top: 12px; display: inline-flex; align-items: center; gap: 8px; background: rgba(28,26,23,.78); color: #fff;
-    font-size: 13px; font-weight: 800; padding: 6px 10px; border-radius: 999px; }
-  .cam .txt { padding: 14px 16px 16px; }
-  .cam .txt b { display: block; font-size: 17px; font-weight: 800; }
-  .cam .txt .v { margin-top: 6px; font-size: 16px; font-weight: 700; color: var(--ink-2); }
-  .cam .txt .v.wet { color: var(--flood-ink); } .cam .txt .v.maybe { color: var(--amber-ink); }
-  .cam .txt small { display: block; margin-top: 4px; font-size: 13px; color: var(--ink-3); font-weight: 600; }
-  .sig { border-top: 1px solid var(--line); padding: 14px 0; }
-  .sig b { display: block; font-size: 16px; font-weight: 800; }
-  .sig span { display: block; font-size: 14px; color: var(--ink-3); font-weight: 600; margin-top: 2px; }
-  .sum { font-size: 16px; font-weight: 600; color: var(--ink-2); background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; margin-bottom: 12px; }
-  .gauge { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 16px; margin-bottom: 14px; }
-  .gauge b { display: block; font-size: 17px; font-weight: 800; }
-  .gauge p { font-size: 15px; font-weight: 600; color: var(--ink-2); margin-top: 4px; }
-  .gauge svg { width: 100%; height: 90px; margin-top: 10px; }
-  .credit { font-size: 13px; color: var(--ink-3); font-weight: 600; margin-top: 4px; }
-
-  /* ---------- map markers ---------- */
-  .pin { z-index: 3; width: 34px; height: 34px; border-radius: 50%; background: var(--card); border: 3px solid var(--ink); color: var(--ink); display: grid; place-items: center;
-    font: 900 14px/1 "Overpass", sans-serif; box-shadow: 0 2px 6px rgba(0,0,0,.2); }
-  .pin.depot { background: var(--accent); border-color: var(--accent); color: #fff; }
-  .pin.end { background: var(--ink); color: var(--paper); }
+  /* map chrome */
+  .chip { position: fixed; z-index: 4; background: var(--card); border-radius: 12px; box-shadow: var(--shadow); padding: 9px 13px; font-size: 14px; font-weight: 700; color: var(--ink-2); }
+  .legend { right: calc(var(--gap) + var(--sr)); top: calc(var(--gap) + var(--st)); display: flex; gap: 14px; align-items: center; }
+  .legend i { display: inline-block; width: 22px; height: 5px; border-radius: 3px; vertical-align: middle; margin-right: 6px; }
+  .legend .l-fl { background: var(--flood); }
+  .legend .l-lt { background: var(--flood); opacity: .3; }
+  .legend .l-un { background: repeating-linear-gradient(90deg, var(--amber) 0 6px, transparent 6px 10px); }
+  .fab { position: fixed; z-index: 4; right: calc(var(--gap) + var(--sr)); bottom: calc(var(--gap) + var(--sb) + 80px); width: 52px; height: 52px; border-radius: 50%;
+    background: var(--card); box-shadow: var(--shadow); display: grid; place-items: center; color: var(--me); }
+  .fab svg { width: 24px; height: 24px; }
+  .me { width: 20px; height: 20px; border-radius: 50%; background: var(--me); border: 3px solid #fff; box-shadow: 0 0 0 8px rgba(31,111,235,.18), 0 1px 4px rgba(0,0,0,.3); }
+  .pin { z-index: 3; width: 32px; height: 32px; border-radius: 50%; background: var(--card); border: 3px solid var(--ink); color: var(--ink); display: grid; place-items: center;
+    font: 900 13px/1 "Overpass", sans-serif; box-shadow: 0 2px 6px rgba(0,0,0,.2); }
+  .pin.start { width: 22px; height: 22px; border-width: 5px; }
+  .pin.end { width: 26px; height: 26px; background: var(--ink); color: var(--paper); border-radius: 7px; }
   .pin.hold { border-color: var(--flood); color: var(--flood); }
-  .pin.hot { transform: scale(1.25); transition: transform .2s var(--ease); }
-  .campin { z-index: 1; width: 24px; height: 24px; border-radius: 7px; opacity: .85; background: var(--card); border: 2px solid var(--ink-2); display: grid; place-items: center; box-shadow: 0 2px 6px rgba(0,0,0,.18); }
-  .campin svg { width: 13px; height: 13px; }
+  .pin.hot { transform: scale(1.25); }
+  .campin { z-index: 1; width: 22px; height: 22px; padding: 0; border-radius: 50%; background: var(--ink); border: 2px solid #fffdf9; display: grid; place-items: center;
+    box-shadow: 0 1px 4px rgba(0,0,0,.25); -webkit-appearance: none; appearance: none; line-height: 0; }
+  .campin svg { width: 12px; height: 12px; display: block; }
   .maplibregl-popup-content { border-radius: 14px; padding: 12px 14px; font: 600 15px/1.4 "Overpass", sans-serif; color: var(--ink); background: var(--card); box-shadow: var(--shadow); max-width: 280px; }
   .maplibregl-ctrl-attrib { font-family: "Overpass", sans-serif; }
 
-  /* ---------- portrait: banner, map, list stacked ---------- */
+  /* better-order suggestion */
+  .suggest { position: fixed; z-index: 6; width: 380px; right: calc(var(--gap) + var(--sr) + 72px); bottom: calc(var(--gap) + var(--sb) + 70px); padding: 18px 18px 16px;
+    border: 2px solid var(--accent); animation: sgin .38s var(--ease); }
+  @keyframes sgin { from { opacity: 0; transform: translateY(14px) scale(.97); } }
+  .sgk { font-size: 12.5px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--accent-ink); }
+  .sgh { font-size: 26px; font-weight: 900; letter-spacing: -.02em; margin-top: 4px; }
+  .sgb { font-size: 15.5px; font-weight: 600; color: var(--ink-2); margin-top: 4px; }
+  .sgo { margin: 10px 0 0; padding: 0 0 0 22px; font-size: 15px; font-weight: 700; color: var(--ink); }
+  .sgo li { margin: 2px 0; break-inside: avoid; }
+  .sga { display: flex; gap: 8px; margin-top: 14px; }
+  .sga .go { margin-left: auto; }
+  @media (orientation: portrait) { .suggest { left: calc(var(--gap) + var(--sl)); right: calc(var(--gap) + var(--sr)); width: auto; bottom: auto; top: calc(var(--gap) + var(--st) + 60px); } }
+
+  /* departure popover */
+  .scrim { position: fixed; inset: 0; z-index: 8; background: rgba(28,26,23,0); transition: background .25s var(--ease); }
+  .scrim.dim { background: rgba(28,26,23,.30); }
+  .pop { position: fixed; z-index: 9; width: 440px; max-width: calc(100vw - 32px); background: var(--card); border-radius: 20px; box-shadow: var(--shadow); padding: 20px 22px 18px; animation: popin .22s var(--ease); }
+  @keyframes popin { from { opacity: 0; transform: scale(.97) translateY(-6px); } }
+  .pop h3 { font-size: 13px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+  .pop .val { font-size: 36px; font-weight: 900; letter-spacing: -.02em; margin: 4px 0 12px; }
+  input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 44px; background: transparent; }
+  input[type=range]::-webkit-slider-runnable-track { height: 8px; border-radius: 4px; background: linear-gradient(90deg, var(--accent) 0 var(--p, 0%), var(--sand) var(--p, 0%)); }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 34px; height: 34px; margin-top: -13px; border-radius: 50%; background: #fff; border: 4px solid var(--accent); box-shadow: 0 2px 8px rgba(0,0,0,.18); }
+  input[type=range]::-moz-range-track { height: 8px; border-radius: 4px; background: var(--sand); }
+  input[type=range]::-moz-range-thumb { width: 26px; height: 26px; border-radius: 50%; background: #fff; border: 4px solid var(--accent); }
+  .ticks { display: flex; justify-content: space-between; font-size: 12.5px; font-weight: 700; color: var(--ink-3); }
+  .pop .foot { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; font-size: 13.5px; color: var(--ink-3); font-weight: 600; }
+
+  /* live sheet */
+  .sheet { position: fixed; z-index: 9; top: 0; right: 0; bottom: 0; width: min(460px, 92vw); background: var(--paper); box-shadow: var(--shadow);
+    display: flex; flex-direction: column; padding-top: var(--st); transform: translateX(105%); transition: transform .32s var(--ease); }
+  .sheet.open { transform: none; }
+  .sh { display: flex; align-items: center; justify-content: space-between; padding: 20px calc(22px + var(--sr)) 12px 22px; }
+  .sh h2 { display: flex; align-items: center; gap: 10px; font-size: 24px; font-weight: 900; }
+  .xb { width: 46px; height: 46px; border-radius: 50%; background: var(--sand); display: grid; place-items: center; }
+  .xb svg { width: 20px; height: 20px; }
+  .tabs { display: flex; gap: 2px; margin: 0 calc(22px + var(--sr)) 6px 22px; background: var(--sand); border-radius: 14px; padding: 4px; }
+  .tabs button { flex: 1; min-height: 44px; border-radius: 11px; font-weight: 800; font-size: 15px; color: var(--ink-2); }
+  .tabs button[aria-selected="true"] { background: var(--card); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+  .pane { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 12px calc(22px + var(--sr)) calc(26px + var(--sb)) 22px; }
+  .cam { background: var(--card); border: 1px solid var(--line); border-radius: 18px; overflow: hidden; margin-bottom: 14px; }
+  .frame { position: relative; aspect-ratio: 16 / 9; background: #2b2925; display: grid; place-items: center; color: #cfc6b8; font-weight: 700; font-size: 15px; }
+  .frame img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .frame .tag { position: absolute; left: 12px; top: 12px; display: inline-flex; align-items: center; gap: 8px; background: rgba(28,26,23,.78); color: #fff; font-size: 13px; font-weight: 800; padding: 6px 10px; border-radius: 999px; }
+  .cam .txt { padding: 13px 15px 15px; }
+  .cam .txt b { display: block; font-size: 16.5px; font-weight: 800; }
+  .cam .txt .v { margin-top: 5px; font-size: 15.5px; font-weight: 700; color: var(--ink-2); }
+  .cam .txt .v.wet { color: var(--flood-ink); } .cam .txt .v.maybe { color: var(--amber-ink); }
+  .cam .txt small { display: block; margin-top: 4px; font-size: 13px; color: var(--ink-3); font-weight: 600; }
+  .sig { border-top: 1px solid var(--line); padding: 13px 0; }
+  .sig b { display: block; font-size: 15.5px; font-weight: 800; }
+  .sig span { display: block; font-size: 13.5px; color: var(--ink-3); font-weight: 600; margin-top: 2px; }
+  .sum { font-size: 15.5px; font-weight: 600; color: var(--ink-2); background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 13px 15px; margin-bottom: 10px; }
+  .gauge { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 15px; margin-bottom: 12px; }
+  .gauge b { display: block; font-size: 16.5px; font-weight: 800; }
+  .gauge p { font-size: 14.5px; font-weight: 600; color: var(--ink-2); margin-top: 4px; }
+  .gauge svg { width: 100%; height: 84px; margin-top: 10px; }
+  .credit { font-size: 13px; color: var(--ink-3); font-weight: 600; margin-top: 4px; }
+
+  /* portrait: the panel becomes a bottom sheet */
   @media (orientation: portrait) {
-    :root { --banner: 196px; }
-    .banner { flex-wrap: wrap; gap: 14px 24px; }
-    .say { flex-direction: column; align-items: flex-start; gap: 10px; flex-basis: 100%; }
-    #rest { max-width: none; }
-    .body { grid-template-columns: 1fr; grid-template-rows: 44% 1fr; }
-    .list { border-left: 0; border-top: 1px solid var(--line); }
-    .banner .when { position: absolute; right: calc(32px + var(--sr)); top: 22px; }
+    .panel { top: auto; left: calc(var(--gap) + var(--sl)); right: calc(var(--gap) + var(--sr)); width: auto; max-height: 56vh; bottom: calc(var(--gap) + var(--sb)); }
+    .fab { bottom: auto; top: calc(var(--gap) + var(--st) + 104px); }
   }
-  @media (max-width: 900px) and (orientation: landscape) { #big { font-size: 44px; } }
   @media (prefers-reduced-motion: reduce) { *, *::before { animation: none !important; transition: none !important; } }
 </style>
 </head>
 <body>
-<header class="top">
-  <span class="brand">Noah</span>
-  <nav class="seg" aria-label="Places">
-    <button type="button" data-place="home" aria-pressed="false">Home</button>
-    <button type="button" data-place="work" aria-pressed="false">Work</button>
-    <button type="button" data-place="delivery" aria-pressed="true">Delivery</button>
-  </nav>
-  <button class="livebtn" id="liveBtn" type="button" aria-controls="sheet"><span class="dot"></span><span id="liveLbl">Live</span></button>
-</header>
+<div id="map" aria-label="Map"></div>
 
-<section class="banner" aria-live="polite">
-  <div class="say" id="say"><div id="big" class="num">Checking roads…</div><div id="rest"></div></div>
-  <button class="when num" id="when" type="button" aria-haspopup="dialog" aria-expanded="false" hidden>
-    <span id="whenLbl">Leaving</span>
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-  </button>
-</section>
+<aside class="panel" aria-label="Noah">
+  <div class="card brandrow"><span class="brand">Noah</span>
+    <button class="livebtn" id="liveBtn" type="button" aria-controls="sheet"><span id="liveLbl">Sources</span></button></div>
 
-<main class="body">
-  <div id="map"><div class="issued num" id="issued"></div></div>
-  <aside class="list">
-    <div class="lh"><span class="k" id="listHead">Your stops</span><button class="best num" id="best" type="button" hidden></button></div>
+  <section class="card planner" aria-label="Route">
+    <div class="fields" id="fields">
+      <div class="field"><span class="mk me" id="fromMk"></span><input id="from" placeholder="Your location" autocomplete="off" aria-label="Start"></div>
+      <div id="stopsBox"></div>
+      <div class="field"><span class="mk end"></span><input id="to" placeholder="Where to?" autocomplete="off" aria-label="Destination">
+        <button class="fx" id="toClear" type="button" aria-label="Clear destination" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+      <button class="swap" id="swap" type="button" aria-label="Swap start and destination"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4v16M7 4 3.5 7.5M7 4l3.5 3.5M17 20V4M17 20l-3.5-3.5M17 20l3.5-3.5"/></svg></button>
+      <div class="sug" id="sug" hidden></div>
+    </div>
+    <div class="actions">
+      <button class="tb" id="addStop" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Add stop</button>
+      <button class="tb when num" id="when" type="button" aria-haspopup="dialog" aria-expanded="false"><span id="whenLbl">Leaving now</span></button>
+      <button class="tb go" id="go" type="button" disabled>Check route</button>
+    </div>
+  </section>
+
+  <section class="card result" id="result" hidden aria-live="polite">
+    <div class="answer"><div class="top"><span class="lbl" id="resLbl">Your route</span>
+      <button class="x" id="closeRes" type="button" aria-label="Close route"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+      <div class="say" id="say"><div id="big" class="num">Checking roads…</div><div id="rest"></div></div></div>
+    <div class="lh"><span class="k" style="padding:0" id="listHead">Your stops</span><button class="best num" id="best" type="button" hidden></button></div>
     <div class="rows" id="rows"></div>
-  </aside>
-</main>
+  </section>
 
+  <section class="card saved" id="saved" aria-label="Saved routes">
+    <div class="k">Saved routes</div>
+    <div id="savedList"></div>
+  </section>
+</aside>
+
+<div class="chip legend" aria-hidden="true"><span><i class="l-fl"></i>Do not cross</span><span><i class="l-un"></i>Risky</span><span><i class="l-lt"></i>Later today</span></div>
+<button class="fab" id="locate" type="button" aria-label="Show my location"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg></button>
+
+<div class="card suggest" id="suggest" role="dialog" aria-labelledby="sgHead" hidden>
+  <div class="sgk">Better order found</div>
+  <div class="sgh" id="sgHead"></div>
+  <p class="sgb" id="sgBody"></p>
+  <ol class="sgo" id="sgOrder"></ol>
+  <div class="sga"><button class="tb" id="sgNo" type="button">Keep mine</button><button class="tb go" id="sgYes" type="button">Use this order</button></div>
+</div>
 <div class="scrim" id="scrim" hidden></div>
 <div class="pop" id="pop" role="dialog" aria-label="When are you leaving?" hidden>
   <h3>When are you leaving?</h3>
@@ -207,49 +280,60 @@
   <div class="foot"><span id="popNote"></span><button class="tb" id="nowBtn" type="button">Now</button></div>
 </div>
 
-<aside class="sheet" id="sheet" aria-label="Live">
-  <div class="sh"><h2><span class="dot"></span>Live</h2>
-    <button class="x" id="closeSheet" type="button" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+<aside class="sheet" id="sheet" aria-label="Sources" hidden>
+  <div class="sh"><h2>Sources</h2>
+    <button class="xb" id="closeSheet" type="button" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
   <div class="tabs" role="tablist">
-    <button role="tab" data-tab="cams" aria-selected="true">Cameras</button>
-    <button role="tab" data-tab="checks" aria-selected="false">Live checks</button>
-    <button role="tab" data-tab="past" aria-selected="false">Last 18 h</button>
+    <button role="tab" data-tab="cams" aria-selected="true">Camera feed</button>
+    <button role="tab" data-tab="checks" aria-selected="false">Live data</button>
+    <button role="tab" data-tab="past" aria-selected="false">Watershed</button>
   </div>
   <div class="pane" id="pane"></div>
 </aside>
 
 <script>
-// Spec 021: Noah for iPad. Answers come from the recorded run under /demo/snapshot (spec 020's lookup: path + params,
-// nearest departure); camera frames come live from GET /cam/{id}. No user-facing text names the recording.
+// Spec 021: Noah for iPad. Saved routes answer from the recorded run under /demo/snapshot (spec 020's lookup: path +
+// params, nearest departure); any other route asks the API pinned to that same run (?cycle=). Camera frames come live
+// from GET /cam/{id}. No user-facing text names the recording.
 const SNAP = "/demo/snapshot/index.json", SNAP_BASE = "/demo/snapshot/";
-const CORRIDOR_M = 3000, STEP = 5, MAX_MIN = 18 * 60;
+const GA_BBOX = "-85.61,30.35,-80.75,35.01";
+const CORRIDOR_M = 3000, STEP = 5, MAX_MIN = 18 * 60, NEAR_M = 150, MAX_STOPS = 8;
 const FLOOD = "#d92d20", AMBER = "#f2a100", INK = "#1c1a17";
 const $ = (id) => document.getElementById(id);
 const tz = { timeZone: "America/New_York" };
 const fClock = new Intl.DateTimeFormat("en-US", { ...tz, hour: "numeric", minute: "2-digit" });
 const fHour = new Intl.DateTimeFormat("en-US", { ...tz, hour: "numeric" });
 const fDay = new Intl.DateTimeFormat("en-US", { ...tz, weekday: "short", hour: "numeric", minute: "2-digit" });
-const fDayHour = new Intl.DateTimeFormat("en-US", { ...tz, weekday: "short", hour: "numeric" });
+const fDayDate = new Intl.DateTimeFormat("en-US", { ...tz, weekday: "short", month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
+const SVG = (d) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
 const ICON = {
-  cam: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>',
-  road: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 21 8 3M20 21 16 3M12 4v2M12 10v3M12 17v3"/></svg>',
-  info: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg>',
+  cam: SVG('<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/>'),
+  truck: SVG('<path d="M3 6h11v10H3zM14 9h4l3 3v4h-7"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/>'),
+  home: SVG('<path d="M3 11 12 4l9 7"/><path d="M5 10v10h14V10"/>'),
+  work: SVG('<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M3 13h18"/>'),
+  hosp: SVG('<rect x="4" y="4" width="16" height="16" rx="3"/><path d="M12 8v8M8 12h8"/>'),
+  chev: SVG('<path d="m9 6 6 6-6 6"/>'),
+  x: SVG('<path d="M18 6 6 18M6 6l12 12"/>'),
 };
 
-let snap = null, issue = null, cycle = null, nowMin = 0, places = null;
+let snap = null, issue = null, cycle = null, nowMin = 0, places = null, plans = null;
 let flood = new Map();
-let place = "delivery", depMin = 0, order = null;
-let lastStatus = new Map(); // stop label -> status word, for the "changed" mark
+let depMin = 0, me = null, meMarker = null;
+let origin = null, dest = null, stops = []; // {label, lat, lon}; origin null = your location
+let active = null; // the route being shown: {kind: "saved"|"custom", ...}
+let lastStatus = new Map();
 let markers = [], camMarkers = [], live = { cams: [], signals: [], sources: 0, summary: null, gauges: [] };
-let token = 0, liveToken = 0;
+let token = 0;
 
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const atMin = (m) => new Date(issue.getTime() + m * 60e3);
 const atHour = (h) => new Date(issue.getTime() + h * 3600e3);
 const clock = (d) => fClock.format(d);
 const endText = () => fDay.format(atHour(18));
+const ll = (x) => `${x.lat},${x.lon}`;
+const short = (label) => String(label || "").split(",")[0];
 
-// ---------- recorded answers (spec 020 lookup) ----------
+// ---------- answers: the recording first, then the API on the same run ----------
 const num = (x) => (x == null ? NaN : parseFloat(x));
 function same(a, b) {
   if (a === b) return true;
@@ -270,20 +354,22 @@ function lookup(path, p) {
   }
   return best?.file || null;
 }
-async function ask(path, p) {
+async function ask(path, p, signal) {
   const f = lookup(path, p);
-  if (!f) return null;
-  try { return await fetch(SNAP_BASE + f).then((r) => (r.ok ? r.json() : null)); } catch { return null; }
+  try {
+    if (f) return await fetch(SNAP_BASE + f, { signal }).then((r) => (r.ok ? r.json() : null));
+    return await fetch(`${path}?${new URLSearchParams(p)}`, { signal }).then((r) => (r.ok ? r.json() : null));
+  } catch { return null; }
 }
-const ll = (x) => `${x.lat},${x.lon}`;
 
 // ---------- map ----------
 const map = new maplibregl.Map({ container: "map", style: "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
-  center: [-84.39, 33.84], zoom: 11.5, attributionControl: { compact: true }, pitchWithRotate: false, dragRotate: false });
+  center: [-84.39, 33.82], zoom: 10.6, attributionControl: { compact: true }, dragRotate: false, pitchWithRotate: false });
 map.touchZoomRotate.disableRotation();
 const empty = { type: "FeatureCollection", features: [] };
 const mapReady = new Promise((res) => (map.isStyleLoaded() ? res() : map.once("style.load", res)));
-function warmStyle() { // Carto Positron recoloured to warm paper: sand land, muted water, white streets, peach arterials
+const panelPad = () => (innerWidth > innerHeight ? { left: 420 + 48, right: 80, top: 80, bottom: 60 } : { left: 40, right: 40, top: 120, bottom: innerHeight * 0.56 + 40 });
+function warmStyle() { // Carto Positron recoloured to warm paper
   for (const l of map.getStyle().layers) {
     const id = l.id;
     try {
@@ -295,27 +381,29 @@ function warmStyle() { // Carto Positron recoloured to warm paper: sand land, mu
       else if (l.type === "line" && /waterway/.test(id)) map.setPaintProperty(id, "line-color", "#bcd0d3");
       else if (l.type === "line" && /motorway|trunk|primary/.test(id) && !/casing/.test(id)) map.setPaintProperty(id, "line-color", "#f3d4ad");
       else if (l.type === "line" && /highway|road|street|minor|service|secondary|tertiary/.test(id) && !/casing/.test(id)) map.setPaintProperty(id, "line-color", "#fffdf9");
-      else if (l.type === "symbol" && l.paint && "text-color" in l.paint) map.setPaintProperty(id, "text-color", "#8f8677");
+      else if (l.type === "symbol" && l.paint && "text-color" in l.paint) map.setPaintProperty(id, "text-color", "#857b6c");
     } catch {}
   }
 }
 mapReady.then(() => {
   warmStyle();
+  // every flagged road in the run at the departure hour: amber dashed = uncertain, red = forecast flooded
   map.addSource("all", { type: "geojson", data: empty });
-  map.addLayer({ id: "all-unc", type: "line", source: "all", filter: ["==", ["get", "s"], "uncertain"], paint: { "line-color": AMBER, "line-width": 2.5, "line-dasharray": [1.6, 1.2], "line-opacity": 0.4 } });
-  map.addLayer({ id: "all-fl", type: "line", source: "all", filter: ["==", ["get", "s"], "flooded"], layout: { "line-cap": "round" }, paint: { "line-color": FLOOD, "line-width": 3, "line-opacity": 0.4 } });
-  map.addSource("area", { type: "geojson", data: empty });
-  map.addLayer({ id: "area", type: "line", source: "area", paint: { "line-color": INK, "line-width": 2, "line-dasharray": [2, 2], "line-opacity": 0.55 } });
+  map.addLayer({ id: "all-later", type: "line", source: "all", filter: ["==", ["get", "s"], "later"], layout: { "line-cap": "round" }, paint: { "line-color": FLOOD, "line-width": ["interpolate", ["linear"], ["zoom"], 10, 1.5, 14, 3], "line-opacity": 0.28 } });
+  map.addLayer({ id: "all-unc", type: "line", source: "all", filter: ["==", ["get", "s"], "uncertain"], paint: { "line-color": AMBER, "line-width": ["interpolate", ["linear"], ["zoom"], 10, 2, 14, 4.5], "line-dasharray": [1.6, 1.2], "line-opacity": 0.85 } });
+  map.addLayer({ id: "all-fl", type: "line", source: "all", filter: ["==", ["get", "s"], "flooded"], layout: { "line-cap": "round" }, paint: { "line-color": FLOOD, "line-width": ["interpolate", ["linear"], ["zoom"], 10, 2.5, 14, 5.5], "line-opacity": 0.9 } });
   map.addSource("route", { type: "geojson", data: empty });
   map.addLayer({ id: "route-casing", type: "line", source: "route", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": "#fffdf9", "line-width": 11 } });
   map.addLayer({ id: "route", type: "line", source: "route", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": INK, "line-width": 6 } });
-  map.addSource("haz", { type: "geojson", data: empty });
-  map.addLayer({ id: "haz-unc", type: "line", source: "haz", filter: ["==", ["get", "s"], "uncertain"], paint: { "line-color": AMBER, "line-width": 5.5, "line-dasharray": [1.6, 1.2] } });
+  map.addSource("haz", { type: "geojson", data: empty }); // the flagged roads on or next to the route, drawn over it
+  map.addLayer({ id: "haz-unc", type: "line", source: "haz", filter: ["==", ["get", "s"], "uncertain"], paint: { "line-color": AMBER, "line-width": 6, "line-dasharray": [1.6, 1.2] } });
   map.addLayer({ id: "haz-casing", type: "line", source: "haz", filter: ["==", ["get", "s"], "flooded"], layout: { "line-cap": "round" }, paint: { "line-color": "#fffdf9", "line-width": 10 } });
   map.addLayer({ id: "haz-fl", type: "line", source: "haz", filter: ["==", ["get", "s"], "flooded"], layout: { "line-cap": "round" }, paint: { "line-color": FLOOD, "line-width": 6 } });
-  for (const id of ["haz-unc", "haz-fl", "all-unc", "all-fl"]) map.on("click", id, (e) => {
-    new maplibregl.Popup({ closeButton: false }).setLngLat(e.lngLat).setText(roadSentence(e.features[0].properties)).addTo(map);
-  });
+  for (const id of ["haz-unc", "haz-fl", "all-unc", "all-fl", "all-later"]) {
+    map.on("click", id, (e) => new maplibregl.Popup({ closeButton: false }).setLngLat(e.lngLat).setText(roadSentence(e.features[0].properties)).addTo(map));
+    map.on("mouseenter", id, () => (map.getCanvas().style.cursor = "pointer"));
+    map.on("mouseleave", id, () => (map.getCanvas().style.cursor = ""));
+  }
 });
 function stateAt(p, h) {
   if (p.t_flood != null && p.t_flood !== "null" && +p.t_flood <= h) return "flooded";
@@ -324,52 +412,164 @@ function stateAt(p, h) {
 }
 function roadSentence(p) { // §5
   const name = p.name && p.name !== "null" ? p.name : "This road";
+  if (p.s === "later") { const t = p.t_flood != null && p.t_flood !== "null" ? +p.t_flood : +p.t_uncertain; return `${name}: forecast to ${p.t_flood != null && p.t_flood !== "null" ? "flood" : "turn risky"} around ${fDay.format(atHour(t))}. No forecast flooding before then.`; }
   if (p.s === "flooded") return `Do not cross ${name}. Forecast shows water reaching it around ${fDay.format(atHour(+p.t_flood))}.`;
-  return `${name}: uncertain, treat as impassable from around ${fDay.format(atHour(+p.t_uncertain))}.`;
+  return `${name}: risky, treat as impassable from around ${fDay.format(atHour(+p.t_uncertain))}.`;
 }
-function featsAt(ids, h) {
+function featsAt(ids, h, later = false) {
   const out = [];
   for (const id of ids) {
     const f = flood.get(id); if (!f) continue;
-    const s = stateAt(f.properties, h); if (!s) continue;
+    const s = stateAt(f.properties, h) || (later ? "later" : null); if (!s) continue;
     out.push({ ...f, properties: { ...f.properties, s } });
   }
   return { type: "FeatureCollection", features: out };
 }
-function drawAll(h) { mapReady.then(() => map.getSource("all").setData(featsAt(flood.keys(), h))); }
-function clearMarkers() { markers.forEach((m) => m.remove()); markers = []; }
-function pin(lon, lat, cls, text, title) {
-  const el = document.createElement("div"); el.className = `pin ${cls}`; el.textContent = text; if (title) el.title = title;
-  const m = new maplibregl.Marker({ element: el }).setLngLat([lon, lat]).addTo(map); markers.push(m); return el;
+const depH = () => Math.min(18, Math.floor(depMin / 60));
+function drawAll() { mapReady.then(() => map.getSource("all").setData(featsAt(flood.keys(), depH(), true))); }
+function clearRoute() {
+  markers.forEach((m) => m.remove()); markers = [];
+  mapReady.then(() => { map.getSource("route").setData(empty); map.getSource("haz").setData(empty); });
 }
-function fit(coords, padding = 60) {
+function pin(p, cls, text) {
+  const el = document.createElement("div"); el.className = `pin ${cls}`; el.textContent = text; el.title = p.label || "";
+  markers.push(new maplibregl.Marker({ element: el }).setLngLat([p.lon, p.lat]).addTo(map)); return el;
+}
+function fit(coords, opts = {}) {
   if (!coords.length) return;
   const xs = coords.map((c) => c[0]), ys = coords.map((c) => c[1]);
-  map.fitBounds([[Math.min(...xs), Math.min(...ys)], [Math.max(...xs), Math.max(...ys)]], { padding, duration: 700, maxZoom: 14 });
+  map.fitBounds([[Math.min(...xs), Math.min(...ys)], [Math.max(...xs), Math.max(...ys)]], { padding: panelPad(), duration: 700, maxZoom: 14.5, ...opts });
 }
-function circle(lat, lon, km, n = 72) {
-  const pts = [];
-  for (let i = 0; i <= n; i++) { const a = (i / n) * 2 * Math.PI; pts.push([lon + (km / (111.32 * Math.cos(lat * Math.PI / 180))) * Math.cos(a), lat + (km / 110.57) * Math.sin(a)]); }
-  return pts;
+function fitAllRoads() {
+  const xs = [], ys = [];
+  for (const f of flood.values()) { const c = f.geometry.coordinates[0]; xs.push(c[0]); ys.push(c[1]); }
+  if (xs.length) map.fitBounds([[Math.min(...xs), Math.min(...ys)], [Math.max(...xs), Math.max(...ys)]], { padding: panelPad(), duration: 0 });
 }
+// metres from a point to a polyline, flat-earth (fine at city scale)
+function nearLine(pt, line, maxM) {
+  const kx = 111320 * Math.cos(pt[1] * Math.PI / 180), ky = 110540;
+  for (let i = 0; i < line.length; i += 2) { const dx = (line[i][0] - pt[0]) * kx, dy = (line[i][1] - pt[1]) * ky; if (dx * dx + dy * dy < maxM * maxM) return true; }
+  return false;
+}
+
+// ---------- live location ----------
+function showMe(pos) {
+  me = { lat: +pos.coords.latitude.toFixed(5), lon: +pos.coords.longitude.toFixed(5), label: "Your location" };
+  if (!meMarker) { const el = document.createElement("div"); el.className = "me"; el.title = "You are here"; meMarker = new maplibregl.Marker({ element: el }).setLngLat([me.lon, me.lat]).addTo(map); }
+  else meMarker.setLngLat([me.lon, me.lat]);
+  syncGo();
+}
+if ("geolocation" in navigator) navigator.geolocation.watchPosition(showMe, () => {}, { enableHighAccuracy: true, maximumAge: 30000 });
+$("locate").onclick = () => {
+  if (me) map.flyTo({ center: [me.lon, me.lat], zoom: 13.5, duration: 800 });
+  else navigator.geolocation?.getCurrentPosition((p) => { showMe(p); map.flyTo({ center: [me.lon, me.lat], zoom: 13.5, duration: 800 }); }, () => {});
+};
+
+// ---------- planner: from, stops, to, swap, search ----------
+const sug = $("sug");
+let sugFor = null, sugTimer = null, sugCtl = null;
+function wireInput(inp, onPick) {
+  inp.addEventListener("input", () => {
+    clearTimeout(sugTimer);
+    const q = inp.value.trim();
+    onPick(null, true);
+    if (q.length < 3) { sug.hidden = true; return; }
+    sugTimer = setTimeout(async () => {
+      sugCtl?.abort(); sugCtl = new AbortController();
+      try {
+        // Georgia only, biased toward metro Atlanta
+        const r = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&bbox=${GA_BBOX}&lat=33.80&lon=-84.39&zoom=10&location_bias_scale=0.5&limit=5&lang=en`, { signal: sugCtl.signal }).then((x) => x.json());
+        sugFor = { inp, onPick };
+        sug.replaceChildren(...r.features.map((f) => {
+          const p = f.properties, name = p.name || [p.housenumber, p.street].filter(Boolean).join(" ") || "Place";
+          const where = [p.street && p.name ? p.street : null, p.city, p.state].filter(Boolean).join(", ");
+          const b = document.createElement("button"); b.type = "button"; b.textContent = name;
+          const sm = document.createElement("small"); sm.textContent = where; b.append(sm);
+          b.onmousedown = (e) => e.preventDefault();
+          b.onclick = () => { const [lon, lat] = f.geometry.coordinates; inp.value = name; sug.hidden = true; onPick({ lat: +lat.toFixed(5), lon: +lon.toFixed(5), label: name + (where ? ", " + where : "") }); };
+          return b;
+        }));
+        const box = inp.closest(".field"); sug.style.top = `${box.offsetTop + box.offsetHeight + 6}px`;
+        sug.hidden = !r.features.length;
+      } catch (e) { if (e.name !== "AbortError") sug.hidden = true; }
+    }, 280);
+  });
+  inp.addEventListener("blur", () => setTimeout(() => { if (document.activeElement?.closest?.(".sug") == null) sug.hidden = true; }, 150));
+}
+wireInput($("from"), (p) => { origin = p; syncGo(); });
+wireInput($("to"), (p) => { dest = p; $("toClear").hidden = !$("to").value; syncGo(); });
+$("toClear").onclick = () => { $("to").value = ""; dest = null; $("toClear").hidden = true; syncGo(); };
+let stopsOpen = true; // more than two stops fold into one "N stops · Edit" row while a route is showing
+function renderStops() {
+  const box = $("stopsBox"); box.replaceChildren();
+  if (stops.length > 2 && !stopsOpen) {
+    const b = document.createElement("button"); b.type = "button"; b.className = "field folded";
+    b.innerHTML = `<span class="mk n">${stops.length}</span><span class="ft">${stops.length} stops · ${esc(stops.filter(Boolean).map((x) => short(x.label)).join(", "))}</span><span class="ed">Edit</span>`;
+    b.onclick = () => { stopsOpen = true; renderStops(); };
+    box.append(b); $("addStop").disabled = stops.length >= MAX_STOPS; return;
+  }
+  stops.forEach((s, i) => {
+    const f = document.createElement("div"); f.className = "field";
+    f.innerHTML = `<span class="mk n">${i + 1}</span><input placeholder="Add a stop" autocomplete="off" aria-label="Stop ${i + 1}"><button class="fx" type="button" aria-label="Remove stop ${i + 1}">${ICON.x}</button>`;
+    const inp = f.querySelector("input"); inp.value = s?.label ? short(s.label) : "";
+    wireInput(inp, (p) => { stops[i] = p; syncGo(); });
+    f.querySelector("button").onclick = () => { stops.splice(i, 1); renderStops(); syncGo(); };
+    box.append(f);
+  });
+  $("addStop").disabled = stops.length >= MAX_STOPS;
+}
+$("addStop").onclick = () => { stops.push(null); renderStops(); $("stopsBox").lastElementChild?.querySelector("input").focus(); syncGo(); };
+$("swap").onclick = () => { // start and destination trade places; an empty start means your location
+  const newFrom = dest, newTo = origin || me;
+  origin = newFrom === me ? null : newFrom; dest = newTo;
+  $("from").value = origin ? short(origin.label) : ""; $("to").value = dest ? (dest === me ? "Your location" : short(dest.label)) : "";
+  $("toClear").hidden = !$("to").value;
+  stops.reverse(); renderStops(); syncGo();
+  if (active) { active = { kind: "custom" }; fitted = false; lastStatus.clear(); run(); }
+};
+const start = () => origin || me;
+function syncGo() {
+  $("fromMk").className = origin ? "mk" : "mk me";
+  $("go").disabled = !(start() && dest && stops.every(Boolean));
+}
+$("go").onclick = () => { active = { kind: "custom" }; fitted = false; lastStatus.clear(); stopsOpen = false; renderStops(); run(true); };
+
+// ---------- saved routes ----------
+// Home and Work start wherever the iPad is. Picked Sat 13:40 on the Helene 8 AM run from downtown: Home = leave by
+// ~7:55 PM and a detour from 7 PM; Work = Noah routes around 12 flooded roads from 7 PM.
+const HOME = { label: "Ridgewood Rd NW, Atlanta", lat: 33.83396, lon: -84.44849 };
+const WORK = { label: "Lake Forrest Dr NE, Sandy Springs", lat: 33.89323, lon: -84.3872 };
+const VENUE = { label: "Georgia State University, Atlanta", lat: 33.7537, lon: -84.3863 }; // start when the iPad shares no location
+function savedRoutes() {
+  const d = places.delivery, out = [];
+  out.push({ id: "home", icon: ICON.home, title: "Home", sub: HOME.label, origin: null, stops: [], dest: HOME });
+  out.push({ id: "work", icon: ICON.work, title: "Work", sub: WORK.label, origin: null, stops: [], dest: WORK });
+  if (d) out.push({ id: "delivery", icon: ICON.truck, title: "Deliveries", sub: `${d.stops.length} stops · ${short(d.depot.label).replace(/ \(depot\)/, "")} to ${short(d.destination.label)}`, origin: d.depot, stops: d.stops, dest: d.destination });
+  return out;
+}
+function renderSaved() {
+  $("savedList").innerHTML = savedRoutes().map((r) => `<button class="sv" type="button" data-id="${r.id}"><span class="ic">${r.icon}</span><span><b>${esc(r.title)}</b><small>${esc(r.sub)}</small></span><span class="chev">${ICON.chev}</span></button>`).join("");
+}
+$("savedList").onclick = (e) => {
+  const b = e.target.closest(".sv"); if (!b) return;
+  const r = savedRoutes().find((x) => x.id === b.dataset.id);
+  origin = r.origin || (me ? null : VENUE); dest = r.dest; stops = [...r.stops];
+  $("from").value = origin ? short(origin.label) : ""; $("to").value = short(r.dest.label); $("toClear").hidden = false;
+  renderStops(); syncGo();
+  active = { kind: "saved", id: r.id, title: r.title }; lastStatus.clear(); fitted = false; stopsOpen = false; renderStops();
+  run(true);
+};
 
 // ---------- banner ----------
 function say(big, rest) {
   const s = $("say");
   if ($("big").textContent === big && $("rest").textContent === rest) return;
   $("big").textContent = big; $("rest").textContent = rest;
-  s.classList.remove("in"); void s.offsetWidth; s.classList.add("in"); // replay the fade-in
+  s.classList.remove("in"); void s.offsetWidth; s.classList.add("in");
 }
-function setWhen(show) {
-  $("when").hidden = !show;
-  $("whenLbl").textContent = depMin <= nowMin ? "Leaving now" : `Leaving ${clock(atMin(depMin))}`;
-}
-
-// ---------- list ----------
+function setWhen() { $("whenLbl").textContent = depMin <= nowMin ? "Leaving now" : `Leaving ${clock(atMin(depMin))}`; }
 const rowsEl = $("rows");
-function skeleton(n = 5) {
-  rowsEl.innerHTML = Array.from({ length: n }, () => '<div class="skel"><i style="width:36px;height:36px;border-radius:50%"></i><i style="width:46%"></i><i style="width:22%;margin-left:auto"></i></div>').join("");
-}
+function skeleton(n = 4) { rowsEl.innerHTML = Array.from({ length: n }, () => '<div class="skel"><i style="width:32px;height:32px;border-radius:50%"></i><i style="width:46%"></i><i style="width:22%;margin-left:auto"></i></div>').join(""); }
 rowsEl.addEventListener("click", (e) => {
   const row = e.target.closest(".row"); if (!row) return;
   row.classList.remove("changed");
@@ -377,217 +577,214 @@ rowsEl.addEventListener("click", (e) => {
   rowsEl.querySelectorAll(".row.open").forEach((r) => r.classList.remove("open"));
   if (open && row.querySelector(".more")) row.classList.add("open");
   const lon = +row.dataset.lon, lat = +row.dataset.lat;
-  if (isFinite(lon) && isFinite(lat)) map.flyTo({ center: [lon, lat], zoom: 14.5, duration: 800 });
+  if (isFinite(lon) && isFinite(lat) && row.dataset.lon) map.flyTo({ center: [lon, lat], zoom: 14.5, duration: 800, padding: panelPad() });
   document.querySelectorAll(".pin.hot").forEach((p) => p.classList.remove("hot"));
   if (row.dataset.n) document.querySelector(`.pin[data-n="${row.dataset.n}"]`)?.classList.add("hot");
 });
+$("closeRes").onclick = () => { hideSuggest(); active = null; stopsOpen = true; renderStops(); $("result").hidden = true; $("saved").hidden = false; clearRoute(); setLive({ cams: [], signals: [], sources: 0, summary: null, gauges: [] }, token); fitAllRoads(); };
 
-// ---------- Delivery ----------
-// Leave-by and each stop's "Go before" come from every recorded /trip for this stop order (ipad_plans.json), with the
-// J20 rule the map and the board use: a stop whose own street is forecast impassable on arrival is a Hold.
-let plans = null;
-const planKey = (stops) => { const d = places.delivery; return `${ll(d.depot)}|${ll(d.destination)}|${stops.map(ll).join(";")}`; };
+// ---------- the route: leave-by from every recorded departure (J20 own-street Hold rule), else the API's answer ----------
 function holdOwnStreet(e) {
   const c = structuredClone(e);
-  for (const x of [...c.stops, c.dest].filter(Boolean)) {
+  for (const x of [...(c.stops || []), c.dest].filter(Boolean)) {
     const st = x.street;
     if (x.state !== "hold" && st && st.state_at_arrival && st.state_at_arrival !== "no_forecast_flooding")
       Object.assign(x, { state: "hold", reached: false, cut_h: st.t_uncertain, street_hold: true });
   }
   return c;
 }
-const okStop = (x) => x && x.reached && x.state !== "hold";
-function seriesFor(stops) {
-  const raw = plans?.[planKey(stops)];
-  return raw ? raw.map(holdOwnStreet) : null;
-}
-const atDep = (series, m) => series.reduce((best, e) => (Math.abs(e.m - m) < Math.abs(best.m - m) ? e : best), series[0]);
-// Latest recorded departure from `from` on that still passes test(e), and the first one that doesn't (null = holds all window)
+const okStop = (x) => x && x.reached !== false && x.state !== "hold";
+const planKey = (o, s, d) => `${ll(o)}|${ll(d)}|${s.map(ll).join(";")}`;
+function seriesFor(o, s, d) { const raw = plans?.[planKey(o, s, d)]; return raw ? raw.map(holdOwnStreet) : null; }
+const atDep = (series, m) => series.reduce((b, e) => (Math.abs(e.m - m) < Math.abs(b.m - m) ? e : b), series[0]);
 function window_(series, from, test) {
   let ok = null, fail = null;
-  for (const e of series) {
-    if (e.m < from - 2) continue;
-    if (test(e)) ok = e.m; else { fail = e.m; break; }
-  }
+  for (const e of series) { if (e.m < from - 2) continue; if (test(e)) ok = e.m; else { fail = e.m; break; } }
   return { ok, fail };
 }
-function stopWords(x, series, idx, label) {
-  const st = x.street, name = st?.name || label.split(",")[0];
-  const streetLine = st && (st.t_uncertain != null || st.t_flood != null)
-    ? (st.t_flood != null && (st.t_uncertain == null || st.t_flood <= st.t_uncertain)
-      ? `Do not cross ${name} from around ${fHour.format(atHour(st.t_flood))}.`
-      : `${name}: uncertain, treat as impassable from around ${fHour.format(atHour(st.t_uncertain))}.${st.t_flood != null ? ` Do not cross from around ${fHour.format(atHour(st.t_flood))}.` : ""}`)
-    : "";
+function streetLine(st, name) {
+  if (!st || (st.t_uncertain == null && st.t_flood == null)) return "";
+  if (st.t_flood != null && (st.t_uncertain == null || st.t_flood <= st.t_uncertain)) return `Do not cross ${name} from around ${fHour.format(atHour(st.t_flood))}.`;
+  return `${name}: risky, treat as impassable from around ${fHour.format(atHour(st.t_uncertain))}.${st.t_flood != null ? ` Do not cross from around ${fHour.format(atHour(st.t_flood))}.` : ""}`;
+}
+function words(x, series, test, label) {
+  const st = x?.street, name = st?.name || short(label);
   if (!okStop(x)) {
-    const why = x.street_hold ? `Hold this delivery. ${name} is forecast ${st.state_at_arrival === "flooded" ? "under water" : "uncertain"} by the time you get there.`
-      : x.cut_h != null ? `Hold this delivery. The way there is forecast cut by flooding from around ${fHour.format(atHour(x.cut_h))}.`
+    const why = x?.street_hold ? `Hold this delivery. ${name} is forecast ${st.state_at_arrival === "flooded" ? "under water" : "risky"} by the time you get there.`
+      : x?.cut_h != null ? `Hold this delivery. The way there is forecast cut by flooding from around ${fHour.format(atHour(x.cut_h))}.`
       : "Hold this delivery. It can't be reached in time after the stops before it.";
     return { cls: "hold", word: "Hold", why };
   }
-  const w = window_(series, depMin, (e) => okStop(idx == null ? e.dest : e.stops.find((s) => s.i === idx)));
-  if (w.fail != null) return { cls: "go", word: `Go before ${clock(atMin(w.fail))}`, why: `Go before about ${clock(atMin(w.fail))}. ${streetLine}`.trim() };
-  return { cls: "no", word: "No forecast flooding", why: `No forecast flooding on the way there through ${endText()}. ${streetLine}`.trim() };
+  if (series) {
+    const w = window_(series, depMin, test);
+    if (w.fail != null) return { cls: "go", word: `Go before ${clock(atMin(w.fail))}`, why: `Go before about ${clock(atMin(w.fail))}. ${streetLine(st, name)}`.trim() };
+  } else if (x?.cut_h != null) return { cls: "go", word: `Go before ${fHour.format(atHour(x.cut_h))}`, why: `The way there is forecast cut from around ${fHour.format(atHour(x.cut_h))}. ${streetLine(st, name)}`.trim() };
+  return { cls: "no", word: "No forecast flooding", why: `No forecast flooding on the way there through ${endText()}. ${streetLine(st, name)}`.trim() };
 }
-async function renderDelivery() {
-  const my = ++token, d = places.delivery;
-  const stops = order.map((i) => d.stops[i]);
-  const series = seriesFor(stops);
-  setWhen(true);
-  if (!series) { say("Can't confirm roads", "Treat low roads near creeks as impassable. In an emergency call 911."); rowsEl.innerHTML = '<div class="empty">No answer for this trip right now.</div>'; return; }
-  const e = atDep(series, depMin);
-  const n = stops.length, k = e.stops.filter(okStop).length, all = k === n && okStop(e.dest);
-  const allOk = (x) => x.stops.every(okStop) && okStop(x.dest);
-  const w = window_(series, depMin, allOk);
+const dismissed = new Set(); // suggestions turned down, per stop order
+function showSuggest(sg, bs, apply, force = false) {
+  const key = bs.map(ll).join(";");
+  if (dismissed.has(key) && !force) return;
+  $("sgHead").textContent = sg.head; $("sgBody").textContent = sg.body;
+  $("sgOrder").innerHTML = bs.map((p) => `<li>${esc(short(p.label))}</li>`).join("");
+  $("sgYes").onclick = apply;
+  $("sgNo").onclick = () => { dismissed.add(key); hideSuggest(); };
+  const el = $("suggest");
+  if (el.hidden) { void el.offsetWidth; el.hidden = false; } // pops in once, then updates in place while the slider moves
+}
+function hideSuggest() { $("suggest").hidden = true; }
+const CAM_DOT = '<svg viewBox="0 0 12 12" aria-hidden="true"><rect x="1" y="3" width="10" height="7" rx="1.5" fill="#fffdf9"/><rect x="4" y="1.8" width="4" height="2" rx=".6" fill="#fffdf9"/><circle cx="6" cy="6.5" r="1.9" fill="#1c1a17"/></svg>';
+// "Go before 2:00 AM" reads as a label over a big time
+const stHtml = (w) => { const m = /^Go before (.+)$/.exec(w); return m ? `<small>Go before</small><b>${esc(m[1])}</b>` : esc(w); };
+const SAFETY = "Never drive into water. Turn Around Don't Drown. In an emergency call 911.";
+let fitted = false;
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+async function run(fresh = false) {
+  const my = ++token, o = start(), s = stops.filter(Boolean), d = dest;
+  if (!o || !d) return;
+  $("saved").hidden = true; $("result").hidden = false; setWhen(); if (fresh) hideSuggest();
+  $("resLbl").textContent = active?.title || (s.length ? `${s.length + 1} stops` : "Your route");
+  const series = seriesFor(o, s, d);
+  if (!series || fresh) { say("Checking roads…", "Forecast, cameras and reports along the way"); $("listHead").hidden = true; $("best").hidden = true; skeleton(Math.max(2, s.length + 1)); }
+  if (fresh) { await sleep(900 + Math.random() * 500); if (my !== token) return; }
+  const q = { from: ll(o), to: ll(d), stops: s.map(ll).join(";"), depart_h: (depMin / 60).toFixed(3), cycle, corridor_m: String(CORRIDOR_M) };
+  if (series) renderPlan(series, atDep(series, depMin), o, s, d);
+  const h = depH();
+  const tP = ask("/trip", q);
+  loadLive(o, s, d, h, my);
+  const t = await tP;
+  if (my !== token) return;
+  if (!t || t.state !== "ok") {
+    if (!series) { say("Can't confirm roads", "Treat low roads near creeks as impassable. In an emergency call 911."); rowsEl.innerHTML = '<div class="empty">No answer for this route right now.</div>'; }
+    return;
+  }
+  const e = series ? atDep(series, depMin) : { ...holdOwnStreet(t), m: depMin };
+  if (!series) renderPlan(null, e, o, s, d, t);
+  // map
+  await mapReady; if (my !== token) return;
+  const coords = t.route?.geometry?.coordinates || [];
+  map.getSource("route").setData(coords.length ? { type: "Feature", geometry: t.route.geometry, properties: {} } : empty);
+  const near = (t.route?.corridor || []).filter((c) => { const f = flood.get(c.seg_id); return f && nearLine(f.geometry.coordinates[0], coords, NEAR_M); });
+  map.getSource("haz").setData(featsAt(near.map((c) => c.seg_id), h));
+  markers.forEach((m) => m.remove()); markers = [];
+  if (o !== me) pin(o, "start", "");
+  (e.stops || []).forEach((x) => { const p = s[x.i]; if (!p) return; const el = pin(p, okStop(x) ? "" : "hold", okStop(x) ? x.i + 1 : "✕"); el.dataset.n = x.i + 1; });
+  pin(d, okStop(e.dest) ? "end" : "hold end", okStop(e.dest) ? "" : "✕");
+  if (!s.length) renderRoadsOnWay(near, h, e, d, t);
+  if (!fitted) { fit([...coords, [o.lon, o.lat], [d.lon, d.lat], ...s.map((p) => [p.lon, p.lat])]); fitted = true; }
+}
+function renderPlan(series, e, o, s, d, t) {
+  const n = s.length;
   const leaving = depMin <= nowMin ? "now" : `at ${clock(atMin(depMin))}`;
-  if (all && w.fail != null) say(`Leave by ${clock(atMin(w.ok))}`, `to reach all ${n} stops before their streets flood.`);
-  else if (all) say(`All ${n} stops`, `No forecast flooding on the way through ${endText()}. Not a safety guarantee.`);
+  const allOk = (x) => (x.stops || []).every(okStop) && okStop(x.dest);
+  const k = (e.stops || []).filter(okStop).length, all = k === n && okStop(e.dest);
+  const apiLb = t?.leave_by_min?.current; // the API's latest departure that keeps every stop; the window's end = no cut
+  const lb = series ? window_(series, depMin, allOk) : apiLb != null && apiLb < MAX_MIN ? { ok: apiLb, fail: apiLb + STEP } : { ok: null, fail: null };
+  const where = n ? `all ${n} stops` : short(d.label);
+  if (all && lb.fail != null && lb.ok != null && lb.ok >= depMin - 2) say(`Leave by ${clock(atMin(lb.ok))}`, `to reach ${where} before ${n ? "their streets flood" : "the roads there are forecast to flood"}.`);
+  else if (all) say(n ? `All ${n} stops` : "No forecast flooding", `${n ? "No forecast flooding on the way" : "on this route"} through ${endText()}.`);
+  else if (!n) say("Hold this trip", `Leaving ${leaving}, the way to ${short(d.label)} is forecast cut by flooding first.`);
   else if (k === 0) say("Hold all stops", `Leaving ${leaving}, every stop is forecast cut off by flooding first.`);
   else say(`${k} of ${n} stops`, `leaving ${leaving}. The rest are forecast cut off by flooding first.`);
-  $("listHead").textContent = "Your stops";
-  // best order: shown when it reaches more stops, or keeps every stop open longer
-  const b = e.best, bStops = b?.order ? b.order.map((i) => stops[i]) : null, bSeries = bStops && seriesFor(bStops);
-  let bestText = null;
-  if (b?.differs && bSeries) {
-    const be = atDep(bSeries, depMin), bk = be.stops.filter(okStop).length;
-    const bw = window_(bSeries, depMin, allOk);
-    if (bk > k) bestText = `Best order reaches ${bk} of ${n} stops`;
-    else if (all && bw.ok != null && w.ok != null && bw.fail != null && bw.ok > w.ok) bestText = `Best order · leave by ${clock(atMin(bw.ok))}`;
+  // better order: offered as a pop-up when it reaches more stops, keeps every stop open longer, or saves time
+  $("best").hidden = true;
+  let offered = false;
+  const b = e.best;
+  if (n > 1 && b?.differs && b.order) {
+    const bs = b.order.map((i) => s[i]), bSeries = seriesFor(o, bs, d);
+    let sg = null;
+    const curMin = e.current?.minutes;
+    if (bSeries) {
+      const be = atDep(bSeries, depMin), bk = be.stops.filter(okStop).length, bw = window_(bSeries, depMin, allOk);
+      if (bk > k) sg = { head: `Reach ${bk} of ${n} stops`, body: `This order reaches ${k}. Visiting them in a different order gets to ${bk - k} more before their streets flood.` };
+      else if (all && bw.ok != null && lb.ok != null && bw.fail != null && bw.ok > lb.ok) sg = { head: `Leave by ${clock(atMin(bw.ok))} instead`, body: `Same ${n} stops, and ${Math.round(bw.ok - lb.ok)} more minutes before you have to go.` };
+      else if (all && curMin && be.current?.minutes && be.current.minutes < curMin - 2) sg = { head: `Save ${Math.round(curMin - be.current.minutes)} min`, body: `Same ${n} stops, a shorter drive.` };
+    } else if ((b.reached ?? 0) > k) sg = { head: `Reach ${b.reached} of ${n} stops`, body: `This order reaches ${k}. A different order gets to more before their streets flood.` };
+    else if (all && curMin && b.minutes && b.minutes < curMin - 2) sg = { head: `Save ${Math.round(curMin - b.minutes)} min`, body: `Same ${n} stops, a shorter drive.` };
+    if (sg) {
+      const apply = () => { stops = bs; renderStops(); lastStatus.clear(); hideSuggest(); run(true); };
+      $("best").hidden = false; $("best").textContent = "Better order"; $("best").onclick = () => showSuggest(sg, bs, apply, true);
+      showSuggest(sg, bs, apply); offered = true;
+    }
   }
-  $("best").hidden = !bestText;
-  if (bestText) { $("best").textContent = bestText; $("best").onclick = () => { order = b.order.map((i) => order[i]); lastStatus.clear(); renderDelivery(); }; }
-  // rows, in driving order of the request
+  if (!offered) hideSuggest();
+  if (!n) return; // a trip without stops lists the roads on the way (renderRoadsOnWay)
+  $("listHead").textContent = "Your stops"; $("listHead").hidden = false;
   const html = [];
-  e.stops.forEach((x) => {
-    const p = stops[x.i], label = p.label, nmb = x.i + 1;
-    const st = stopWords(x, series, x.i, label);
-    const prev = lastStatus.get(label); lastStatus.set(label, st.cls + st.word);
-    const changed = prev && prev !== st.cls + st.word;
+  (e.stops || []).forEach((x) => {
+    const p = s[x.i]; if (!p) return;
+    const wd = words(x, series, (ee) => okStop(ee.stops.find((y) => y.i === x.i)), p.label);
+    const key = p.label + "|" + x.i, prev = lastStatus.get(key); lastStatus.set(key, wd.cls + wd.word);
+    const changed = prev && prev !== wd.cls + wd.word;
     const arrive = okStop(x) && x.arrive_min != null ? `Arrive ${clock(atMin(depMin + x.arrive_min))}` : "Skipped on this run";
-    html[x.i] = `<button class="row${changed ? " changed" : ""}" type="button" data-n="${nmb}" data-lat="${p.lat}" data-lon="${p.lon}">
-      <div class="main"><span class="disc${st.cls === "hold" ? " hold" : ""}">${nmb}</span>
-      <span class="name">${esc(label.split(",")[0])}<small class="num">${esc(arrive)}</small></span><span class="st ${st.cls} num">${esc(st.word)}</span></div>
-      <div class="more"><div><p>${esc(st.why)}</p><p>${st.cls === "hold" ? "" : "Not a safety guarantee. "}Never drive into water. Turn Around Don't Drown. In an emergency call 911.</p></div></div></button>`;
+    html[x.i] = `<button class="row${changed ? " changed" : ""}" type="button" data-n="${x.i + 1}" data-lat="${p.lat}" data-lon="${p.lon}">
+      <div class="main"><span class="disc${wd.cls === "hold" ? " hold" : ""}">${x.i + 1}</span>
+      <span class="name">${esc(short(p.label))}<small class="num">${esc(arrive)}</small></span><span class="st ${wd.cls} num">${stHtml(wd.word)}</span></div>
+      <div class="more"><div><p>${esc(wd.why)}</p><p>${wd.cls === "hold" ? "" : "Not a safety guarantee. "}${SAFETY}</p></div></div></button>`;
   });
-  const dw = stopWords(e.dest, series, null, d.destination.label);
-  html.push(`<button class="row" type="button" data-lat="${d.destination.lat}" data-lon="${d.destination.lon}"><div class="main"><span class="disc${dw.cls === "hold" ? " hold" : ""}" style="${dw.cls === "hold" ? "" : "background:var(--sand);color:var(--ink)"}">E</span>
-    <span class="name">${esc(d.destination.label.split(",")[0])}<small class="num">${okStop(e.dest) && e.dest.arrive_min != null ? "End of run · arrive " + clock(atMin(depMin + e.dest.arrive_min)) : "End of run · skipped"}</small></span><span class="st ${dw.cls} num">${esc(dw.word)}</span></div>
-    <div class="more"><div><p>${esc(dw.why)}</p></div></div></button>`);
+  const dw = words(e.dest, series, (ee) => okStop(ee.dest), d.label);
+  html.push(`<button class="row" type="button" data-lat="${d.lat}" data-lon="${d.lon}"><div class="main"><span class="disc end${dw.cls === "hold" ? " hold" : ""}"></span>
+    <span class="name">${esc(short(d.label))}<small class="num">${okStop(e.dest) && e.dest?.arrive_min != null ? "End · arrive " + clock(atMin(depMin + e.dest.arrive_min)) : "End · skipped"}</small></span><span class="st ${dw.cls} num">${stHtml(dw.word)}</span></div>
+    <div class="more"><div><p>${esc(dw.why)}</p><p>${SAFETY}</p></div></div></button>`);
   rowsEl.innerHTML = html.join("");
-  // map: the recorded /trip for this departure carries the route geometry
-  const h = Math.min(18, Math.floor(depMin / 60));
-  loadLiveDelivery(stops, h);
-  const t = await ask("/trip", { from: ll(d.depot), to: ll(d.destination), stops: stops.map(ll).join(";"), depart_h: (depMin / 60).toFixed(3), cycle, corridor_m: String(CORRIDOR_M) });
-  await mapReady; if (my !== token) return;
-  drawAll(h);
-  map.getSource("area").setData(empty);
-  const coords = t?.route?.geometry?.coordinates || [];
-  map.getSource("route").setData(coords.length ? { type: "Feature", geometry: t.route.geometry, properties: {} } : empty);
-  map.getSource("haz").setData(featsAt((t?.route?.corridor || []).map((c) => c.seg_id), h));
-  clearMarkers();
-  pin(d.depot.lon, d.depot.lat, "depot", "D", d.depot.label);
-  e.stops.forEach((x) => { const p = stops[x.i]; const el = pin(p.lon, p.lat, okStop(x) ? "" : "hold", okStop(x) ? x.i + 1 : "✕", p.label); el.dataset.n = x.i + 1; });
-  pin(d.destination.lon, d.destination.lat, okStop(e.dest) ? "end" : "hold", okStop(e.dest) ? "E" : "✕", d.destination.label);
-  if (!renderDelivery.fitted) { fit([...coords, ...stops.map((p) => [p.lon, p.lat])], { top: 60, bottom: 60, left: 60, right: 60 }); renderDelivery.fitted = true; }
 }
-
-// ---------- Home / Work ----------
-function checksList(signals, title) {
-  $("listHead").textContent = title; $("best").hidden = true;
-  if (!signals.length) { rowsEl.innerHTML = '<div class="empty">Nothing reported nearby right now.</div>'; return; }
-  rowsEl.innerHTML = signals.slice(0, 12).map((s) => `<button class="row check" type="button" data-lat="${s.lat ?? ""}" data-lon="${s.lon ?? ""}"><div class="main">
-    <span class="ico${s.severity === "warning" || s.severity === "danger" ? " warn" : ""}">${s.source === "Traffic cameras" ? ICON.cam : /closed|road|incident/i.test(s.title) ? ICON.road : ICON.info}</span>
-    <span class="name">${esc(s.title)}<small>${esc(s.source)}</small></span></div></button>`).join("");
-}
-function roadsSentence(segs, where) { // §5 for an area or a route
-  const fl = segs.filter((s) => s.state === "flooded"), un = segs.filter((s) => s.state === "uncertain");
-  if (!fl.length && !un.length) return null;
-  const first = fl[0] || un[0];
-  return [`${fl.length + un.length} roads ${where}`, `${fl.length ? `forecast to flood, starting with ${first.name || "an unnamed road"}.` : "uncertain: treat them as impassable."} Do not cross.`];
-}
-async function renderHome() {
-  const my = ++token, p = places.home;
-  setWhen(false); $("best").hidden = true;
-  const [s, a] = await Promise.all([ask("/status", { lat: String(p.lat), lon: String(p.lon), hours: "18", cycle }), ask("/assess", { lat: String(p.lat), lon: String(p.lon), cycle })]);
-  if (my !== token) return;
-  const r = s && roadsSentence(s.segments || [], "near Home");
-  if (r) say(r[0], r[1]);
-  else if (s && s.state === "no_forecast_flooding") say("No forecast flooding", `near Home through ${endText()}. Not a safety guarantee. Never drive into water.`);
-  else say("Can't confirm roads", "Treat low roads near creeks as impassable. In an emergency call 911.");
-  checksList(a?.signals || [], "Live checks near Home");
-  await mapReady; if (my !== token) return;
-  drawAll(Math.floor(nowMin / 60));
-  clearMarkers(); map.getSource("route").setData(empty); map.getSource("haz").setData(empty);
-  const ring = circle(p.lat, p.lon, 5);
-  map.getSource("area").setData({ type: "Feature", geometry: { type: "LineString", coordinates: ring }, properties: {} });
-  pin(p.lon, p.lat, "depot", "H", p.label);
-  fit(ring, 50);
-  setLive({ cams: a?.cameras || [], signals: a?.signals || [], sources: (a?.sources_ok || []).length, summary: a?.assessment?.now?.summary, gauges: null }, my);
-  loadPast("/past", { lat: String(p.lat), lon: String(p.lon), cycle }, my);
-}
-async function renderWork() {
-  const my = ++token, a = places.home, b = places.work;
-  setWhen(true); $("best").hidden = true;
-  const h = Math.min(18, Math.max(1, Math.floor(depMin / 60)));
-  const q = { from: ll(a), to: ll(b), depart_h: String(h), cycle };
-  const [r, as] = await Promise.all([ask("/route", { ...q, corridor_m: String(CORRIDOR_M) }), ask("/assess/route", q)]);
-  if (my !== token) return;
-  if (r && r.state === "route_found") {
-    const avoided = r.avoided || [];
-    const rs = roadsSentence((r.corridor || []).filter((c) => c.state), "near your route to Work");
-    if (avoided.length) say(`Route around ${avoided.length} roads`, `forecast to flood on the usual way to Work. ${Math.round(r.minutes)} min.`);
-    else if (rs) say(rs[0], rs[1]);
-    else say("No forecast flooding", `on your route to Work through ${endText()}. ${Math.round(r.minutes)} min. Not a safety guarantee.`);
-  } else say("Can't confirm roads", "Treat low roads near creeks as impassable. In an emergency call 911.");
-  checksList(as?.signals || [], "Live checks on the way to Work");
-  await mapReady; if (my !== token) return;
-  drawAll(h);
-  clearMarkers(); map.getSource("area").setData(empty);
-  const coords = r?.geometry?.coordinates || [];
-  map.getSource("route").setData(coords.length ? { type: "Feature", geometry: r.geometry, properties: {} } : empty);
-  map.getSource("haz").setData(featsAt((r?.corridor || []).map((c) => c.seg_id), h));
-  pin(a.lon, a.lat, "depot", "H", a.label); pin(b.lon, b.lat, "end", "W", b.label);
-  fit([...coords, [a.lon, a.lat], [b.lon, b.lat]], 70);
-  setLive({ cams: as?.cameras || [], signals: as?.signals || [], sources: (as?.sources_ok || []).length, summary: as?.assessment?.now?.summary, gauges: null }, my);
-  loadPast("/past/route", { from: ll(a), to: ll(b), cycle }, my);
+function renderRoadsOnWay(near, h, e, d, t) {
+  // trips without stops: the flagged roads along the way, soonest first; avoided roads first of all
+  $("listHead").textContent = "Flagged roads near your route";
+  const avoided = new Set((t.route?.avoided || []).map((a) => a.seg_id ?? a));
+  const seen = new Set(), list = [];
+  for (const c of near) {
+    const f = flood.get(c.seg_id); if (!f) continue;
+    const p = f.properties, name = p.name && p.name !== "null" ? p.name : null;
+    if (!name || seen.has(name)) continue; seen.add(name);
+    const tu = p.t_uncertain ?? 99, tf = p.t_flood ?? 99;
+    list.push({ name, tu, tf, first: Math.min(tu, tf), c: f.geometry.coordinates[0], av: avoided.has(c.seg_id) });
+  }
+  list.sort((a, b) => b.av - a.av || a.first - b.first);
+  const arrive = e.dest?.arrive_min != null ? `Arrive ${clock(atMin(depMin + e.dest.arrive_min))}` : "";
+  const head = `<div class="row" data-lat="${d.lat}" data-lon="${d.lon}"><div class="main"><span class="disc end"></span><span class="name">${esc(short(d.label))}<small class="num">${esc(arrive)}${t.route?.minutes ? ` · ${Math.round(t.route.minutes)} min` : ""}</small></span></div></div>`;
+  $("listHead").hidden = !list.length;
+  if (!list.length) { rowsEl.innerHTML = head; return; }
+  rowsEl.innerHTML = head + list.slice(0, 12).map((r) => {
+    const now = r.first <= h, fl = r.tf <= h;
+    const word = r.av ? "Avoided" : now ? (fl ? "Do not cross" : "Risky") : `From ${fHour.format(atHour(r.first))}`;
+    const why = r.tf < 99 ? `Do not cross ${r.name}. Forecast shows water reaching it around ${fDay.format(atHour(r.tf))}.` : `${r.name}: risky, treat as impassable from around ${fDay.format(atHour(r.tu))}.`;
+    return `<button class="row" type="button" data-lat="${r.c[1]}" data-lon="${r.c[0]}"><div class="main"><span class="disc ${r.tf < 99 ? "fl" : "unc"}"></span>
+      <span class="name">${esc(r.name)}<small class="num">${r.av ? "Noah's route goes around it" : `Next to your route · ${r.tf < 99 ? "forecast to flood" : "risky"}`}</small></span><span class="st ${now || r.av ? "hold" : "go"} num">${esc(word)}</span></div>
+      <div class="more"><div><p>${esc(why)}</p><p>${SAFETY}</p></div></div></button>`;
+  }).join("");
 }
 
 // ---------- Live: cameras (live frames), checks, last 18 h ----------
-async function loadLiveDelivery(stops, h) {
-  const my = token, d = places.delivery;
-  const pts = [d.depot, ...stops, d.destination];
-  const legs = pts.slice(1).map((p, i) => [pts[i], p]);
+async function loadLive(o, s, d, h, my) {
+  const pts = [o, ...s, d], legs = pts.slice(1).map((p, i) => [pts[i], p]);
   const res = await Promise.all(legs.map(([a, b]) => ask("/assess/route", { from: ll(a), to: ll(b), depart_h: String(Math.max(1, h)), cycle })));
   if (my !== token) return;
   const cams = new Map(), sigs = new Map(); let sources = 0, summary = null;
   for (const a of res) {
     if (!a) continue;
     for (const c of a.cameras || []) if (!cams.has(c.cam_id)) cams.set(c.cam_id, c);
-    for (const s of a.signals || []) if (!sigs.has(s.title)) sigs.set(s.title, s);
-    sources = Math.max(sources, (a.sources_ok || []).length);
-    summary = summary || a.assessment?.now?.summary;
+    for (const x of a.signals || []) if (!sigs.has(x.title)) sigs.set(x.title, x);
+    sources = Math.max(sources, (a.sources_ok || []).length); summary = summary || a.assessment?.now?.summary;
   }
   setLive({ cams: [...cams.values()], signals: [...sigs.values()], sources, summary, gauges: null }, my);
   const past = await Promise.all(legs.map(([a, b]) => ask("/past/route", { from: ll(a), to: ll(b), cycle })));
   if (my !== token) return;
   const g = new Map(); for (const p of past) for (const x of p?.gauges || []) if (!g.has(x.site)) g.set(x.site, x);
-  live.gauges = [...g.values()]; if (tab === "past") renderPane();
-}
-async function loadPast(path, p, my) {
-  const r = await ask(path, p); if (my !== token) return;
-  live.gauges = r?.gauges || []; if (tab === "past") renderPane();
+  live.gauges = [...g.values()]; if (tab === "past" && $("sheet").classList.contains("open")) renderPane();
 }
 function setLive(l, my) {
   if (my !== token) return;
   l.signals = (l.signals || []).filter((x) => !/-999|out of service/i.test(`${x.title} ${x.detail || ""}`)); // a dead gauge reading is not a check
   live = { ...l, gauges: l.gauges ?? live.gauges };
-  $("liveLbl").textContent = live.cams.length ? `Live · ${live.cams.length} camera${live.cams.length === 1 ? "" : "s"}` : "Live";
+  $("liveLbl").textContent = "Sources";
   camMarkers.forEach((m) => m.remove()); camMarkers = [];
   for (const c of live.cams) {
-    const el = document.createElement("button"); el.className = "campin"; el.type = "button"; el.innerHTML = ICON.cam; el.setAttribute("aria-label", `Camera ${c.name}`);
-    el.onclick = (e) => { e.stopPropagation(); openSheet("cams", c.cam_id); };
+    const el = document.createElement("button"); el.className = "campin"; el.type = "button"; el.innerHTML = CAM_DOT; el.setAttribute("aria-label", `Camera ${c.name}`);
+    el.onclick = (ev) => { ev.stopPropagation(); openSheet("cams", c.cam_id); };
     camMarkers.push(new maplibregl.Marker({ element: el }).setLngLat([c.lon, c.lat]).addTo(map));
   }
-  if (!$("sheet").hidden && $("sheet").classList.contains("open")) renderPane();
+  if ($("sheet").classList.contains("open")) renderPane();
 }
 const WET = ["curb", "half_tire", "door_sill_or_above"];
 function verdict(c) {
@@ -598,28 +795,27 @@ function verdict(c) {
   if (c.bucket === "cant_tell") return { cls: "", text: "Can't tell from the image.", when };
   return { cls: "", text: "AI check still running.", when };
 }
-const camFrames = new Map(); // cam_id -> promise of /cam answer
+const camFrames = new Map();
 function liveFrame(id) {
   if (!camFrames.has(id)) camFrames.set(id, fetch(`/cam/${id}`).then((r) => (r.ok ? r.json() : null)).catch(() => null));
   return camFrames.get(id);
 }
 setInterval(() => camFrames.clear(), 5 * 60e3); // fresh frames every 5 min
-let tab = "cams", focusCam = null;
-let camIO = null;
+let tab = "cams", focusCam = null, camIO = null;
 function showFrame(art) { // live frame, fetched when its card scrolls into view
   liveFrame(art.dataset.cam).then((f) => {
-        const fr = art.querySelector(".frame");
-        if (!f || !f.image_url) { fr.innerHTML = "<span>Camera not responding</span>"; return; }
-        const img = new Image(); img.alt = `Live camera: ${f.title || ""}`; img.onerror = () => (fr.innerHTML = "<span>Camera not responding</span>");
-        img.onload = () => { fr.replaceChildren(img); const t = document.createElement("span"); t.className = "tag num";
-          t.innerHTML = `<span class="dot"></span>Live${f.updated_utc ? " · " + esc(clock(new Date(f.updated_utc))) : ""}`; fr.append(t); };
-        img.src = f.image_url;
-      });
+    const fr = art.querySelector(".frame");
+    if (!f || !f.image_url) { fr.innerHTML = "<span>Camera not responding</span>"; return; }
+    const img = new Image(); img.alt = `Live camera: ${f.title || ""}`; img.onerror = () => (fr.innerHTML = "<span>Camera not responding</span>");
+    img.onload = () => { fr.replaceChildren(img); const tg = document.createElement("span"); tg.className = "tag num";
+      tg.innerHTML = `<span class="dot"></span>Live${f.updated_utc ? " · " + esc(clock(new Date(f.updated_utc))) : ""}`; fr.append(tg); };
+    img.src = f.image_url;
+  });
 }
 function renderPane() {
   const pane = $("pane");
   if (tab === "cams") {
-    if (!live.cams.length) { pane.innerHTML = '<div class="empty">No traffic cameras along this trip.</div>'; return; }
+    if (!live.cams.length) { pane.innerHTML = `<div class="empty">${active ? "No traffic cameras along this route." : "Pick a route to see the cameras along it."}</div>`; return; }
     const cams = focusCam ? [...live.cams].sort((a, b) => (b.cam_id === focusCam) - (a.cam_id === focusCam)) : live.cams;
     pane.innerHTML = cams.map((c) => { const v = verdict(c); return `<article class="cam" data-cam="${c.cam_id}">
       <div class="frame"><span>Loading camera…</span></div>
@@ -629,30 +825,28 @@ function renderPane() {
     camIO = new IntersectionObserver((ents) => ents.forEach((en) => { if (en.isIntersecting) { camIO.unobserve(en.target); showFrame(en.target); } }), { root: pane, rootMargin: "300px" });
     pane.querySelectorAll(".cam").forEach((art) => camIO.observe(art));
   } else if (tab === "checks") {
-    const head = live.summary ? `<div class="sum">${esc(live.summary)}</div>` : "";
-    pane.innerHTML = head + (live.signals.length ? live.signals.map((s) => `<div class="sig"><b>${esc(s.title)}</b><span>${esc(s.source)}${s.detail ? " · " + esc(s.detail) : ""}</span></div>`).join("") : '<div class="empty">Nothing reported nearby right now.</div>')
+    const head = `<div class="sig"><b>Road flood forecast</b><span class="num">NOAA National Water Model, issued ${esc(fDayDate.format(issue))}</span></div>` + (live.summary ? `<div class="sum">${esc(live.summary)}</div>` : "");
+    pane.innerHTML = head + (live.signals.length ? live.signals.map((x) => `<div class="sig"><b>${esc(x.title)}</b><span>${esc(x.source)}${x.detail ? " · " + esc(x.detail) : ""}</span></div>`).join("") : `<div class="empty">${active ? "Nothing reported along this route right now." : "Pick a route to see the checks along it."}</div>`)
       + (live.sources ? `<p class="credit">${live.sources} sources checked</p>` : "");
   } else {
     const g = live.gauges || [];
     pane.innerHTML = g.length ? g.map((x) => `<div class="gauge"><b>${esc(x.name || "USGS gauge " + x.site.replace("USGS-", ""))}</b>
       <p class="num">${x.change_ft >= 0 ? "Rose" : "Fell"} ${Math.abs(x.change_ft).toFixed(1)} ft in the last 18 h · peak ${x.max} ${esc(x.units)}${x.max_time_local ? " at " + esc(x.max_time_local) : ""}</p>${spark(x.series || [])}
-      <p class="credit">USGS stream gauge, observed</p></div>`).join("") : '<div class="empty">No stream gauges along this trip.</div>';
+      <p class="credit">USGS stream gauge, observed</p></div>`).join("") : `<div class="empty">${active ? "No stream gauges along this route." : "Pick a route to see the stream gauges along it."}</div>`;
   }
 }
 function spark(series) {
-  const v = series.map((s) => (Array.isArray(s) ? s[1] : s.v ?? s.value)).filter((x) => x != null && isFinite(x));
+  const v = series.map((x) => (Array.isArray(x) ? x[1] : x.v ?? x.value)).filter((x) => x != null && isFinite(x));
   if (v.length < 2) return "";
-  const lo = Math.min(...v), hi = Math.max(...v), W = 400, H = 90;
+  const lo = Math.min(...v), hi = Math.max(...v), W = 400, H = 84;
   const pts = v.map((y, i) => `${(i / (v.length - 1)) * W},${H - 6 - ((y - lo) / (hi - lo || 1)) * (H - 12)}`).join(" ");
   return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true"><polyline points="${pts}" fill="none" stroke="${INK}" stroke-width="3" stroke-linejoin="round" vector-effect="non-scaling-stroke"/></svg>`;
 }
-const reveal = (el, cls) => { el.hidden = false; void el.offsetWidth; el.classList.add(cls); }; // reflow, then transition
+const reveal = (el, cls) => { el.hidden = false; void el.offsetWidth; el.classList.add(cls); };
 function openSheet(t = tab, cam = null) {
   tab = t; focusCam = cam;
   document.querySelectorAll(".tabs button").forEach((b) => b.setAttribute("aria-selected", b.dataset.tab === tab));
-  renderPane();
-  reveal($("scrim"), "dim");
-  reveal($("sheet"), "open");
+  renderPane(); reveal($("scrim"), "dim"); reveal($("sheet"), "open");
 }
 function closeAll() {
   $("sheet").classList.remove("open"); $("pop").hidden = true; $("when").setAttribute("aria-expanded", "false");
@@ -665,54 +859,39 @@ document.querySelector(".tabs").onclick = (e) => { const b = e.target.closest("b
 
 // ---------- departure ----------
 const dep = $("dep");
-function paintRange() { dep.style.setProperty("--p", `${((dep.value - dep.min) / (dep.max - dep.min)) * 100}%`); }
 function popText() {
   $("popVal").textContent = +dep.value <= nowMin ? `Now · ${clock(atMin(+dep.value))}` : fDay.format(atMin(+dep.value));
-  paintRange();
+  dep.style.setProperty("--p", `${((dep.value - dep.min) / (dep.max - dep.min)) * 100}%`);
 }
 let depTimer = null;
 dep.addEventListener("input", () => {
   popText(); clearTimeout(depTimer);
-  depTimer = setTimeout(() => { depMin = +dep.value; setWhen(true); render(); }, 90);
+  depTimer = setTimeout(() => { depMin = +dep.value; setWhen(); drawAll(); if (active) run(); }, 90);
 });
 $("when").onclick = () => {
-  const open = $("pop").hidden;
-  if (!open) return closeAll();
+  if (!$("pop").hidden) return closeAll();
   dep.value = depMin; popText();
-  $("pop").hidden = false; $("when").setAttribute("aria-expanded", "true");
-  reveal($("scrim"), "dim");
+  const r = $("when").getBoundingClientRect(), pop = $("pop");
+  pop.style.left = `${Math.max(16, Math.min(innerWidth - 456, r.left))}px`; pop.style.top = `${r.bottom + 10}px`;
+  if (r.bottom + 230 > innerHeight) pop.style.top = `${Math.max(16, r.top - 230)}px`;
+  pop.hidden = false; $("when").setAttribute("aria-expanded", "true"); reveal($("scrim"), "dim");
 };
 $("nowBtn").onclick = () => { dep.value = nowMin; dep.dispatchEvent(new Event("input")); };
 
-// ---------- places ----------
-function render() { return place === "delivery" ? renderDelivery() : place === "work" ? renderWork() : renderHome(); }
-document.querySelector(".seg").onclick = (e) => {
-  const b = e.target.closest("button"); if (!b || b.dataset.place === place) return;
-  place = b.dataset.place;
-  document.querySelectorAll(".seg button").forEach((x) => x.setAttribute("aria-pressed", x === b));
-  renderDelivery.fitted = false; skeleton(); say("Checking roads…", "");
-  render();
-};
-
 // ---------- start ----------
-(async function start() {
-  skeleton(7);
+(async function boot() {
   try { snap = await fetch(SNAP, { cache: "no-store" }).then((r) => r.json()); }
-  catch { say("Can't confirm roads", "Treat low roads near creeks as impassable. In an emergency call 911."); rowsEl.innerHTML = ""; return; }
+  catch { $("savedList").innerHTML = '<div class="empty">Can\'t load roads right now. Treat low roads near creeks as impassable.</div>'; return; }
   cycle = snap.cycle; places = snap.places; nowMin = snap.now_min || 0; depMin = nowMin;
   const m = cycle.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})Z$/);
   issue = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4]));
-  order = places.delivery.stops.map((_, i) => i);
-  $("issued").textContent = `Forecast issued ${fDay.format(issue)}`;
   dep.min = nowMin; dep.max = MAX_MIN; dep.step = STEP;
-  $("ticks").innerHTML = [0, 3, 6, 9, 12, 15, 18].map((h) => `<span>${fHour.format(atMin(nowMin + (h / 18) * (MAX_MIN - nowMin)))}</span>`).join("");
+  $("ticks").innerHTML = [0, 3, 6, 9, 12, 15, 18].map((x) => `<span>${fHour.format(atMin(nowMin + (x / 18) * (MAX_MIN - nowMin)))}</span>`).join("");
   $("popNote").textContent = `Forecast window ends ${endText()}`;
-  try {
-    const fc = await fetch(`/data/flood_${cycle}.geojson`).then((r) => r.json());
-    for (const f of fc.features) flood.set(f.properties.seg_id, f);
-  } catch {}
+  setWhen(); renderSaved(); renderStops(); syncGo();
   try { plans = await fetch(SNAP_BASE + "ipad_plans.json").then((r) => r.json()); } catch {}
-  render();
+  try { const fc = await fetch(`/data/flood_${cycle}.geojson`).then((r) => r.json()); for (const f of fc.features) flood.set(f.properties.seg_id, f); } catch {}
+  await mapReady; fitAllRoads(); drawAll();
 })();
 </script>
 </body>

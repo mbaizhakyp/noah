@@ -35,8 +35,10 @@ API = "http://127.0.0.1:8010"
 # ---- the demo: Saturday's 1 AM run (the richest: 333 flagged segments, cuts spread over the window),
 # a pharmacy run from Dunwoody over the north watched routes (017): all 7 reached leaving at 4 AM,
 # leave-by 5:20 AM, leaving at 6 AM the typed order locks in after Northcrest Way and loses four locations
-CYCLE = "20240926T22Z"
-NOW_MIN = 60  # the page's clock: 7:00 PM ET, one hour after the 6 PM run was issued
+# Sat 13:30 (Priyanshu): moved to Helene's 8 AM run, the most flooding on file (2,423 flagged segments, 1,300 forecast
+# flooded, nearly all cut later in the window, not at issue time) and the run validated against Peachtree Creek (B1).
+CYCLE = "20240926T12Z"
+NOW_MIN = 60  # the page's clock: 9:00 AM ET, one hour after the 8 AM run was issued
 STEP_MIN = 5
 FINE_H = (
     6  # record every 5 min for this long after "now", then every 30 min to the end of the window
@@ -47,11 +49,18 @@ def demo_places() -> dict:
     """Home / Work from the live places file; Delivery = the pharmacy run over the Buckhead streets
     that flooded in the chosen run (the 014 sample as of Sat 11:30, pinned here so later edits to
     dispatch_sample.json cannot change what was recorded)."""
-    base = json.loads((WEB / "data" / "places.json").read_text())
     pt = lambda label, lat, lon: {"label": label, "lat": lat, "lon": lon}
+    # Home / Work = a commute that crosses the run's flooding (Noah routes around 2 flooded roads from ~6 PM);
+    # hospital = the third saved route on the iPad (6 flooded + 17 uncertain roads along it by evening). Scored Sat 13:30
+    # with /route?cycle=20240926T12Z&depart_h=1 and 10 over 25 home x work pairs.
     return {
-        "home": base["home"],
-        "work": base["work"],
+        "home": pt("Home · Vinings", 33.8645, -84.4686),
+        "work": pt("Work · Midtown", 33.7845, -84.3830),
+        "hospital": {
+            "label": "Sandy Springs → Piedmont Hospital",
+            "origin": pt("Sandy Springs", 33.9304, -84.3733),
+            "destination": pt("Piedmont Hospital, Peachtree Rd NW", 33.8085, -84.3943),
+        },
         "delivery": {
             "label": "Delivery route · Buckhead",
             "depot": pt("Peachtree Rd NE, Buckhead (depot)", 33.83991, -84.3792),
@@ -269,6 +278,8 @@ def record(api: str = API, corridor_m: int = 3000, refresh: set[str] | None = No
     rec.get("/assess", {"lat": home["lat"], "lon": home["lon"], "cycle": CYCLE})
     rec.get("/past", {"lat": home["lat"], "lon": home["lon"], "cycle": CYCLE})
     record_trip_family(rec, home, [], work, corridor_m)
+    hosp = places["hospital"]  # spec 021: the iPad's third saved route
+    record_trip_family(rec, hosp["origin"], [], hosp["destination"], corridor_m)
     rec.write_index(places)
 
 
@@ -279,7 +290,9 @@ def ipad_plans() -> Path:
     keep_stop = ("i", "state", "reached", "arrive_min", "cut_h", "in_best")
     out: dict[str, list] = {}
     for e in idx["responses"]:
-        if e["path"] != "/trip":
+        if (
+            e["path"] != "/trip" or e["p"].get("cycle") != CYCLE
+        ):  # the index keeps older runs' answers too
             continue
         r = json.loads((SNAP / e["file"]).read_text())
         if r.get("state") != "ok":
