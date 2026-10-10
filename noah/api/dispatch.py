@@ -223,6 +223,47 @@ def iso(t: pd.Timestamp) -> str:
     return t.strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+def route_and_cut(
+    G, paths: dict, dist: dict, stop_edge, stop_pt, t_uncertain, cut_limit, names
+) -> tuple:
+    """Route line (depot -> stop) along `paths`, and where it gets cut: the first segment on it (or the stop's own
+    street) whose t_uncertain <= cut_limit. -> (coords | None, cut dict | None)."""
+    from noah.api.routing import path_edges, path_line  # lazy: routing imports this module
+
+    u, v, sids = stop_edge
+    ends = [n for n in (u, v) if n in dist]
+    if not ends:
+        return None, None
+    end = min(ends, key=dist.get)
+    nodes = paths[end]
+    seg_edges = path_edges(G, nodes) if len(nodes) > 1 else []
+    coords = (
+        [list(c) for c in path_line(G, nodes, seg_edges).coords]
+        if len(nodes) > 1
+        else [[G.nodes[end]["x"], G.nodes[end]["y"]]]
+    )
+    coords.append([stop_pt[0], stop_pt[1]])
+    cut = None
+    if cut_limit is not None:
+        candidates = [(e.get("seg_id"), e) for e in seg_edges] + [(s, None) for s in sids]
+        for sid, e in candidates:
+            tu = t_uncertain.get(sid)
+            if tu is not None and tu <= cut_limit:
+                if e is not None and e.get("geometry") is not None:
+                    mid = e["geometry"].interpolate(0.5, normalized=True)
+                    lon, lat = mid.x, mid.y
+                else:
+                    lon, lat = stop_pt
+                cut = {
+                    "lon": round(lon, 5),
+                    "lat": round(lat, 5),
+                    "street": names.get(sid),
+                    "t_uncertain": tu,
+                }
+                break
+    return [[round(x, 5), round(y, 5)] for x, y in coords], cut
+
+
 @router.post("/dispatch")
 def dispatch(req: DispatchRequest) -> dict:
     G, ids, xy, aoi, edges, tree = graph_state()
@@ -235,12 +276,32 @@ def dispatch(req: DispatchRequest) -> dict:
         )
     src = nearest_node(ids, xy, req.depot.lon, req.depot.lat)
     reach = reach_by_hour(G, src, fl.t_uncertain)
+    dist0, paths0 = nx.single_source_dijkstra(G, src, weight=blocked_weight(fl.t_uncertain, 0))
+    free = None  # unconstrained shortest paths, only needed to show where a held route is cut
+    names = {f["properties"]["seg_id"]: f["properties"]["name"] for f in fl.features}
+    buf = config.ROUTE_BUFFER_H
     out = []
     for s in req.stops:
         inside = aoi.contains(Point(s.lon, s.lat))
         stop_edge = nearest_edge(edges, tree, s.lon, s.lat) if inside else None
         v = verdict(stop_edge, reach, inside, fl.t_uncertain)
         cut = None if v["cut_h"] is None else iso(fl.issue_time + pd.Timedelta(hours=v["cut_h"]))
+        route, cut_at = None, None
+        if v["state"] in ("go_before", "no_forecast_flooding"):
+            limit = v["cut_h"] + buf if v["state"] == "go_before" else None
+            route, cut_at = route_and_cut(
+                G, paths0, dist0, stop_edge, (s.lon, s.lat), fl.t_uncertain, limit, names
+            )
+        elif v["state"] == "hold":
+            if free is None:
+                free = nx.single_source_dijkstra(G, src, weight="travel_time")
+            route, cut_at = route_and_cut(
+                G, free[1], free[0], stop_edge, (s.lon, s.lat), fl.t_uncertain, buf, names
+            )
+        if cut_at:
+            cut_at["impassable_from_utc"] = iso(
+                fl.issue_time + pd.Timedelta(hours=int(cut_at.pop("t_uncertain")))
+            )
         out.append(
             {
                 "id": s.id,
@@ -251,6 +312,9 @@ def dispatch(req: DispatchRequest) -> dict:
                 "go_before_utc": cut if v["state"] == "go_before" else None,
                 "cut_from_utc": cut if v["state"] == "hold" else None,
                 "minutes": v["minutes"],
+                "cut_h": v["cut_h"],
+                "route": route,
+                "cut_at": cut_at,
             }
         )
     return {

@@ -111,6 +111,7 @@ FIM_FILES = {
     "hydroid_prefix": f"branches/{FIM_BRANCH}/hydroid_prefix.txt",
     "hydrotable_huc": "hydrotable.parquet",
     "fimpact": "osm_roads_fimpact.csv",
+    "streams": "nwm_subset_streams.gpkg",
 }
 
 # Flood logic

@@ -149,7 +149,10 @@ FeatureCollection, EPSG:4326, coordinates rounded to 5 dp. **Contains only segme
 |---|---|---|
 | `POST /dispatch` | `{"cycle"?, "depot": {"label","lat","lon"}, "stops": [{"id","label","lat","lon"}]}` | `{"cycle","issue_time","valid_until","depot","stops": [{"id","label","state","go_before_utc"\|null,"minutes"\|null}]}` |
 | `GET /barricades` | `cycle` (optional) | `[{"street","segments","length_m","first_flood_utc","state"}]` |
-Dispatch `state` ∈ `go_before | hold | no_forecast_flooding | out_of_coverage`. Same edge-blocking rule as `/route`.
+Dispatch `state` ∈ `go_before | hold | no_forecast_flooding | out_of_coverage`. Same edge-blocking rule as `/route`. Each stop also carries (additive, Fri 23:35): `cut_h` (int\|null), `route` ([[lon,lat],…]\|null: the h=0 route, or for `hold` the unconstrained route), `cut_at` ({lon, lat, street, impassable_from_utc}\|null: first segment on that route, or the stop's own street, that becomes impassable).
+
+### C14 `web/data/streams.geojson` — producer 003 (`build_segments --step streams`)
+NWM creeks/rivers in the AOI + 2 km (from FIM `nwm_subset_streams.gpkg`), EPSG:4326, properties `feature_id`, `order` (stream order, for line width). Map context layer for both maps (I12).
 
 ### C11 `web/data/lowspots.geojson` — producer 012, consumer 009
 FeatureCollection, EPSG:4326, coordinates at 5 dp. One LineString per road segment that crosses a terrain depression.

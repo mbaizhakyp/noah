@@ -238,10 +238,27 @@ def step2_thresholds(noaa_only: bool = False) -> None:
     )
 
 
+def write_streams() -> None:
+    """C14 web/data/streams.geojson: NWM creeks/rivers in the AOI + 2 km (map context: red roads next to blue water)."""
+    s = gpd.read_file(config.DATA_RAW / "hand" / config.HUC8 / config.FIM_FILES["streams"])
+    area = gpd.GeoSeries([aoi_polygon()], crs=4326).to_crs(s.crs).buffer(2000).iloc[0]
+    s = s[s.intersects(area)].copy()
+    s["geometry"] = s.geometry.intersection(area).simplify(10)
+    s = s[~s.geometry.is_empty]
+    out = gpd.GeoDataFrame(
+        {"feature_id": s.ID.astype("int64"), "order": s.order_.astype(int)},
+        geometry=s.geometry,
+        crs=s.crs,
+    ).to_crs(4326)
+    out["geometry"] = shapely.set_precision(out.geometry.values, 1e-5)
+    (config.WEB_DATA / "streams.geojson").write_text(out.to_json(drop_id=True))
+    log.info("streams: %d reaches -> web/data/streams.geojson", len(out))
+
+
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--step", choices=["1", "2", "all"], default="all")
+    p.add_argument("--step", choices=["1", "2", "streams", "all"], default="all")
     p.add_argument(
         "--noaa-only", action="store_true", help="fallback: skip Noah residential thresholds (CC4)"
     )
@@ -250,6 +267,8 @@ def main() -> None:
         step1_graph()
     if a.step in ("2", "all"):
         step2_thresholds(a.noaa_only)
+    if a.step in ("streams", "all"):
+        write_streams()
 
 
 if __name__ == "__main__":

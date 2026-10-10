@@ -23,7 +23,7 @@ from noah import config
 
 log = logging.getLogger("fetch_hand")
 RAW = config.DATA_RAW / "hand" / config.HUC8
-DOWNLOAD = ["hand", "catchments", "hydroid_prefix", "hydrotable_huc", "fimpact"]
+DOWNLOAD = ["hand", "catchments", "hydroid_prefix", "hydrotable_huc", "fimpact", "streams"]
 
 
 def download(name: str, client: httpx.Client) -> None:
