@@ -1,0 +1,53 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "overused-font",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/canon.html"
+        ],
+        "createdAt": "2026-10-10T04:48:08.330Z",
+        "reason": "model: canon card is the deliberate Google-Maps-standard decision mock, not shipping UI"
+      },
+      {
+        "rule": "cream-palette",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/canon.html"
+        ],
+        "createdAt": "2026-10-10T04:48:08.343Z",
+        "reason": "model: canon decision mock imitates a maps app's pale base map; not shipping UI"
+      },
+      {
+        "rule": "nested-cards",
+        "value": "*",
+        "files": [
+          "web/index.html"
+        ],
+        "createdAt": "2026-10-10T05:34:44.331Z",
+        "reason": "model: floating map panel holds tinted notice/tiles by design (maps-app pattern); flattening the panel would remove the shell"
+      },
+      {
+        "rule": "repeating-stripes-gradient",
+        "value": "*",
+        "files": [
+          "web/index.html"
+        ],
+        "createdAt": "2026-10-10T05:34:44.349Z",
+        "reason": "model: legend swatch encodes the dashed past-hours map line, a functional key not decoration"
+      },
+      {
+        "rule": "cream-palette",
+        "value": "*",
+        "files": [
+          "web/ipad/index.html"
+        ],
+        "createdAt": "2026-10-10T16:46:37.736Z",
+        "reason": "user confirmed: chose the Warm paper palette (#faf7f2) in the color question, Sat Oct 10"
+      }
+    ]
+  }
+}

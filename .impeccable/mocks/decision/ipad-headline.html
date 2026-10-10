@@ -1,0 +1,51 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Headline</title><link href="https://fonts.googleapis.com/css2?family=Overpass:wght@400;600;700;800;900&display=swap" rel="stylesheet"><style>
+:root{--ink:#1c1a17;--ink2:#4f4a42;--ink3:#857d70;--ground:#f1ebe1;--line:#e7dfd2;--blue:#c2410c;--blue-soft:#fbe9dc;--flood:#d92d20;--flood-ink:#a8231a;--flood-soft:#fdeceb;--amber:#f2a100;--amber-ink:#8a5100;--amber-soft:#fff3d6;--shadow:0 1px 2px rgba(20,20,20,.06),0 12px 32px -10px rgba(20,20,20,.22)}
+*{box-sizing:border-box;margin:0}
+html,body{width:1180px;height:820px;overflow:hidden;font:18px/1.4 "Overpass",system-ui,sans-serif;color:var(--ink);background:#faf7f2}
+.map{position:absolute;inset:0;width:100%;height:100%}
+.num{font-variant-numeric:tabular-nums}
+.seg{display:inline-flex;background:var(--ground);border-radius:12px;padding:4px;gap:2px}
+.seg b{padding:10px 20px;border-radius:9px;font-weight:700;color:var(--ink2)}.seg b.on{background:#1c1a17;color:#faf7f2!important;color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.14)}
+.chip{display:inline-flex;align-items:center;gap:8px;background:#fff;border:1.5px solid var(--line);border-radius:999px;padding:9px 16px;font-weight:700;font-size:16px}
+.live:before{content:"";width:9px;height:9px;border-radius:50%;background:var(--flood);box-shadow:0 0 0 4px var(--flood-soft)}
+.when{display:inline-flex;align-items:center;gap:10px;background:var(--blue-soft);color:var(--blue);font-weight:800;padding:12px 18px;border-radius:12px;font-size:18px}
+.when:after{content:"";width:8px;height:8px;border-right:2.5px solid currentColor;border-bottom:2.5px solid currentColor;transform:rotate(45deg) translateY(-3px)}
+.go{color:var(--amber-ink)}.no{color:var(--ink2)}.red{color:var(--flood-ink)}
+.n{display:inline-grid;place-items:center;width:34px;height:34px;border-radius:50%;background:var(--ink);color:#fff;font-weight:900;font-size:16px;flex:none}
+.foot{font-size:14px;color:var(--ink3);font-weight:600}
+</style><style>.top{position:absolute;left:0;right:0;top:0;height:76px;display:flex;align-items:center;gap:22px;padding:0 28px;border-bottom:1px solid var(--line);background:#faf7f2;z-index:2}.brand{color:var(--blue);font-size:26px;font-weight:900;letter-spacing:-.02em}
+.banner{position:absolute;left:0;right:0;top:76px;height:150px;background:#1c1a17;color:#fff;display:flex;align-items:center;gap:28px;padding:0 32px}
+.banner h1{font-size:58px;font-weight:900;letter-spacing:-.025em;line-height:1}
+.banner p{font-size:20px;font-weight:600;opacity:.9;max-width:300px;line-height:1.3}
+.banner .when{margin-left:auto;background:var(--blue);color:#fff}
+.mapw{position:absolute;left:0;top:226px;bottom:0;width:700px;overflow:hidden}
+.list{position:absolute;right:0;top:226px;bottom:0;width:480px;padding:20px 28px;border-left:1px solid var(--line)}
+.list .k{font-size:13px;font-weight:800;letter-spacing:.08em;color:var(--ink3);margin-bottom:6px}
+.li{display:flex;align-items:center;gap:14px;height:80px;border-top:1px solid var(--line)}.li b{flex:1;font-size:19px;font-weight:800}.li .st{font-weight:900;font-size:18px}
+.mapw .foot{position:absolute;left:18px;bottom:16px;background:#fff;padding:8px 12px;border-radius:10px;box-shadow:var(--shadow)}
+</style></head><body><header class="top"><b class="brand">Noah</b><div class="seg"><b>Home</b><b>Work</b><b class="on">Delivery</b></div><span class="chip live" style="margin-left:auto">Live · 3 cameras</span></header><section class="banner"><h1 class="num">Leave by 3:25 AM</h1><p>to reach all 6 stops before their streets flood.</p><span class="when num">Leaving 7:00 PM</span></section>
+<div class="mapw"><svg class="map" viewBox="0 0 800 820" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+<rect width="800" height="820" fill="#efe8dc"/>
+<g fill="#e3e6cf"><path d="M40 470 h150 v120 h-150z"/><path d="M560 90 q80 -10 120 40 v90 h-140z"/><path d="M300 640 h120 v110 h-120z"/></g>
+<path d="M-10 330 C120 300 210 380 330 360 S520 270 620 320 S760 400 820 380" stroke="#bfd3d6" stroke-width="16" fill="none" stroke-linecap="round"/>
+<path d="M330 360 C350 430 300 500 330 600 S310 760 350 830" stroke="#bfd3d6" stroke-width="8" fill="none"/>
+<g stroke="#fff" fill="none" stroke-linecap="round"><path stroke-width="14" d="M90 -10 L150 830 M640 -10 L590 830 M-10 200 L810 240 M-10 690 L810 650"/>
+<path stroke-width="7" d="M260 -10 L280 830 M450 -10 L470 830 M-10 470 L810 500 M-10 90 L810 120 M60 820 L760 0"/>
+<path stroke-width="3.5" d="M180 -10 L200 830 M360 -10 L370 830 M540 -10 L530 830 M720 -10 L700 830 M-10 400 L810 420 M-10 560 L810 580 M-10 300 L810 330 M-10 760 L810 740"/></g>
+<g stroke="#f2d3ae" stroke-width="10" fill="none" stroke-linecap="round"><path d="M90 -10 L150 830"/><path d="M-10 200 L810 240"/></g>
+<g font-family="Overpass,sans-serif" font-size="11" font-weight="700" fill="#9a907f" letter-spacing=".04em"><text x="160" y="190" transform="rotate(3 160 190)">PEACHTREE RD NE</text><text x="20" y="320">PEACHTREE CREEK</text><text x="470" y="140">BUCKHEAD</text><text x="600" y="460" font-size="10">BROOKHAVEN</text></g>
+<g fill="none" stroke-linecap="round" stroke-linejoin="round">
+<path d="M470 225 L455 300 L362 362 L280 378 L200 430 L210 520 L370 520 L470 470 L590 440 L700 330" stroke="#fff" stroke-width="13"/>
+<path d="M470 225 L455 300 L362 362 L280 378 L200 430 L210 520 L370 520 L470 470 L590 440 L700 330" stroke="#1c1a17" stroke-width="6"/>
+<path d="M300 352 L360 342" stroke="#d92d20" stroke-width="7"/><path d="M190 400 L180 360" stroke="#f2a100" stroke-width="7" stroke-dasharray="9 6"/>
+<path d="M610 300 L660 280 M520 600 L560 640 M120 560 L140 610 M690 520 L740 540" stroke="#d92d20" stroke-width="5" opacity=".7"/></g>
+<g font-family="Overpass,sans-serif" font-size="11" font-weight="800" text-anchor="middle">
+<circle cx="470" cy="225" r="13" fill="#c2410c"/><text x="470" y="229" fill="#fff">D</text>
+<circle cx="362" cy="362" r="12" fill="#fff" stroke="#d92d20" stroke-width="3"/><text x="362" y="366" fill="#b3221e">1</text>
+<circle cx="200" cy="430" r="12" fill="#fff" stroke="#1c1a17" stroke-width="3"/><text x="200" y="434" fill="#1c1a17">2</text>
+<circle cx="210" cy="520" r="12" fill="#fff" stroke="#1c1a17" stroke-width="3"/><text x="210" y="524" fill="#1c1a17">3</text>
+<circle cx="370" cy="520" r="12" fill="#fff" stroke="#1c1a17" stroke-width="3"/><text x="370" y="524" fill="#1c1a17">4</text>
+<circle cx="590" cy="440" r="12" fill="#fff" stroke="#1c1a17" stroke-width="3"/><text x="590" y="444" fill="#1c1a17">5</text>
+<circle cx="700" cy="330" r="12" fill="#fff" stroke="#1c1a17" stroke-width="3"/><text x="700" y="334" fill="#1c1a17">6</text></g>
+</svg>
+<div class="foot num">Forecast issued Thu 6:00 PM</div></div><aside class="list"><div class="k">YOUR STOPS</div><div class="li"><span class="n">1</span><b>Woodward Way NW</b><span class="st go">Go before 2 AM</span></div><div class="li"><span class="n">2</span><b>Hanover West Ct NW</b><span class="st go">Go before 7 AM</span></div><div class="li"><span class="n">3</span><b>Peachtree Battle Cir NW</b><span class="st go">Go before 7 AM</span></div><div class="li"><span class="n">4</span><b>Bohler Rd NW</b><span class="st go">Go before 6 AM</span></div><div class="li"><span class="n">5</span><b>Windsor Pkwy NE</b><span class="st go">Go before 5 AM</span></div><div class="li"><span class="n">6</span><b>Caldwell Rd NE</b><span class="st no">No forecast flooding</span></div></aside></body></html>
