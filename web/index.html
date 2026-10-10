@@ -86,6 +86,17 @@
   .src.fail .n { color: #fecaca; }
   .sig { color: var(--muted); font-size: 12px; padding: 4px 0 6px 10px; border-left: 2px solid var(--line); margin: 2px 0 6px; }
   .sig b { color: var(--text); font-weight: 600; }
+  .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 10px 0; }
+  .tile { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; background: var(--panel); }
+  .tile .when { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .05em; }
+  .tile .lvl { font-weight: 800; font-size: 15px; margin: 2px 0 4px; text-transform: capitalize; }
+  .tile .sum { font-size: 12px; color: #cbd5e1; }
+  .lvl-low { color: #cbd5e1; } .lvl-elevated { color: var(--amber); } .lvl-high { color: #fb923c; } .lvl-severe { color: var(--red); }
+  .tile.t-elevated { border-color: rgba(245,158,11,.6); } .tile.t-high { border-color: rgba(251,146,60,.7); } .tile.t-severe { border-color: var(--red); background: rgba(239,68,68,.08); }
+  .reasons { margin: 6px 0 0; padding-left: 18px; } .reasons li { margin: 4px 0; }
+  .chip { display: inline-block; font-size: 11px; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 0 6px; margin: 2px 4px 0 0; }
+  .action { margin-top: 10px; padding: 8px 10px; border-left: 3px solid var(--cyan); background: rgba(34,211,238,.06); border-radius: 6px; }
+  @media (max-width: 520px) { .tiles { grid-template-columns: 1fr; } }
   .cam a { color: var(--cyan); }
   .maplibregl-popup-content { background: var(--panel); color: var(--text); border: 1px solid var(--line); }
   .maplibregl-popup-tip { display: none; }
@@ -144,6 +155,12 @@
     <div id="live" class="section" hidden>
       <h2>Live checks</h2>
       <div id="liveStatus" class="summary"></div>
+      <div id="assessBox" hidden>
+        <div class="tiles" id="tiles"></div>
+        <ol class="reasons" id="reasons"></ol>
+        <div class="action" id="action"></div>
+        <div class="note" id="assessBy"></div>
+      </div>
       <div id="liveNote" class="note"></div>
       <h2 id="camHead" hidden>Traffic cameras</h2>
       <div id="camList"></div>
@@ -324,6 +341,30 @@ function drawCameras(cams) {
   }));
 }
 
+function renderAssessment(a, nSources) {
+  if (!a) { $("assessBox").hidden = true; return; }
+  const when = [["now", "Now"], ["next_18h", "Next 18 h"], ["next_days", "Next days"]];
+  $("tiles").replaceChildren(...when.map(([k, label]) => {
+    const t = a[k] || {}; const lvl = ["low", "elevated", "high", "severe"].includes(t.level) ? t.level : "low";
+    const d = document.createElement("div"); d.className = "tile t-" + lvl;
+    const w = document.createElement("div"); w.className = "when"; w.textContent = label;
+    const l = document.createElement("div"); l.className = "lvl lvl-" + lvl; l.textContent = lvl;
+    const s = document.createElement("div"); s.className = "sum"; s.textContent = t.summary || "";
+    d.append(w, l, s); return d;
+  }));
+  $("reasons").replaceChildren(...(a.reasons || []).map((r) => {
+    const li = document.createElement("li"); li.append(r.text || "");
+    const chips = document.createElement("div");
+    for (const src of r.sources || []) { const c = document.createElement("span"); c.className = "chip"; c.textContent = src === "road_forecast" ? "NOAA road forecast" : src; chips.append(c); }
+    li.append(chips); return li;
+  }));
+  $("action").textContent = a.action || "";
+  $("assessBy").textContent = a.generated_by === "ai"
+    ? `Written by AI from ${nSources} live sources; every number is checked against the source data. Confidence: ${a.confidence || "n/a"}. Not a safety guarantee.`
+    : "AI summary unavailable: this assessment comes from Noah's safety rules only. Not a safety guarantee.";
+  $("assessBox").hidden = false;
+}
+
 function renderSources(r) {
   const bySrc = new Map();
   for (const s of r.signals || []) {
@@ -362,7 +403,7 @@ function renderSources(r) {
 
 async function runAssess(kind) {
   const token = ++assessToken;
-  $("live").hidden = false; $("liveNote").textContent = ""; clearCams();
+  $("live").hidden = false; $("liveNote").textContent = ""; $("assessBox").hidden = true; clearCams();
   $("camList").replaceChildren(); $("camHead").hidden = $("camCredit").hidden = true; $("srcList").replaceChildren();
   $("srcSum").textContent = "Sources checked";
   $("liveStatus").textContent = "Checking live sources and traffic cameras along " + (kind === "route" ? "your route…" : "your area…");
@@ -376,6 +417,7 @@ async function runAssess(kind) {
     const nOk = (r.sources_ok || []).length;
     const cached = (r.sources_ok || []).filter((x) => x.cached).length;
     $("liveStatus").textContent = `${nOk} live sources answered ${cached === nOk ? "(from the last few minutes)" : `in ${r.took_s} s`} · ${(r.cameras || []).length} camera${(r.cameras || []).length === 1 ? "" : "s"} checked.`;
+    renderAssessment(r.assessment, nOk);
     drawCameras(r.cameras);
     renderSources(r);
     const rt = r.route;
