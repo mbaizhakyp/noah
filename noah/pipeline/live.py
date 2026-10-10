@@ -95,8 +95,10 @@ def write_json_atomic(path, obj, **kw) -> None:
     os.replace(tmp, path)
 
 
-def run_once(client, pool, inputs: dict, keep: int = LIVE_KEEP) -> str | None:
-    cycle = latest_published(client)
+def run_once(
+    client, pool, inputs: dict, keep: int = LIVE_KEEP, cycle: str | None = None
+) -> str | None:
+    cycle = cycle or latest_published(client)
     if not cycle:
         log.warning("no fully published NWM cycle in the last 6 h")
         return None
@@ -133,6 +135,11 @@ def main() -> None:
     g = p.add_mutually_exclusive_group(required=True)
     g.add_argument("--once", action="store_true")
     g.add_argument("--every", type=int, help="seconds between checks")
+    g.add_argument(
+        "--backfill",
+        metavar="FROM_CYCLE",
+        help="process every hourly cycle from FROM_CYCLE (e.g. 20261009T22Z) to the newest published, then exit",
+    )
     p.add_argument(
         "--keep",
         type=int,
@@ -142,6 +149,14 @@ def main() -> None:
     a = p.parse_args()
     with httpx.Client(timeout=120, follow_redirects=True) as client, ThreadPoolExecutor(8) as pool:
         inputs = load_inputs(client, pool)
+        if a.backfill:  # show how the forecast evolved run by run (e.g. Isaias from Friday evening)
+            newest = latest_published(client)
+            for c in config.cycle_range(a.backfill, newest) if newest else []:
+                try:
+                    run_once(client, pool, inputs, max(a.keep, 48), cycle=c)
+                except Exception:
+                    log.exception("backfill %s failed", c)
+            return
         while True:
             try:
                 run_once(client, pool, inputs, a.keep)
