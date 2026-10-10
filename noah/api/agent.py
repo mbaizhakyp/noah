@@ -33,6 +33,12 @@ ENDPOINT_M = 200  # a flagged street this close to the start/destination is "you
 WET = ("curb", "half_tire", "door_sill_or_above")
 GEORGIA_VIEWBOX = "-85.61,35.00,-80.84,30.36"  # left,top,right,bottom
 BANNED = re.compile(r"\b(safe|safely|clear|passable|you're fine|no risk)\b", re.IGNORECASE)
+# Reassurance beyond what a forecast can promise (same spirit as §5): also forces a rewrite.
+REASSURING = re.compile(
+    r"\b(do not|don't) expect\b|\bwon'?t (flood|be (flooded|underwater))\b|\bwill not flood\b"
+    r"|\bno need to worry\b|\bnothing to worry\b|\bshould be (fine|ok|okay)\b|\byou'll be (fine|ok|okay)\b",
+    re.IGNORECASE,
+)
 ERROR_REPLY = (
     "I can't confirm conditions right now, so treat low roads near creeks as impassable. "
     "In an emergency call 911."
@@ -148,7 +154,7 @@ def finalize(text: str) -> str:
 
 
 def is_banned(text: str) -> bool:
-    return bool(BANNED.search(text or ""))
+    return bool(BANNED.search(text or "") or REASSURING.search(text or ""))
 
 
 def endpoint_flags(status: dict, within_m: int = ENDPOINT_M) -> list[dict]:
@@ -525,7 +531,9 @@ def answer(sender: str, text: str) -> str:
             {"role": "assistant", "content": reply},
             {
                 "role": "user",
-                "content": "Rewrite without the words safe, safely, clear, passable or 'no risk', same facts, max 480 characters.",
+                "content": "Rewrite with the same facts, max 480 characters, without safe/safely/clear/passable/no risk "
+                "and without reassurance like 'do not expect', 'won't flood' or 'should be fine' "
+                "(say 'not forecast to flood' instead).",
             },
         ]
         reply = finalize(llm(messages, tools=False).get("content") or "")

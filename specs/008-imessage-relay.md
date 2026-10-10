@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | Owner | **Margulan** (moved from Priyanshu Sat 01:20, J14) |
-| Status | Approved (Margulan, Sat 02:20); **built, echo/auto mode tested; waiting on Photon credentials** |
+| Status | **Done (Sat 04:15): Phase 0 echo + Phase 1 real answers from `/chat` over iMessage, verified on Margulan's iPhone** |
 | Time box | 2 h (Fri night, go/no-go at 00:00) |
 | Depends on | Photon account + iMessage line (B3); `/chat` (007). An echo works without it. |
 | Produces | `bot/index.ts`, `bot/package.json` |

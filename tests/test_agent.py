@@ -150,3 +150,16 @@ def test_guarantee_for_calm_place_with_flooded_neighbours():
     assert not needs_guarantee(
         {**area, "flooding_at_this_place": [{"name": "Woodward Way"}]}, "Do not cross."
     )
+
+
+def test_reassurance_phrases_force_rewrite():
+    for s in [
+        "so do not expect it underwater",
+        "It won't flood tonight",
+        "You should be fine",
+        "no need to worry",
+    ]:
+        assert is_banned(s), s
+    assert not is_banned(
+        "Northside Drive itself is not forecast to flood. This is not a safety guarantee."
+    )
