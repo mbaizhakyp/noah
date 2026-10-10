@@ -97,6 +97,12 @@
   .quick { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; background: var(--ground); padding: 3px; border-radius: 9px; }
   .quick button { border: 0; background: transparent; border-radius: 7px; min-height: 34px; font-size: 13px; font-weight: 600; color: var(--ink-2); cursor: pointer; }
   .quick button:hover { color: var(--ink); } .quick button.on { background: #fff; color: var(--blue-ink); box-shadow: 0 1px 3px rgba(20,20,20,.15); }
+  .when { display: flex; gap: 8px; align-items: stretch; }
+  .when .tb { border: 1.5px solid var(--line-2); min-height: 42px; padding: 0 14px; }
+  .tfield { flex: 1; display: flex; align-items: center; gap: 8px; border: 1.5px solid var(--line-2); border-radius: 10px; padding: 0 10px; min-height: 42px; font-size: 13px; color: var(--ink-2); }
+  .tfield:focus-within { border-color: var(--blue); }
+  .tfield input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font: 700 16px "Overpass", sans-serif; color: var(--ink); }
+  .tfield #depDay { font-size: 12px; white-space: nowrap; }
   .readout { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin: 12px 2px 4px; }
   .readout b { font-size: 16px; }
   .readout span { font-size: 13px; color: var(--ink-2); text-align: right; }
@@ -260,10 +266,10 @@
     <div class="caption" id="caption" aria-live="polite" hidden></div>
     <div class="legend">
       <span><i class="sw" style="background:var(--flood)"></i>Do not cross (forecast flooded)</span>
-      <span><i class="sw" style="background:var(--amber)"></i>Uncertain: treat as impassable</span>
+      <span><i class="sw" style="background:repeating-linear-gradient(90deg,var(--amber) 0 5px,transparent 5px 8px)"></i>Uncertain: treat as impassable</span>
       <span><i class="sw" style="background:var(--blue)"></i>Noah's route</span>
       <span><i class="sw" style="background:repeating-linear-gradient(90deg,#9aa0a6 0 4px,transparent 4px 7px)"></i>Usual route (crosses forecast flooding)</span>
-      <span><i class="sw" style="background:repeating-linear-gradient(90deg,var(--flood) 0 5px,transparent 5px 8px)"></i>Past hours: NOAA estimate</span>
+      <span><i class="sw" style="background:repeating-linear-gradient(90deg,var(--flood) 0 2px,transparent 2px 5px)"></i>Past hours: NOAA estimate (dotted)</span>
     </div>
   </div>
 
@@ -299,9 +305,12 @@
         <button id="leave" class="btn outline" type="button" aria-expanded="false" aria-controls="timePop"><i data-lucide="clock-3"></i><span id="leaveLbl">Leave now</span><i data-lucide="chevron-down"></i></button>
         <div id="timePop" class="pop" hidden>
           <h3>When are you leaving?</h3>
-          <div class="quick" id="quick"></div>
+          <div class="when">
+            <button id="nowBtn" class="tb" type="button">Now</button>
+            <label class="tfield"><span>Leave at</span><input id="depTime" type="time" step="300" aria-label="Departure time"><span id="depDay"></span></label>
+          </div>
           <div class="readout"><b id="hourLbl">Now</b><span id="hourSub"></span></div>
-          <input id="hour" type="range" min="0" max="18" step="1" value="0" aria-label="Departure time, now to 18 hours ahead">
+          <input id="hour" type="range" min="0" max="1080" step="5" value="0" aria-label="Departure time, now to 18 hours ahead, 5-minute steps">
           <div class="axis"><span id="axL">Now</span><span id="axR">+18 h</span></div>
           <div class="popfoot">
             <small id="leaveBy">Add a destination or stops to see your leave-by time.</small>
@@ -438,18 +447,20 @@ mapReady.then(() => {
   map.addSource("usual", { type: "geojson", data: empty });
   map.addLayer({ id: "usual", type: "line", source: "usual", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": "#5f6368", "line-width": 3, "line-dasharray": [1.5, 2] } });
   map.addSource("hazard", { type: "geojson", data: empty });
-  map.addLayer({ id: "uncertain", type: "line", source: "hazard", layout: { "line-cap": "round" }, paint: { "line-color": AMBER, "line-width": 3.5 } });
+  // uncertain = dashed amber, flooded = solid red: two signals per state, never colour alone (projectors, colour-blind drivers)
+  map.addLayer({ id: "uncertain", type: "line", source: "hazard", layout: { "line-cap": "butt" }, paint: { "line-color": AMBER, "line-width": 4, "line-dasharray": [1.6, 1.2] } });
+  map.addLayer({ id: "flooded-casing", type: "line", source: "hazard", layout: { "line-cap": "round" }, paint: { "line-color": "#ffffff", "line-width": 7 } });
   map.addLayer({ id: "flooded", type: "line", source: "hazard", layout: { "line-cap": "round" }, paint: { "line-color": FLOOD, "line-width": 4.5 } });
   map.addSource("past", { type: "geojson", data: empty }); // NOAA hour-0 estimate for past hours
   map.addLayer({ id: "past-uncertain", type: "line", source: "past", filter: ["==", ["get", "state"], "uncertain"],
-    layout: { visibility: "none" }, paint: { "line-color": AMBER, "line-width": 3.5, "line-dasharray": [2, 1] } });
+    layout: { visibility: "none" }, paint: { "line-color": AMBER, "line-width": 4, "line-dasharray": [0.5, 1.4], "line-opacity": 0.85 } }); // past = dotted
   map.addLayer({ id: "past-flooded", type: "line", source: "past", filter: ["==", ["get", "state"], "flooded"],
-    layout: { visibility: "none" }, paint: { "line-color": FLOOD, "line-width": 4.5, "line-dasharray": [2, 1] } });
+    layout: { visibility: "none" }, paint: { "line-color": FLOOD, "line-width": 4.5, "line-dasharray": [0.5, 1.4], "line-opacity": 0.85 } });
   for (const id of ["uncertain", "flooded"]) {
     map.on("click", id, (e) => {
       const p = e.features[0].properties;
       const el = document.createElement("div");
-      el.textContent = roadSentence(p, +$("hour").value);
+      el.textContent = roadSentence(p, depH());
       new maplibregl.Popup().setLngLat(e.lngLat).setDOMContent(el).addTo(map);
     });
     map.on("mouseenter", id, () => (map.getCanvas().style.cursor = "pointer"));
@@ -476,29 +487,46 @@ function roadSentence(p, h) {
 // The forecast's hour 0 is NOAA's issue time, already 1-2 h old when it lands. "Now" is the real clock:
 // the departure slider starts at the current hour and only looks forward. Times are shown as clock times.
 const fmtClock = new Intl.DateTimeFormat("en-US", { ...tz, hour: "numeric" });
-const nowH = () => (issue ? Math.max(0, Math.min(18, Math.round((Date.now() - issue.getTime()) / 3600e3))) : 0);
+const fmtMin = new Intl.DateTimeFormat("en-US", { ...tz, hour: "numeric", minute: "2-digit" });
+const MAX_MIN = 18 * 60, STEP_MIN = 5;
+const minTime = (m) => new Date(issue.getTime() + m * 60e3);
+const nowMin = () => (issue ? Math.max(0, Math.min(MAX_MIN, Math.ceil((Date.now() - issue.getTime()) / 60e3 / STEP_MIN) * STEP_MIN)) : 0);
+const nowH = () => Math.floor(nowMin() / 60);
+const depMin = () => +$("hour").value; // departure, minutes after the forecast's issue time
+const depH = () => Math.min(18, Math.floor(depMin() / 60)); // the forecast hour the trip starts in; routing adds its own 1 h buffer
+// Atlanta wall-clock parts of a Date (the laptop may not be on Eastern time)
+const etParts = (d) => Object.fromEntries(new Intl.DateTimeFormat("en-US", { ...tz, hour: "numeric", minute: "numeric", hour12: false }).formatToParts(d).map((p) => [p.type, p.value]));
+const hhmm = (d) => { const p = etParts(d); return `${String(+p.hour % 24).padStart(2, "0")}:${p.minute}`; };
 function rebuildQuick() {
-  const n = nowH();
-  const picks = [...new Set([n, n + 1, n + 2, n + 3, n + 6, n + 12].filter((h) => h <= 18))];
-  $("quick").replaceChildren(...picks.map((h) => {
-    const b = document.createElement("button"); b.type = "button"; b.textContent = h === n ? "Now" : fmtClock.format(hourTime(h)); b.dataset.h = h;
-    b.onclick = () => { $("hour").value = h; $("hour").dispatchEvent(new Event("input")); };
-    return b;
-  }));
-  $("hour").min = n; if (+$("hour").value < n) $("hour").value = n;
-  $("axL").textContent = "Now"; $("axR").textContent = fmtHour.format(hourTime(18));
+  const n = nowMin();
+  $("hour").min = n; $("hour").max = MAX_MIN; $("hour").step = STEP_MIN; if (depMin() < n) $("hour").value = n;
+  $("axL").textContent = "Now"; $("axR").textContent = fmtHour.format(minTime(MAX_MIN));
 }
-function leaveLabel(h) { return h <= nowH() ? "Leave now" : `Leave ${fmtHour.format(hourTime(h))}`; }
-function setTimeUI(h, countTxt) {
-  $("leaveLbl").textContent = issue ? leaveLabel(h) : "Leave now";
-  document.querySelectorAll("#quick button").forEach((b) => b.classList.toggle("on", +b.dataset.h === h));
+function setDeparture(m) { $("hour").value = Math.max(nowMin(), Math.min(MAX_MIN, m)); $("hour").dispatchEvent(new Event("input")); }
+$("nowBtn").onclick = () => setDeparture(nowMin());
+// a typed clock time means the next time that clock reads it (today, or tomorrow if it has already passed), within 18 h
+$("depTime").addEventListener("change", () => {
+  const v = $("depTime").value; if (!v || !issue) return;
+  const [hh, mm] = v.split(":").map(Number);
+  const ref = minTime(nowMin()), rp = etParts(ref);
+  let delta = hh * 60 + mm - ((+rp.hour % 24) * 60 + +rp.minute);
+  if (delta < 0) delta += 1440;
+  setDeparture(nowMin() + Math.round(delta / STEP_MIN) * STEP_MIN);
+});
+function leaveLabel(m) { return m <= nowMin() ? "Leave now" : `Leave ${fmtMin.format(minTime(m))}`; }
+function setTimeUI(h, countTxt) { // h = forecast hour drawn on the map; the label carries the minute-level departure
+  const m = depMin();
+  $("leaveLbl").textContent = issue ? leaveLabel(m) : "Leave now";
   if (!issue) return;
-  $("hourLbl").textContent = h <= nowH() ? `Now · ${local(new Date())}` : fmtDay.format(hourTime(h));
+  if (document.activeElement !== $("depTime")) $("depTime").value = hhmm(minTime(m));
+  const today = etParts(new Date()), dep = etParts(minTime(m));
+  $("depDay").textContent = m <= nowMin() ? "now" : new Intl.DateTimeFormat("en-US", { ...tz, weekday: "short" }).format(minTime(m));
+  $("hourLbl").textContent = m <= nowMin() ? `Now · ${fmtMin.format(new Date())}` : fmtDay.format(minTime(m));
   $("hourSub").textContent = countTxt || "";
   const cap = $("caption");
-  cap.hidden = !countTxt && h <= nowH();
+  cap.hidden = !countTxt && m <= nowMin();
   cap.className = "caption";
-  cap.textContent = (h <= nowH() ? "Now" : `Forecast for ${fmtHour.format(hourTime(h))}`) + (countTxt ? `  —  ${countTxt}` : "");
+  cap.textContent = (m <= nowMin() ? "Now" : `Leaving ${fmtMin.format(minTime(m))} · roads as forecast for ${fmtClock.format(hourTime(h))}`) + (countTxt ? `  —  ${countTxt}` : "");
 }
 $("leave").onclick = () => {
   const open = $("timePop").hidden; $("timePop").hidden = !open; $("leave").setAttribute("aria-expanded", open);
@@ -510,15 +538,15 @@ document.addEventListener("keydown", (e) => { if (e.key === "Escape") { $("timeP
 
 function pastMode(on) {
   if (!map.getLayer("flooded")) return;
-  for (const id of ["flooded", "uncertain"]) map.setLayoutProperty(id, "visibility", on ? "none" : "visible");
+  for (const id of ["flooded", "flooded-casing", "uncertain"]) map.setLayoutProperty(id, "visibility", on ? "none" : "visible");
   for (const id of ["past-flooded", "past-uncertain"]) map.setLayoutProperty(id, "visibility", on ? "visible" : "none");
 }
 function applyHour() {
   if (!map.getLayer("flooded") || !issue) return;
-  const h = +$("hour").value;
+  const h = depH();
   pastMode(false);
   const tf = ["coalesce", ["to-number", ["get", "t_flood"]], 99];
-  map.setFilter("flooded", ["<=", tf, h]);
+  map.setFilter("flooded", ["<=", tf, h]); map.setFilter("flooded-casing", ["<=", tf, h]);
   map.setFilter("uncertain", ["all", ["<=", ["to-number", ["get", "t_uncertain"]], h], [">", tf, h]]);
   let count = "";
   if (mode) {
@@ -575,7 +603,7 @@ function renderPast(d) {
   }));
   $("pastNote").textContent = d.note + (d.missing_hours?.length ? ` No estimate for ${d.missing_hours.length} of the hours (runs not processed yet).` : "") + " Cameras and road closures have no history.";
   $("pastBox").hidden = false; $("pastEmpty").hidden = true;
-  if (+$("hour").value < 0) applyHour();
+  if (depH() < 0) applyHour();
 }
 
 async function runPast(kind) {
@@ -601,7 +629,7 @@ const REDUCED_MOTION = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const CHECK_WAIT_MS = 8000; // longest we hold the route for the live checks
 const sleep = (ms) => new Promise((r) => window.setTimeout(r, ms));
 const easeOut = (k) => 1 - Math.pow(1 - k, 3);
-let hazardAnim = 0, searchSeq = 0;
+let hazardAnim = 0, searchSeq = 0, routeCtl = null;
 // timer-driven so a reveal also finishes when the window is in the background (rAF pauses there)
 const tick = (fn) => window.setTimeout(() => fn(performance.now()), 24);
 function stage(text) { // a notice with a spinner while something is being checked
@@ -855,7 +883,7 @@ async function runAssess(kind) {
   $("liveStatus").innerHTML = '<span class="loading"><span class="spin"></span><span></span></span>';
   $("liveStatus").querySelector(".loading span:last-child").textContent = "Checking live sources and traffic cameras along " + (kind === "route" ? "your route…" : "your area…");
   const urls = kind === "route"
-    ? legPairs().map(([a, b]) => `${API}/assess/route?from=${a.lat},${a.lon}&to=${b.lat},${b.lon}&depart_h=${+$("hour").value}&cycle=${cyc.cycle}`)
+    ? legPairs().map(([a, b]) => `${API}/assess/route?from=${a.lat},${a.lon}&to=${b.lat},${b.lon}&depart_h=${depH()}&cycle=${cyc.cycle}`)
     : [`${API}/assess?lat=${origin.lat}&lon=${origin.lon}&cycle=${cyc.cycle}`];
   try {
     const all = await Promise.all(urls.map((u) => fetch(u).then((x) => x.json())));
@@ -939,7 +967,7 @@ async function runPlan() {
 }
 function renderPlan() {
   const p = lastPlan; if (!p) { $("leaveBy").textContent = "Add a destination or stops to see your leave-by time."; $("hour").style.setProperty("--cutpct", "100%"); return; }
-  const n = nowH(), h = +$("hour").value;
+  const n = nowMin(), m = depMin();
   // arrival at stop k = sum of the leg minutes up to it, in the order the stops are visited now
   // a leg with no route has no minutes: fall back to the plan's own depot-to-stop travel time (a lower bound)
   let cum = 0, broken = false;
@@ -948,17 +976,17 @@ function renderPlan() {
   let leaveBy = null, blocker = null;
   for (const s of rows) {
     if (s.cut_h == null) continue;
-    const latest = Math.floor(s.cut_h - (s.arrive || 0) / 60); // leave at or before this hour to arrive before the cut
+    const latest = Math.floor((s.cut_h * 60 - (s.arrive || 0)) / STEP_MIN) * STEP_MIN; // leave by then to arrive before the cut
     if (leaveBy === null || latest < leaveBy) { leaveBy = latest; blocker = s; }
   }
-  const timeOf = (hh) => fmtHour.format(hourTime(hh));
+  const timeOf = (hh) => fmtHour.format(hourTime(hh)), minOf = (mm) => fmtMin.format(minTime(mm));
   let head;
   if (leaveBy === null) head = `No stop is forecast to be cut off through ${timeOf(18)}.`;
   else if (leaveBy < n) head = `<b>No departure makes every stop in this order.</b> ${blocker.place.label.split(",")[0]} is forecast cut from ${timeOf(blocker.cut_h)} and takes ${Math.round(blocker.arrive)} min to reach.`;
-  else head = `<b>Leave by ${timeOf(leaveBy)}</b> to reach every stop before its roads are forecast to flood.${h > leaveBy ? ` Leaving ${timeOf(h)} is too late for ${blocker.place.label.split(",")[0]}.` : ""}`;
+  else head = `<b>Leave by ${minOf(leaveBy)}</b> to reach every stop before its roads are forecast to flood.${m > leaveBy ? ` Leaving ${minOf(m)} is too late for ${blocker.place.label.split(",")[0]}.` : ""}`;
   $("planHead").innerHTML = head;
-  $("leaveBy").textContent = leaveBy === null ? `No stop is forecast cut through ${timeOf(18)}.` : leaveBy < n ? "No departure time makes every stop." : `Leave by ${timeOf(leaveBy)} to make every stop.`;
-  $("hour").style.setProperty("--cutpct", leaveBy === null ? "100%" : `${Math.max(0, Math.min(100, ((leaveBy + 1 - n) / Math.max(1, 18 - n)) * 100))}%`);
+  $("leaveBy").textContent = leaveBy === null ? `No stop is forecast cut through ${timeOf(18)}.` : leaveBy < n ? "No departure time makes every stop." : `Leave by ${minOf(leaveBy)} to make every stop.`;
+  $("hour").style.setProperty("--cutpct", leaveBy === null ? "100%" : `${Math.max(0, Math.min(100, ((leaveBy - n) / Math.max(1, MAX_MIN - n)) * 100))}%`);
   $("planRows").replaceChildren(...rows.map((s, i) => {
     const row = document.createElement("div"); row.className = "prow";
     const num = document.createElement("span"); num.className = "pnum"; num.textContent = i + 1;
@@ -996,40 +1024,53 @@ const STATE_ICON = { flooded: "ban", uncertain: "triangle-alert", no_forecast_fl
 
 function cards(rows, h) {
   lastRows = rows;
-  // one card per street (both directions collapse), earliest first
+  // one row per street, built from ALL of its segments (both carriageways, ramps): the row's state at hour h is the
+  // worst state any of its segments has on the map, so the list never says "uncertain" for a street drawn red
   const byName = new Map();
   for (const r of rows) {
-    const p = flood.get(r.seg_id)?.properties; if (!p) continue;
+    const f = flood.get(r.seg_id); const p = f?.properties; if (!p) continue;
     const key = p.name || r.seg_id;
-    const t = p.t_flood != null ? +p.t_flood : +p.t_uncertain;
-    if (!byName.has(key) || t < byName.get(key).t) byName.set(key, { p, t, d: r.distance_m });
+    const g = byName.get(key) || { name: p.name, segs: [], tu: Infinity, tf: null, d: r.distance_m };
+    g.segs.push(f);
+    g.tu = Math.min(g.tu, +p.t_uncertain);
+    if (p.t_flood != null && p.t_flood !== "null") g.tf = g.tf === null ? +p.t_flood : Math.min(g.tf, +p.t_flood);
+    if (r.distance_m != null && (g.d == null || r.distance_m < g.d)) g.d = r.distance_m;
+    byName.set(key, g);
   }
+  const streetState = (g, hh) => (g.tf !== null && g.tf <= hh ? "flooded" : g.tu <= hh ? "uncertain" : "no_forecast_flooding");
+  const streetSentence = (g, hh) => {
+    const name = g.name || "Unnamed road", s = streetState(g, hh), tU = local(hourTime(g.tu)), tF = g.tf === null ? null : local(hourTime(g.tf));
+    if (s === "flooded") return `Do not cross ${name}. Forecast shows water reaching it around ${tF}${g.tu < g.tf ? ` (uncertain from around ${tU})` : ""}.`;
+    if (s === "uncertain") return `${name}: uncertain, treat as impassable from around ${tU}.${tF ? ` Forecast flooded from around ${tF}.` : ""}`;
+    return `${name}: no forecast flooding at this hour. Forecast to turn uncertain around ${tU}${tF ? ` and flooded around ${tF}` : ""}.`;
+  };
   // named streets first (people navigate by them); unnamed lanes stay on the map and are counted
-  const all = [...byName.values()].sort((a, b) => a.t - b.t || (a.d || 0) - (b.d || 0));
-  const named = all.filter((x) => x.p.name), unnamed = all.length - named.length;
+  const all = [...byName.values()].sort((a, b) => Math.min(a.tu, a.tf ?? 99) - Math.min(b.tu, b.tf ?? 99) || (a.d || 0) - (b.d || 0));
+  const named = all.filter((x) => x.name), unnamed = all.length - named.length;
   const list = named.slice(0, 40);
   $("tRoads").textContent = named.length || "";
   const more = document.createElement("div"); more.className = "note";
   more.textContent = [named.length > 40 ? `+${named.length - 40} more named streets on the map.` : "",
     unnamed ? `${unnamed} unnamed road${unnamed === 1 ? "" : "s"} (driveways, service lanes) shown on the map only.` : ""].filter(Boolean).join(" ");
-  const out = list.map(({ p, d }) => {
-    const s = stateAt(p, h);
+  const out = list.map((g) => {
+    const s = streetState(g, h);
     const c = document.createElement("div"); c.className = "card s-" + s; c.tabIndex = 0;
     const st = document.createElement("span"); st.className = "st"; st.innerHTML = `<i data-lucide="${STATE_ICON[s]}"></i>`;
     const body = document.createElement("div");
     const top = document.createElement("div"); top.className = "top";
-    const n = document.createElement("span"); n.className = "name"; n.textContent = p.name || "Unnamed road";
+    const n = document.createElement("span"); n.className = "name"; n.textContent = g.name || "Unnamed road";
     const b = document.createElement("span"); b.className = "badge b-" + s;
     b.textContent = { flooded: "Do not cross", uncertain: "Uncertain", no_forecast_flooding: "Later" }[s];
     top.append(n, b);
     const det = document.createElement("div"); det.className = "detail";
-    det.textContent = roadSentence(p, h) + (d != null ? ` ${(d / 1000).toFixed(1)} km away.` : "");
+    det.textContent = streetSentence(g, h) + (g.segs.length > 1 ? ` ${g.segs.length} segments.` : "") + (g.d != null ? ` ${(g.d / 1000).toFixed(1)} km away.` : "");
     body.append(top, det);
     c.append(st, body);
     c.onclick = c.onkeydown = (e) => {
       if (e.type === "keydown" && e.key !== "Enter") return;
-      const g = flood.get(p.seg_id).geometry.coordinates;
-      map.flyTo({ center: g[Math.floor(g.length / 2)], zoom: 15 });
+      const worst = g.segs.slice().sort((x, y) => (+x.properties.t_flood || 99) - (+y.properties.t_flood || 99))[0]; // fly to the segment that floods first
+      const gg = worst.geometry.coordinates;
+      map.flyTo({ center: gg[Math.floor(gg.length / 2)], zoom: 15 });
     };
     return c;
   });
@@ -1079,9 +1120,9 @@ async function checkArea() {
       banner(`${streets} street${streets === 1 ? "" : "s"} within ${RADIUS_KM} km are forecast to flood or turn uncertain by ${END()}. Change the departure time to see when. Emergency: 911.`, r.state === "flooded" ? "danger" : "warn");
     }
     $("summary").textContent = feats.length ? "Nearest-first by time:" : "";
-    cards(r.segments, +$("hour").value);
+    cards(r.segments, depH());
     applyHour();
-  } catch (e) { banner("I can't confirm conditions right now, so treat low roads near creeks as impassable. In an emergency call 911.", "danger"); }
+  } catch (e) { if (e.name === "AbortError" || seq !== searchSeq) return; banner("I can't confirm conditions right now, so treat low roads near creeks as impassable. In an emergency call 911.", "danger"); }
   finally { if (seq === searchSeq) busy(false); }
 }
 
@@ -1089,12 +1130,14 @@ async function findRoute(full = true) {
   if (!origin) { banner("Use your location or type a starting place first.", "warn"); $("fromQ").focus(); return; }
   if (!dest) { checkArea(); return; }
   mode = "route"; busy(true);
-  const h = +$("hour").value;
+  const h = depH();
   const seq = ++searchSeq; // a newer search supersedes this one at every await
+  routeCtl?.abort(); routeCtl = new AbortController(); const signal = routeCtl.signal;
+  routedH = h;
   try {
     // one /route per leg (start → stops → destination), joined into one answer
     const legs = await Promise.all(legPairs().map(([a, b]) =>
-      fetch(`${API}/route?from=${a.lat},${a.lon}&to=${b.lat},${b.lon}&depart_h=${h}&cycle=${cyc.cycle}&corridor_m=${CORRIDOR_M}`).then((x) => x.json())));
+      fetch(`${API}/route?from=${a.lat},${a.lon}&to=${b.lat},${b.lon}&depart_h=${h}&cycle=${cyc.cycle}&corridor_m=${CORRIDOR_M}`, { signal }).then((x) => x.json())));
     if (seq !== searchSeq) return;
     const r = legs.length === 1 ? legs[0] : combineLegs(legs);
     lastRoute = r; lastLegs = legs;
@@ -1177,8 +1220,8 @@ async function findRoute(full = true) {
     cards(r.corridor, h);
     setDirections(r.geometry.coordinates);
     applyHour();
-    if (full) runPlan(); else renderPlan();
-  } catch (e) { banner("I can't confirm conditions right now, so treat low roads near creeks as impassable. In an emergency call 911.", "danger"); }
+    if (full || !lastPlan) runPlan(); else renderPlan();
+  } catch (e) { if (e.name === "AbortError" || seq !== searchSeq) return; banner("I can't confirm conditions right now, so treat low roads near creeks as impassable. In an emergency call 911.", "danger"); }
   finally { if (seq === searchSeq) busy(false); }
 }
 // Outside the processed basins Noah can't compute a detour, so the route geometry comes from OSRM's public
@@ -1335,10 +1378,13 @@ $("locate").onclick = () => {
 $("go").onclick = () => (dest ? findRoute() : checkArea());
 
 // ---------- departure time changes ----------
+let routedH = null; // the forecast hour the current route/cards were computed for
 $("hour").addEventListener("input", () => {
   applyHour();
-  const h = +$("hour").value;
+  const h = depH();
   renderPlan();
+  if (h === routedH) return; // a few minutes later within the same forecast hour: same roads, same route
+  routedH = h;
   if (mode === "area") cards(lastRows, h);
   if (mode === "route") { window.clearTimeout(rerouteTimer); rerouteTimer = window.setTimeout(() => findRoute(false), 450); }
 });
@@ -1346,10 +1392,10 @@ const playIcon = (on) => { $("play").innerHTML = `<i data-lucide="${on ? "pause"
 $("play").onclick = () => {
   if (playing) { window.clearInterval(playing); playing = null; playIcon(false); return; }
   playIcon(true);
-  if (+$("hour").value >= 18) $("hour").value = nowH();
+  if (depMin() >= MAX_MIN) $("hour").value = nowMin();
   playing = window.setInterval(() => {
-    const h = +$("hour").value + 1;
-    if (h > 18) { window.clearInterval(playing); playing = null; playIcon(false); return; }
+    const h = depMin() + 60;
+    if (h > MAX_MIN) { window.clearInterval(playing); playing = null; playIcon(false); return; }
     $("hour").value = h; $("hour").dispatchEvent(new Event("input"));
   }, 1000);
 };
@@ -1362,7 +1408,7 @@ async function loadCycle(id) {
   const gj = await fetch(`data/flood_${cyc.cycle}.geojson`).then((r) => r.json());
   flood = new Map(gj.features.map((f) => [f.properties.seg_id, f]));
   rebuildQuick();
-  setTimeUI(+$("hour").value, "");
+  setTimeUI(depH(), "");
   applyHour();
   if (mode === "area") checkArea(); else if (mode === "route") findRoute();
 }
@@ -1377,7 +1423,7 @@ async function loadCycle(id) {
     return;
   }
   const pick = P.get("cycle"); // agent links may pin the cycle they answered from
-  if (P.get("t")) $("hour").value = Math.max(0, Math.min(18, +P.get("t")));
+  if (P.get("t")) $("hour").value = Math.max(0, Math.min(18, +P.get("t"))) * 60;
   await loadCycle(pick);
   // C10 links from the agent: ?from=lat,lon&to=lat,lon  or  ?near=lat,lon
   const ll = (s) => { const [lat, lon] = (s || "").split(",").map(Number); return isFinite(lat) && isFinite(lon) ? { lat, lon } : null; };
