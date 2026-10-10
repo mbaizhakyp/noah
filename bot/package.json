@@ -1,0 +1,21 @@
+{
+  "name": "noah-imessage-relay",
+  "version": "1.0.0",
+  "description": "Spec 008: Photon Spectrum iMessage relay to Noah's /chat",
+  "scripts": {
+    "test": "node --experimental-strip-types --no-warnings --test relay.test.ts",
+    "start": "node --experimental-strip-types --no-warnings index.ts",
+    "local": "node --experimental-strip-types --no-warnings index.ts --terminal"
+  },
+  "license": "MIT",
+  "type": "module",
+  "private": "true",
+  "dependencies": {
+    "@spectrum-ts/terminal": "^12.10.1",
+    "dotenv": "^18.0.7",
+    "spectrum-ts": "^12.10.1"
+  },
+  "engines": {
+    "node": ">=22.6"
+  }
+}

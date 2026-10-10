@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | Owner | **Margulan** (moved from Priyanshu Sat 01:20, J14) |
-| Status | Draft |
+| Status | Approved (Margulan, Sat 02:20); **built, echo/auto mode tested; waiting on Photon credentials** |
 | Time box | 2 h (Fri night, go/no-go at 00:00) |
 | Depends on | Photon account + iMessage line (B3); `/chat` (007). An echo works without it. |
 | Produces | `bot/index.ts`, `bot/package.json` |
@@ -28,8 +28,12 @@ A running relay: `cd bot && npx tsx index.ts`.
 4. Log one line per message: sender hash, text length, latency. Never log message content in full.
 5. Prefer Spectrum Cloud's managed iMessage line (no Mac relay needed, reportedly). Use self-hosted `imessage-kit` only if the managed line isn't available (B3).
 
-## Discovered
-_Fill in: package + version, auth env names, how the line was provisioned, the event/handler API used._
+## Discovered (Sat 02:20)
+- Package **`spectrum-ts` 12.10.1** (MIT, photon-hq/spectrum-ts) + `@spectrum-ts/terminal` for local testing. Runs on **Node 22 with `--experimental-strip-types`** (no tsx/build step).
+- Credentials: **Spectrum Cloud** project at **app.photon.codes** → `projectId` + `projectSecret` (README: "credentials ready in minutes"). Our env names: `PHOTON_PROJECT_ID`, `PHOTON_PROJECT_SECRET` (also accepts `PROJECT_ID`/`PROJECT_SECRET`). The SDK takes both or none; none = local providers only.
+- API: `const app = await Spectrum({projectId, projectSecret, providers: [imessage.config()]})`; `for await (const [space, message] of app.messages)`; text = `message.content.text` when `message.content.type === "text"`; sender = `message.sender?.id`; reply = `message.reply(text)` inside `space.responding(...)` (typing indicator).
+- `bot/index.ts` + `bot/relay.ts`: `BOT_MODE=auto` (default) relays to `POST {API_BASE}/chat` and **echoes while `/chat` returns 404** (007 not built yet), so it switches by itself when 007 lands; any failure or > 25 s → §5 error template. Logs: sender hash, length, path, latency only.
+- Tested: 4 unit tests (`npm test`), type-check clean, SDK imports, missing-creds exit, terminal mode boots ("Spectrum started… providers: terminal").
 
 ## Acceptance criteria
 - [ ] Phase 0: a screenshot of the echo on a real iPhone, noted in PROGRESS **by 00:00 Sat**.
