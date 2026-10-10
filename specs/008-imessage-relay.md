@@ -30,7 +30,7 @@ A running relay: `cd bot && npx tsx index.ts`.
 
 ## Discovered (Sat 02:20)
 - Package **`spectrum-ts` 12.10.1** (MIT, photon-hq/spectrum-ts) + `@spectrum-ts/terminal` for local testing. Runs on **Node 22 with `--experimental-strip-types`** (no tsx/build step).
-- Credentials: **Spectrum Cloud** project at **app.photon.codes** → `projectId` + `projectSecret` (README: "credentials ready in minutes"). Our env names: `PHOTON_PROJECT_ID`, `PHOTON_PROJECT_SECRET` (also accepts `PROJECT_ID`/`PROJECT_SECRET`). The SDK takes both or none; none = local providers only.
+- Credentials: **Spectrum Cloud** project at **app.photon.codes** → `projectId` + `projectSecret` (README: "credentials ready in minutes"). Env names (as Photon's dashboard labels them): **`SPECTRUM_PROJECT_ID`, `SPECTRUM_PROJECT_SECRET`** (also accepts `PHOTON_PROJECT_*` / `PROJECT_*`). The SDK takes both or none; none = local providers only.
 - API: `const app = await Spectrum({projectId, projectSecret, providers: [imessage.config()]})`; `for await (const [space, message] of app.messages)`; text = `message.content.text` when `message.content.type === "text"`; sender = `message.sender?.id`; reply = `message.reply(text)` inside `space.responding(...)` (typing indicator).
 - `bot/index.ts` + `bot/relay.ts`: `BOT_MODE=auto` (default) relays to `POST {API_BASE}/chat` and **echoes while `/chat` returns 404** (007 not built yet), so it switches by itself when 007 lands; any failure or > 25 s → §5 error template. Logs: sender hash, length, path, latency only.
 - Tested: 4 unit tests (`npm test`), type-check clean, SDK imports, missing-creds exit, terminal mode boots ("Spectrum started… providers: terminal").

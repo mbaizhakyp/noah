@@ -1,9 +1,9 @@
 // Spec 008: Noah's iMessage relay (Photon Spectrum). Text in -> POST /chat -> reply out. No agent logic here.
 //
-//   npm start         iMessage via Spectrum Cloud (needs PHOTON_PROJECT_ID / PHOTON_PROJECT_SECRET in ../.env)
+//   npm start         iMessage via Spectrum Cloud (needs SPECTRUM_PROJECT_ID / SPECTRUM_PROJECT_SECRET in ../.env)
 //   npm run local     terminal chat window for local testing (no iMessage needed)
 //
-// Env (../.env): PHOTON_PROJECT_ID, PHOTON_PROJECT_SECRET, API_BASE (default http://localhost:8000),
+// Env (../.env): SPECTRUM_PROJECT_ID, SPECTRUM_PROJECT_SECRET, API_BASE (default http://localhost:8000),
 //                BOT_MODE = auto (default: relay to /chat, echo while /chat doesn't exist) | echo | chat
 import { config as loadEnv } from "dotenv";
 import { Spectrum } from "spectrum-ts";
@@ -14,11 +14,12 @@ loadEnv({ path: new URL("../.env", import.meta.url).pathname, quiet: true });
 const local = process.argv.includes("--terminal");
 const mode = (process.env.BOT_MODE ?? "auto") as Mode;
 const apiBase = process.env.API_BASE || "http://localhost:8000";
-const projectId = process.env.PHOTON_PROJECT_ID ?? process.env.PROJECT_ID;
-const projectSecret = process.env.PHOTON_PROJECT_SECRET ?? process.env.PROJECT_SECRET;
+const env = (...names: string[]) => names.map((n) => process.env[n]?.trim()).find(Boolean);
+const projectId = env("SPECTRUM_PROJECT_ID", "PHOTON_PROJECT_ID", "PROJECT_ID");
+const projectSecret = env("SPECTRUM_PROJECT_SECRET", "PHOTON_PROJECT_SECRET", "PROJECT_SECRET");
 
 if (!local && (!projectId || !projectSecret)) {
-  console.error("PHOTON_PROJECT_ID / PHOTON_PROJECT_SECRET missing in .env (get them at app.photon.codes), or run: npm run local");
+  console.error("SPECTRUM_PROJECT_ID / SPECTRUM_PROJECT_SECRET missing in .env (get them at app.photon.codes), or run: npm run local");
   process.exit(1);
 }
 
