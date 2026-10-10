@@ -70,12 +70,12 @@ Every point where the two lanes must connect. Tick each item and note the commit
 
 | # | Item | Owner | Status |
 |---|---|---|---|
-| I1 | **Graph file:** Priyanshu's routing loads `data/interim/graph.graphml` if present, else gunzips `fixtures/graph.graphml.gz` (36 MB unzipped). `data/` is gitignored, so Replit/teammates use the fixture. | P (M ships the fixture ✅) | ☐ |
-| I2 | **Flood files:** `web/data/flood_<cycle>.geojson` (C5, lead hours **0–18**, CC2) + `cycles.json` (C6, with `events`, CC1). Real Helene data is committed; demo cycle `20240926T12Z`. Fixtures are no longer needed for flood data. | P consumes | ☐ |
-| I3 | **Mount dispatch:** in `noah/api/app.py` add `from noah.api import dispatch` + `app.include_router(dispatch.router)` (CC5). | P | ☐ |
-| I4 | **One graph in memory:** `dispatch.py` and `routing.py` must share one loaded graph + flood dict (36 MB graphml ≈ several hundred MB in RAM; two copies may not fit a 2 GB Replit VM). Agree on one loader, e.g. `routing.load_state()` that `dispatch` imports, or the reverse. | Both | ☐ |
-| I5 | **Same blocking rule:** `t_uncertain <= depart_h + ROUTE_BUFFER_H` in both `/route` and `/dispatch`. Reuse one helper (`dispatch.blocked_weight()` or Priyanshu's equivalent). | Both | ☐ |
-| I6 | **Active cycle:** both honor env `NOAH_CYCLE`, else C6 `demo_cycle`. | Both | ☐ |
+| I1 | **Graph file:** Priyanshu's routing loads `data/interim/graph.graphml` if present, else gunzips `fixtures/graph.graphml.gz` (36 MB unzipped). `data/` is gitignored, so Replit/teammates use the fixture. | P (M ships the fixture ✅) | ✅ 006 uses `dispatch.load_graph()` |
+| I2 | **Flood files:** `web/data/flood_<cycle>.geojson` (C5, lead hours **0–18**, CC2) + `cycles.json` (C6, with `events`, CC1). Real Helene data is committed; demo cycle `20240926T12Z`. Fixtures are no longer needed for flood data. | P consumes | ✅ 006 reads C5/C6, hours 0–18 |
+| I3 | **Mount dispatch:** in `noah/api/app.py` add `from noah.api import dispatch` + `app.include_router(dispatch.router)` (CC5). | P | ✅ done in 006 |
+| I4 | **One graph in memory:** `dispatch.py` and `routing.py` must share one loaded graph + flood dict (36 MB graphml ≈ several hundred MB in RAM; two copies may not fit a 2 GB Replit VM). Agree on one loader, e.g. `routing.load_state()` that `dispatch` imports, or the reverse. | Both | ✅ routing.py imports dispatch.graph_state() / flood_state() (one copy) |
+| I5 | **Same blocking rule:** `t_uncertain <= depart_h + ROUTE_BUFFER_H` in both `/route` and `/dispatch`. Reuse one helper (`dispatch.blocked_weight()` or Priyanshu's equivalent). | Both | ✅ /route uses dispatch.blocked_weight() |
+| I6 | **Active cycle:** both honor env `NOAH_CYCLE`, else C6 `demo_cycle`. | Both | ✅ both use dispatch.active_cycle() |
 | I7 | **Static pages:** `web/index.html` (009, P) and `web/dispatch.html` (014, M) are served from the same origin (FastAPI `StaticFiles` on Replit) or GitHub Pages with `?api=`. Link the two pages to each other. | Both | ☐ |
 | I8 | **Dependencies:** M added `fastapi`, `uvicorn` (and the pipeline deps) to `pyproject.toml`/`uv.lock`. P: `uv sync` after pulling. If you add deps, commit the lock file. | Both | ☐ |
 | I9 | **Contract confirmations:** P to confirm CC1, CC2, CC5; **M to confirm CC6** (table below). | P + M | ☐ |

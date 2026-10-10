@@ -45,7 +45,7 @@ Never start a lower priority while a higher one in your lane is unfinished, **ex
 | 005 | Validation: lead time + street truth | Margulan | P1 | 3 h | **Part A done: GO** (22:08). Part C (streets) after 004 |
 | 011 | Hurricane Isaias live run (bonus demo) | Margulan | P1 | 2 h | Draft |
 | 012 | Street low spots (storm-drain stand-in) | Margulan | P3 | 2 h | Draft |
-| 006 | Routing + HTTP API | Priyanshu | P0 | 3 h | Draft |
+| 006 | Routing + HTTP API | Priyanshu | P0 | 3 h | **Done** (23:55) |
 | 007 | Gemini agent + safety filter | Priyanshu | P0 | 3 h | Draft |
 | 008 | iMessage relay (Photon Spectrum) | Priyanshu | P0 | 2 h | Draft |
 | 009 | Web map with time slider | Priyanshu | P0 | 3 h | Draft |
@@ -112,3 +112,10 @@ _Append-only. Format: `HH:MM Name — what was done — how verified (command)`.
 
 ### Priyanshu
 - _(Priyanshu's section: only Priyanshu or Priyanshu's agent edits it)_
+- 22:45 — Data sources verified: 82 working sources in `docs/07-DATA_SOURCES.md`. Keys in `.env`: Windy, Census, Mapillary, Synoptic, TomTom. — curl tests per source (counts recorded in 07)
+- 23:55 — **Spec 006 done.** `noah/api/app.py` + `routing.py`. `/health`, `/status` (5 km radius), `/route` (trip box + 1 km corridor). Dispatch router mounted, `web/` served at `/`. Real Helene data, cycle 20240926T12Z:
+  - `/status` at the gauge: 378 segments, matches an independent check.
+  - Peachtree Battle → Northside detours around 3 flagged segments at +16 h.
+  - Chattanooga → `out_of_coverage`; Albany → `no_road_forecast`; +19 h → `beyond_forecast_window`.
+  - All responses < 0.05 s.
+  — `uv run pytest -q` (18 passed), `ruff check` clean, acceptance script against `uvicorn --port 8010`.

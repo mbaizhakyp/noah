@@ -121,6 +121,14 @@ MIN_ROAD_HAND_M = (
 ROUTE_BUFFER_H = 1
 SAMPLE_SPACING_M = 10
 
+# Runtime scope (CC6): hazards are checked only around the user and along a searched route
+GEORGIA_GEOJSON = ROOT / "fixtures" / "georgia.geojson"  # TIGERweb State 13, simplified
+ALERT_RADIUS_KM = 5  # /status: every flagged segment within this radius
+CORRIDOR_BUFFER_M = 1000  # /route: every flagged segment within this distance of the route
+TRIP_BOX_MARGIN_KM = 5  # /route searches a bbox around origin + destination plus this margin
+TRIP_BOX_RETRY_KM = 15  # one retry with a wider box before answering no_route
+METRIC_CRS = "EPSG:5070"  # CONUS Albers, metres
+
 # Runtime (env)
 GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "")
 API_BASE = os.environ.get("API_BASE", "http://localhost:8000")
