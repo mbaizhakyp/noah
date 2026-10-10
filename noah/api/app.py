@@ -18,7 +18,7 @@ from noah import (
     config,
     engine,
 )
-from noah.api import dispatch, routing
+from noah.api import dispatch, past, routing
 
 log = logging.getLogger("api")
 ERROR_MESSAGE = (
@@ -92,6 +92,27 @@ def assess_route(
         return engine.route(a_lat, a_lon, b_lat, b_lon, depart_h, cycle)
     except Exception:  # noqa: BLE001
         return failed("assess/route")
+
+
+@app.get("/past")
+def past_area(lat: float, lon: float, cycle: str | None = None) -> dict:
+    """Past mode: hour-by-hour NOAA estimate for the last 18 h in the 5 km area + gauge readings + storm reports."""
+    try:
+        return past.area(lat, lon, cycle)
+    except Exception:  # noqa: BLE001
+        return failed("past")
+
+
+@app.get("/past/route")
+def past_route(
+    from_: str = Query(alias="from"), to: str = Query(), cycle: str | None = None
+) -> dict:
+    """Past mode along a route's 1 km corridor."""
+    try:
+        (a_lat, a_lon), (b_lat, b_lon) = parse_latlon(from_), parse_latlon(to)
+        return past.route(a_lat, a_lon, b_lat, b_lon, cycle)
+    except Exception:  # noqa: BLE001
+        return failed("past/route")
 
 
 @app.on_event("startup")

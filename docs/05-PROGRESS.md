@@ -146,4 +146,10 @@ _Append-only. Format: `HH:MM Name — what was done — how verified (command)`.
   - 33 sources live per area/route: warnings, gauges, creek flows, rapid-onset flooding, high-water probability, rain now/forecast/guidance/rarity, outlooks, storms, TomTom, cameras (AI, two-step verified), flood zones, past floods, insurance claims, dams, storm drains, CSO + sewage spills, road roughness/potholes, vulnerability, facilities, news, Bluesky.
   - Live hazards re-route (a camera at Northside/Peachtree Battle + a Rockingham Dr closure blocked 4 segments in a test).
   - Exact-number guard.
-  — `uv run pytest -q` (25 passed), `ruff` clean, live `/assess` 33/33 sources..
+  — `uv run pytest -q` (25 passed), `ruff` clean, live `/assess` 33/33 sources.
+- 04:45 — **Past mode.**
+  - The slider runs −18 h … +18 h. Past hours show each hourly NWM run's hour-0 estimate (dashed lines), from `GET /past` and `/past/route`.
+  - A "Last 18 hours" panel shows USGS stage history per gauge (sparklines) + NWS storm reports from the last 24 h.
+  - Live loop backfilled 09Z–02Z with `--backfill … --keep 48` (the 23Z run is missing on GCS).
+  - The AI assessment panel (now / next 18 h / next days) is on the map.
+  — `uv run pytest -q` (27 passed), JS parse check, no banned words..

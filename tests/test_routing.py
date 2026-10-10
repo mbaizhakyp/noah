@@ -67,3 +67,23 @@ def test_live_hazard_blocks_road_from_now():
     G = _graph()
     tu = dict.fromkeys({"1-4-0"}, -1)
     assert shortest(G, 0, 4, blocked_weight(tu, depart_h=0, buffer_h=1)) == [0, 2, 3, 4]
+
+
+def test_past_cycles_offsets(monkeypatch):
+    from noah.api import past, routing
+
+    meta = {
+        "cycles": [
+            {"cycle": "20261010T00Z", "event": "live", "issue_time": "2026-10-10T00:00:00Z"},
+            {"cycle": "20261010T03Z", "event": "live", "issue_time": "2026-10-10T03:00:00Z"},
+            {
+                "cycle": "20261009T05Z",
+                "event": "live",
+                "issue_time": "2026-10-09T05:00:00Z",
+            },  # 22 h back: outside
+            {"cycle": "20240926T12Z", "event": "helene", "issue_time": "2024-09-26T12:00:00Z"},
+        ]
+    }
+    monkeypatch.setattr(routing, "cycles_meta", lambda: meta)
+    got = past.past_cycles("20261010T03Z", hours=18)
+    assert [(c["h"], c["cycle"]) for c in got] == [(-3, "20261010T00Z"), (0, "20261010T03Z")]

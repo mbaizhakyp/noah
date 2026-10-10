@@ -95,6 +95,9 @@
   .tile.t-elevated { border-color: rgba(245,158,11,.6); } .tile.t-high { border-color: rgba(251,146,60,.7); } .tile.t-severe { border-color: var(--red); background: rgba(239,68,68,.08); }
   .reasons { margin: 6px 0 0; padding-left: 18px; } .reasons li { margin: 4px 0; }
   .chip { display: inline-block; font-size: 11px; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 0 6px; margin: 2px 4px 0 0; }
+  .gauge { display: grid; grid-template-columns: 1fr 120px; gap: 8px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--line); }
+  .gauge svg { width: 120px; height: 34px; }
+  .pastnote { color: var(--muted); font-size: 12px; margin: 6px 0; }
   .action { margin-top: 10px; padding: 8px 10px; border-left: 3px solid var(--cyan); background: rgba(34,211,238,.06); border-radius: 6px; }
   @media (max-width: 520px) { .tiles { grid-template-columns: 1fr; } }
   .cam a { color: var(--cyan); }
@@ -166,6 +169,13 @@
       <div id="camList"></div>
       <div id="camCredit" class="note" hidden>Snapshots taken when you searched and checked for water by AI. Water counts only if a second, stricter look agrees.
         Webcams provided by <a href="https://www.windy.com" target="_blank" rel="noopener">Windy.com</a> · <a href="https://www.windy.com/webcams/add" target="_blank" rel="noopener">add a webcam</a></div>
+      <div id="pastBox" hidden>
+        <h2>Last 18 hours</h2>
+        <div id="pastSummary" class="summary"></div>
+        <div id="gaugeList"></div>
+        <div id="reportList"></div>
+        <div class="pastnote" id="pastNote"></div>
+      </div>
       <details id="srcBox" style="margin-top:12px"><summary id="srcSum">Sources checked</summary><div id="srcList"></div></details>
     </div>
 
@@ -178,11 +188,12 @@
       <div><span class="sw" style="background:var(--amber)"></span>Uncertain: treat as impassable</div>
       <div><span class="sw" style="background:var(--cyan)"></span>Noah's route</div>
       <div><span class="dot" style="background:var(--cyan);opacity:.5"></span>5 km check area</div>
+      <div><span class="sw" style="background:repeating-linear-gradient(90deg,#ef4444 0 6px,transparent 6px 9px)"></span>Past hours: NOAA estimate</div>
     </div>
     <div class="timebar">
       <div class="cap" id="caption">Pick a place to see which roads are forecast to flood.</div>
       <button id="play" class="secondary" aria-label="Play forecast">▶</button>
-      <input id="hour" type="range" min="0" max="18" step="1" value="0" aria-label="Forecast hour">
+      <input id="hour" type="range" min="-18" max="18" step="1" value="0" aria-label="Hour: past 18 h to next 18 h">
     </div>
   </div>
 </main>
@@ -222,6 +233,11 @@ mapReady.then(() => {
   map.addSource("hazard", { type: "geojson", data: empty });
   map.addLayer({ id: "uncertain", type: "line", source: "hazard", paint: { "line-color": "#f59e0b", "line-width": 3 } });
   map.addLayer({ id: "flooded", type: "line", source: "hazard", paint: { "line-color": "#ef4444", "line-width": 4 } });
+  map.addSource("past", { type: "geojson", data: empty }); // NOAA hour-0 estimate for past hours
+  map.addLayer({ id: "past-uncertain", type: "line", source: "past", filter: ["==", ["get", "state"], "uncertain"],
+    layout: { visibility: "none" }, paint: { "line-color": "#f59e0b", "line-width": 3, "line-dasharray": [2, 1] } });
+  map.addLayer({ id: "past-flooded", type: "line", source: "past", filter: ["==", ["get", "state"], "flooded"],
+    layout: { visibility: "none" }, paint: { "line-color": "#ef4444", "line-width": 4, "line-dasharray": [2, 1] } });
   for (const id of ["uncertain", "flooded"]) {
     map.on("click", id, (e) => {
       const p = e.features[0].properties;
@@ -252,6 +268,10 @@ function roadSentence(p, h) {
 function applyHour() {
   if (!map.getLayer("flooded") || !issue) return;
   const h = +$("hour").value;
+  const isPast = h < 0;
+  for (const id of ["flooded", "uncertain"]) map.setLayoutProperty(id, "visibility", isPast ? "none" : "visible");
+  for (const id of ["past-flooded", "past-uncertain"]) map.setLayoutProperty(id, "visibility", isPast ? "visible" : "none");
+  if (isPast) { showPastHour(h); return; }
   const tf = ["coalesce", ["to-number", ["get", "t_flood"]], 99];
   map.setFilter("flooded", ["<=", tf, h]);
   map.setFilter("uncertain", ["all", ["<=", ["to-number", ["get", "t_uncertain"]], h], [">", tf, h]]);
@@ -262,6 +282,65 @@ function applyHour() {
     count = ` · <b>${n}</b> road${n === 1 ? "" : "s"} forecast underwater or uncertain`;
   }
   $("caption").innerHTML = `<b>${label}</b>${count}`;
+}
+
+// ---------- past mode: NOAA's hour-0 estimate for each of the last 18 hourly runs + observations ----------
+let pastData = null, pastToken = 0;
+function showPastHour(h) {
+  const hrs = pastData?.hours || [];
+  const at = hrs.filter((x) => x.h <= h).at(-1); // nearest run at or before this hour
+  const when = new Date(hourTime(h));
+  let txt;
+  if (!pastData) txt = mode ? "Loading the last 18 hours…" : "Pick a place to see the last 18 hours.";
+  else if (!at) txt = "No estimate for this hour yet.";
+  else {
+    const n = new Set(at.segments.map((s) => s.name || s.seg_id)).size;
+    txt = `<b>${n}</b> road${n === 1 ? "" : "s"} in the flood band${at.h !== h ? ` (nearest run: ${at.valid_local})` : ""}`;
+  }
+  map.getSource("past").setData({ type: "FeatureCollection", features: (at?.segments || []).map((s) => ({ type: "Feature", geometry: s.geometry, properties: { state: s.state, name: s.name } })) });
+  $("caption").innerHTML = `<b>Estimated (past): ${fmtDay.format(when)} (${h} h)</b> · ${txt}`;
+}
+
+function sparkline(series) {
+  const v = series.map((p) => p[1]); const lo = Math.min(...v), hi = Math.max(...v), span = hi - lo || 1;
+  const pts = v.map((y, i) => `${(i / Math.max(1, v.length - 1)) * 118 + 1},${33 - ((y - lo) / span) * 30}`).join(" ");
+  return `<svg viewBox="0 0 120 34" aria-hidden="true"><polyline fill="none" stroke="#22d3ee" stroke-width="2" points="${pts}"/></svg>`;
+}
+
+function renderPast(d) {
+  pastData = d;
+  if (!d || d.state !== "ok") { $("pastBox").hidden = true; return; }
+  const peak = d.hours.reduce((m, x) => (x.flooded + x.uncertain > (m?.flooded + m?.uncertain || -1) ? x : m), null);
+  $("pastSummary").textContent = peak && peak.flooded + peak.uncertain
+    ? `NOAA's estimate peaked at ${peak.flooded + peak.uncertain} road segments in the flood band around ${peak.valid_local}. Drag the time bar left to replay.`
+    : "NOAA's estimate shows no roads in the flood band in the last 18 hours. Drag the time bar left to replay.";
+  $("gaugeList").replaceChildren(...d.gauges.slice(0, 6).map((g) => {
+    const row = document.createElement("div"); row.className = "gauge";
+    const t = document.createElement("div");
+    const a = document.createElement("a"); a.href = g.url; a.target = "_blank"; a.rel = "noopener"; a.style.color = "var(--text)";
+    a.textContent = `USGS ${g.site.split("-")[1]}`;
+    const dir = g.change_ft > 0.05 ? `rose ${g.change_ft} ft` : g.change_ft < -0.05 ? `fell ${-g.change_ft} ft` : "steady";
+    t.append(a, document.createElement("br"), `Creek level ${dir} (now ${g.last} ft, high ${g.max} ft at ${g.max_time_local})`);
+    t.style.fontSize = "13px";
+    const sv = document.createElement("div"); sv.innerHTML = sparkline(g.series);
+    row.append(t, sv); return row;
+  }));
+  $("reportList").replaceChildren(...(d.reports || []).slice(0, 5).map((r) => {
+    const c = document.createElement("div"); c.className = "sig";
+    const b = document.createElement("b"); b.textContent = r.title; c.append(b, document.createElement("br"), r.detail || ""); return c;
+  }));
+  $("pastNote").textContent = d.note + (d.missing_hours?.length ? ` No estimate for ${d.missing_hours.length} of the hours (runs not processed yet).` : "") + " Cameras and road closures have no history.";
+  $("pastBox").hidden = false;
+  if (+$("hour").value < 0) applyHour();
+}
+
+async function runPast(kind) {
+  const token = ++pastToken; pastData = null; $("pastBox").hidden = true;
+  const url = kind === "route"
+    ? `${API}/past/route?from=${origin.lat},${origin.lon}&to=${dest.lat},${dest.lon}&cycle=${cyc.cycle}`
+    : `${API}/past?lat=${origin.lat}&lon=${origin.lon}&cycle=${cyc.cycle}`;
+  try { const d = await fetch(url).then((x) => x.json()); if (token === pastToken) renderPast(d); }
+  catch (e) { if (token === pastToken) $("pastBox").hidden = true; }
 }
 
 function setHazard(segIds) {
@@ -505,6 +584,7 @@ async function checkArea() {
     cards(r.segments, +$("hour").value);
     applyHour();
     runAssess("area");
+    runPast("area");
   } catch (e) { banner("I can't confirm conditions right now, so treat low roads near creeks as impassable. In an emergency call 911.", "danger"); }
   finally { busy("area", false); }
 }
@@ -546,7 +626,7 @@ async function findRoute(full = true) {
     cards(r.corridor, h);
     setDirections(r.geometry.coordinates);
     applyHour();
-    if (full) runAssess("route"); // slider moves only re-route; the full live check runs on a new search
+    if (full) { runAssess("route"); runPast("route"); } // slider moves only re-route; the full live check runs on a new search
   } catch (e) { banner("I can't confirm conditions right now, so treat low roads near creeks as impassable. In an emergency call 911.", "danger"); }
   finally { busy("go", false); }
 }
@@ -617,13 +697,15 @@ $("go").onclick = findRoute;
 // ---------- time bar ----------
 $("hour").addEventListener("input", () => {
   applyHour();
-  if (mode === "area") cards(lastRows, +$("hour").value);
+  const h = +$("hour").value;
+  if (h < 0) return; // past: show NOAA's estimate only; routing in the past is meaningless
+  if (mode === "area") cards(lastRows, h);
   if (mode === "route") { window.clearTimeout(rerouteTimer); rerouteTimer = window.setTimeout(() => findRoute(false), 450); }
 });
 $("play").onclick = () => {
   if (playing) { window.clearInterval(playing); playing = null; $("play").textContent = "▶"; return; }
   $("play").textContent = "❚❚";
-  if (+$("hour").value >= 18) $("hour").value = 0;
+  if (+$("hour").value >= 18) $("hour").value = -18;
   playing = window.setInterval(() => {
     const h = +$("hour").value + 1;
     if (h > 18) { window.clearInterval(playing); playing = null; $("play").textContent = "▶"; return; }
@@ -652,7 +734,7 @@ async function loadCycle(id) {
     return;
   }
   const pick = P.get("cycle"); // agent links may pin the cycle they answered from
-  if (P.get("t")) $("hour").value = Math.max(0, Math.min(18, +P.get("t")));
+  if (P.get("t")) $("hour").value = Math.max(-18, Math.min(18, +P.get("t")));
   await loadCycle(pick);
   // C10 links from the agent: ?from=lat,lon&to=lat,lon  or  ?near=lat,lon
   const ll = (s) => { const [lat, lon] = (s || "").split(",").map(Number); return isFinite(lat) && isFinite(lon) ? { lat, lon } : null; };
