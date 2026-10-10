@@ -311,9 +311,12 @@ def route(
     depart_h: int,
     cycle: str | None = None,
     extra_blocked: frozenset = frozenset(),
+    corridor_m: int | None = None,
 ) -> dict:
-    """extra_blocked: seg_ids blocked from now by live hazards (TomTom flooding/closure, camera water; spec 015)."""
+    """extra_blocked: seg_ids blocked from now by live hazards (TomTom flooding/closure, camera water; spec 015).
+    corridor_m: how far around the route to list flagged roads (default CC6's 1 km; the map asks for more)."""
     cycle = cycle or current_cycle()
+    corridor_m = min(5000, max(500, int(corridor_m or config.CORRIDOR_BUFFER_M)))
     a, b = (a_lon, a_lat), (b_lon, b_lat)
     empty = {"geometry": None, "minutes": None, "avoided": [], "corridor": [], "cycle": cycle}
     if depart_h > config.MAX_LEAD_H:
@@ -353,16 +356,20 @@ def route(
     )
     fi = flood_index(cycle)
     line_m = transform(_to_metric, line)
-    near = fi.tree.query(line_m, predicate="dwithin", distance=config.CORRIDOR_BUFFER_M)
+    near = fi.tree.query(line_m, predicate="dwithin", distance=corridor_m)
     corridor = sorted(
         (segment_row(fi, fi.props[i], depart_h) for i in near),
         key=lambda r: (-SEVERITY[r["state"]], r["eta_utc"] or ""),
     )
     live = sorted(set(avoided) & set(extra_blocked))
+    # the usual (fastest) way when it differs: the map draws it dashed so the detour reads as a choice
+    usual = path_line(sub, free, path_edges(sub, free)) if avoided and len(free) > 1 else None
     return {
         "live_blocked": live,
         "state": "route_found",
         "geometry": shapely.geometry.mapping(line),
+        "usual_geometry": shapely.geometry.mapping(usual) if usual is not None else None,
+        "corridor_m": corridor_m,
         "minutes": round(sum(float(d.get("travel_time", 0)) for d in edges) / 60, 1),
         "avoided": avoided,
         "corridor": corridor,

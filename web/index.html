@@ -241,6 +241,7 @@
       <span><i class="sw" style="background:var(--flood)"></i>Do not cross (forecast flooded)</span>
       <span><i class="sw" style="background:var(--amber)"></i>Uncertain: treat as impassable</span>
       <span><i class="sw" style="background:var(--blue)"></i>Noah's route</span>
+      <span><i class="sw" style="background:repeating-linear-gradient(90deg,#9aa0a6 0 4px,transparent 4px 7px)"></i>Usual route (crosses forecast flooding)</span>
       <span><i class="sw" style="background:repeating-linear-gradient(90deg,var(--flood) 0 5px,transparent 5px 8px)"></i>Past hours: NOAA estimate</span>
     </div>
   </div>
@@ -400,6 +401,9 @@ mapReady.then(() => {
   map.addSource("route", { type: "geojson", data: empty });
   map.addLayer({ id: "route-casing", type: "line", source: "route", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": "#ffffff", "line-width": 10 } });
   map.addLayer({ id: "route", type: "line", source: "route", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": BLUE, "line-width": 6 } });
+  // the fastest way, when Noah's route leaves it: drawn over the route so the shared part reads as both and the detour stands out
+  map.addSource("usual", { type: "geojson", data: empty });
+  map.addLayer({ id: "usual", type: "line", source: "usual", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": "#5f6368", "line-width": 3, "line-dasharray": [1.5, 2] } });
   map.addSource("hazard", { type: "geojson", data: empty });
   map.addLayer({ id: "uncertain", type: "line", source: "hazard", layout: { "line-cap": "round" }, paint: { "line-color": AMBER, "line-width": 3.5 } });
   map.addLayer({ id: "flooded", type: "line", source: "hazard", layout: { "line-cap": "round" }, paint: { "line-color": FLOOD, "line-width": 4.5 } });
@@ -542,9 +546,54 @@ async function runPast(kind) {
 
 function setHazard(segIds) {
   const feats = segIds.map((id) => flood.get(id)).filter(Boolean);
+  hazardAnim++; // cancel a reveal in progress
   map.getSource("hazard").setData({ type: "FeatureCollection", features: feats });
   shown = feats;
   return feats;
+}
+
+// ---------- staged reveal: live checks first, then the route draws itself, then roads light up in forecast order ----------
+const CORRIDOR_M = 3000; // the map asks for flagged roads this far around the route (the API default is 1 km)
+const REDUCED_MOTION = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const CHECK_WAIT_MS = 8000; // longest we hold the route for the live checks
+const sleep = (ms) => new Promise((r) => window.setTimeout(r, ms));
+const easeOut = (k) => 1 - Math.pow(1 - k, 3);
+let hazardAnim = 0;
+function stage(text) { // a notice with a spinner while something is being checked
+  const b = $("banner"); b.innerHTML = "";
+  const s = document.createElement("span"); s.className = "loading";
+  const sp = document.createElement("span"); sp.className = "spin"; s.append(sp, text); b.append(s);
+  $("verdict").className = "notice info"; $("verdict").hidden = false; $("welcome").hidden = true;
+}
+function drawLine(sourceId, coords, ms = 900) {
+  const src = map.getSource(sourceId);
+  const feat = (c) => ({ type: "Feature", geometry: { type: "LineString", coordinates: c }, properties: {} });
+  if (REDUCED_MOTION || !ms || coords.length < 3) { src.setData(feat(coords)); return Promise.resolve(); }
+  return new Promise((res) => {
+    const t0 = performance.now();
+    const step = (t) => {
+      const k = Math.min(1, (t - t0) / ms);
+      src.setData(feat(coords.slice(0, Math.max(2, Math.round(easeOut(k) * coords.length)))));
+      if (k < 1) requestAnimationFrame(step); else res();
+    };
+    requestAnimationFrame(step);
+  });
+}
+function revealHazard(feats, ms = 1800) {
+  const token = ++hazardAnim; shown = feats;
+  const src = map.getSource("hazard");
+  if (REDUCED_MOTION || !ms || feats.length < 2) { src.setData({ type: "FeatureCollection", features: feats }); return Promise.resolve(); }
+  const order = [...feats].sort((a, b) => +a.properties.t_uncertain - +b.properties.t_uncertain); // earliest flooding first
+  return new Promise((res) => {
+    const t0 = performance.now();
+    const step = (t) => {
+      if (token !== hazardAnim) return res(); // a newer search took over
+      const k = Math.min(1, (t - t0) / ms);
+      src.setData({ type: "FeatureCollection", features: order.slice(0, Math.ceil(easeOut(k) * order.length)) });
+      if (k < 1) requestAnimationFrame(step); else res();
+    };
+    requestAnimationFrame(step);
+  });
 }
 
 function circle(lat, lon, km, n = 72) {
@@ -880,8 +929,15 @@ async function checkArea() {
       runAssess("area"); runPast("area"); return;
     }
     if (MSG[r.state]) { setHazard([]); $("results").replaceChildren(); $("summary").textContent = ""; showTabs(false); banner(MSG[r.state], "info"); return; }
-    const feats = setHazard(r.segments.map((s) => s.seg_id));
+    setHazard([]);
+    const feats = r.segments.map((s) => flood.get(s.seg_id)).filter(Boolean);
     const streets = new Set(feats.map((f) => f.properties.name || f.properties.seg_id)).size;
+    // live checks run first; the roads light up once they are in (or after CHECK_WAIT_MS)
+    stage(`Checking ${feats.length ? feats.length + " flagged road segments, " : ""}live sources and traffic cameras within ${RADIUS_KM} km…`);
+    const checks = runAssess("area"); runPast("area");
+    await Promise.race([checks, sleep(CHECK_WAIT_MS)]);
+    applyHour();
+    await revealHazard(feats);
     showTabs(true);
     if (!feats.length) {
       banner(`No flooding is forecast within ${RADIUS_KM} km through ${END()}. This is not a safety guarantee. Conditions change fast; never drive into water. Turn Around Don't Drown.`, "info");
@@ -891,8 +947,6 @@ async function checkArea() {
     $("summary").textContent = feats.length ? "Nearest-first by time:" : "";
     cards(r.segments, +$("hour").value);
     applyHour();
-    runAssess("area");
-    runPast("area");
   } catch (e) { banner("I can't confirm conditions right now, so treat low roads near creeks as impassable. In an emergency call 911.", "danger"); }
   finally { busy(false); }
 }
@@ -903,10 +957,11 @@ async function findRoute(full = true) {
   mode = "route"; busy(true);
   const h = +$("hour").value;
   try {
-    const r = await fetch(`${API}/route?from=${origin.lat},${origin.lon}&to=${dest.lat},${dest.lon}&depart_h=${h}&cycle=${cyc.cycle}`).then((x) => x.json());
+    const r = await fetch(`${API}/route?from=${origin.lat},${origin.lon}&to=${dest.lat},${dest.lon}&depart_h=${h}&cycle=${cyc.cycle}&corridor_m=${CORRIDOR_M}`).then((x) => x.json());
     lastRoute = r;
     await mapReady; clearMarkers();
     map.getSource("area").setData(empty);
+    if (full) { map.getSource("route").setData(empty); map.getSource("usual").setData(empty); setHazard([]); }
     addMarker(origin.lon, origin.lat, "you", "Start: " + origin.label);
     addMarker(dest.lon, dest.lat, "dest", "Destination: " + dest.label);
     const fit = (coords) => full && map.fitBounds([[Math.min(...coords.map((x) => x[0])), Math.min(...coords.map((x) => x[1]))], [Math.max(...coords.map((x) => x[0])), Math.max(...coords.map((x) => x[1]))]], { padding: pad(60), maxZoom: 15 });
@@ -935,25 +990,39 @@ async function findRoute(full = true) {
       banner(`No route found that avoids forecast flooding if you leave ${h === 0 ? "now" : "at " + local(hourTime(h))}. Try an earlier departure time, or stay where you are. Never drive into water. Emergency: 911.`, "danger");
       fit([[origin.lon, origin.lat], [dest.lon, dest.lat]]); return;
     }
-    map.getSource("route").setData({ type: "Feature", geometry: r.geometry, properties: {} });
-    const feats = setHazard(r.corridor.map((c) => c.seg_id));
-    fit(r.geometry.coordinates);
+    const feats = r.corridor.map((c) => flood.get(c.seg_id)).filter(Boolean);
+    const usual = r.usual_geometry ? { type: "Feature", geometry: r.usual_geometry, properties: {} } : empty;
+    fit([...r.geometry.coordinates, ...(r.usual_geometry?.coordinates || [])]);
+    if (full) {
+      // live checks first, then the usual way (dashed), then Noah's route draws itself, then flagged roads light up
+      stage(`Route found. Checking live sources and traffic cameras along it${feats.length ? ` and ${feats.length} flagged road segments within ${CORRIDOR_M / 1000} km` : ""}…`);
+      const checks = runAssess("route"); runPast("route");
+      await Promise.race([checks, sleep(CHECK_WAIT_MS)]);
+      if (lastRoute !== r) return; // a newer search took over while we waited
+      map.getSource("usual").setData(usual);
+      await drawLine("route", r.geometry.coordinates);
+      applyHour();
+      await revealHazard(feats);
+    } else { // departure-time change: redraw at once
+      map.getSource("usual").setData(usual);
+      map.getSource("route").setData({ type: "Feature", geometry: r.geometry, properties: {} });
+      setHazard(r.corridor.map((c) => c.seg_id));
+    }
     const hit = r.corridor.filter((c) => c.state !== "no_forecast_flooding").length;
     const leave = h === 0 ? "now" : "at " + local(hourTime(h));
     if (full) showTabs(true);
     routeSummary(r);
     if (r.avoided.length) {
-      banner(`Route found, leaving ${leave}: about ${Math.round(r.minutes)} min. It goes around ${r.avoided.length} road segment${r.avoided.length === 1 ? "" : "s"} forecast to flood. Not a safety guarantee. Never drive into water.`, "warn");
+      banner(`Route found, leaving ${leave}: about ${Math.round(r.minutes)} min. It goes around ${r.avoided.length} road segment${r.avoided.length === 1 ? "" : "s"} forecast to flood; the usual way is dashed grey. Not a safety guarantee. Never drive into water.`, "warn");
     } else if (hit || feats.length) {
       banner(`Route found, leaving ${leave}: about ${Math.round(r.minutes)} min. Flooding is forecast near this route (red and amber roads), but not on it. Not a safety guarantee. Never drive into water.`, "warn");
     } else {
       banner(`No flooding is forecast on this route through ${END()}. About ${Math.round(r.minutes)} min. This is not a safety guarantee. Conditions change fast; never drive into water. Turn Around Don't Drown.`, "info");
     }
-    $("summary").textContent = feats.length ? "Flood-forecast roads within 1 km of your route:" : "";
+    $("summary").textContent = feats.length ? `Flood-forecast roads within ${CORRIDOR_M / 1000} km of your route:` : "";
     cards(r.corridor, h);
     setDirections(r.geometry.coordinates);
     applyHour();
-    if (full) { runAssess("route"); runPast("route"); } // departure-time changes only re-route; the full live check runs on a new search
   } catch (e) { banner("I can't confirm conditions right now, so treat low roads near creeks as impassable. In an emergency call 911.", "danger"); }
   finally { busy(false); }
 }
@@ -967,7 +1036,7 @@ async function plainRoute(o, d) {
     return { geometry: rt.geometry, minutes: rt.duration / 60 };
   } catch (e) { return null; }
 }
-function routeEmpty() { assessToken++; $("live").hidden = true; $("risk").hidden = true; clearCams(); map.getSource("route").setData(empty); setHazard([]); $("results").replaceChildren(); $("summary").textContent = ""; routeSummary(null); showTabs(false); }
+function routeEmpty() { assessToken++; $("live").hidden = true; $("risk").hidden = true; clearCams(); map.getSource("route").setData(empty); map.getSource("usual").setData(empty); setHazard([]); $("results").replaceChildren(); $("summary").textContent = ""; routeSummary(null); showTabs(false); }
 
 function setDirections(coords) {
   // up to 3 waypoints from Noah's route so the hand-off follows the detour (Google mobile web max = 3)

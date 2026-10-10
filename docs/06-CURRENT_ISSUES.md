@@ -93,6 +93,7 @@ Every point where the two lanes must connect. Tick each item and note the commit
 ## Contract change proposals
 | # | Opened | Proposer | Change | Agreed by both? |
 |---|---|---|---|---|
+| CC8 | Sat 03:10 | P | Additive, C9 `/route`: optional query `corridor_m` (500–5000; default unchanged = CC6's 1 km) and response fields `usual_geometry` (fastest way when the route detours, else null) + `corridor_m`. Map uses 3 km. No existing field changes. | Margulan to ack |
 | CC5 | Fri 22:58 | M | Additive: C13 `POST /dispatch` + `GET /barricades` (spec 014) as a FastAPI `router` in `noah/api/dispatch.py`, mounted by one line in Priyanshu's `app.py`; §5 rows for dispatch states. No existing contract changed. | M ☑ · P ☐ |
 | CC2 | Fri 22:00 | M | C1/C5 lead hours extend from 1–18 to **0–18**: hour 0 = NWM `analysis_assim` (estimated now). Consumers: the slider already starts at 0 (009); routing/status treat 0 like any hour. No renames. | M ☑ · P ☐ |
 | CC1 | Fri 21:05 | M | Additive: C6 `events` + `cycles[].event`; C9 `NOAH_CYCLE`, `beyond_forecast_window` state, `/cameras` endpoints; new C11 (low spots), C12 (camera assessments); §5 rows for low spot, camera water, beyond window. Already written into `02-ARCHITECTURE.md`. Nothing existing was renamed or removed. | M ☑ · P ☐ (Priyanshu: confirm or object before building 006/009) |

@@ -65,11 +65,15 @@ def status(
 
 @app.get("/route")
 def route(
-    from_: str = Query(alias="from"), to: str = Query(), depart_h: int = 0, cycle: str | None = None
+    from_: str = Query(alias="from"),
+    to: str = Query(),
+    depart_h: int = 0,
+    cycle: str | None = None,
+    corridor_m: int | None = None,
 ) -> dict:
     try:
         (a_lat, a_lon), (b_lat, b_lon) = parse_latlon(from_), parse_latlon(to)
-        return routing.route(a_lat, a_lon, b_lat, b_lon, depart_h, cycle)
+        return routing.route(a_lat, a_lon, b_lat, b_lon, depart_h, cycle, corridor_m=corridor_m)
     except Exception:  # noqa: BLE001 (spec 006: any failure -> conservative reply, never a crash)
         return failed("route")
 
