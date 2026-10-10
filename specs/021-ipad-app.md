@@ -33,7 +33,7 @@ A home-screen web app for the iPad that looks and behaves like the live product.
 - [ ] `grep -i -E "demo|replay|snapshot|helene|isaias|locked"` over user-facing strings in `web/ipad/index.html` finds nothing (code identifiers and paths excepted; text inside live signals, e.g. an NHC storm name, is data, not a label).
 - [ ] The banned-word list (§5) does not appear in user-facing strings.
 - [ ] Add to Home Screen on iPad opens full-screen with the icon. Landscape and portrait both lay out.
-- [ ] Departure slider at 7 PM shows "Leave by 3:25 AM … all 6 stops". At 4:00 AM it shows 4 of 6.
+- [x] Departure slider at 7 PM shows "Leave by 1:30 AM … all 6 stops" (J20 own-street rule over the recorded trips). At 3:30 AM: 4 of 6, best order 5 of 6. At 4:00 AM: 3 of 6.
 
 ## Fallback
 If `/cam/{id}` fails, the frame slot says "Camera not responding" and the recorded verdict still shows. Everything else works from files.
