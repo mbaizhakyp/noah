@@ -74,6 +74,24 @@ def lead_time(table: pd.DataFrame, observed_cross: pd.Timestamp) -> tuple[str | 
     return first.cycle, (observed_cross - first.issue_time).total_seconds() / 3600
 
 
+def street_check(features: list[dict], match: str, issue) -> dict:
+    """Is any C5 segment whose name contains `match` flagged? Earliest flood / uncertain hour, local time."""
+    hits = [
+        f["properties"]
+        for f in features
+        if match.lower() in (f["properties"]["name"] or "").lower()
+    ]
+    tf = [h["t_flood"] for h in hits if h["t_flood"] is not None]
+    local = lambda h: (
+        (issue + pd.Timedelta(hours=h)).tz_convert("America/New_York").strftime("%a %b %d %I %p")
+    )
+    return {
+        "flagged": bool(hits),
+        "t_flood_local": local(min(tf)) if tf else None,
+        "t_uncertain_local": local(min(h["t_uncertain"] for h in hits)) if hits else None,
+    }
+
+
 def plot(obs: pd.DataFrame, nwm: dict[str, pd.DataFrame], table, obs_cross, out_png, title) -> None:
     import matplotlib
 
@@ -181,6 +199,28 @@ def main() -> None:
             indent=1,
         )
     )
+    truth_file = config.ROOT / "noah" / "pipeline" / "street_truth.json"
+    demo_c5 = config.WEB_DATA / f"flood_{ev['demo']}.geojson" if ev["demo"] else None
+    if a.event == "helene" and truth_file.exists() and demo_c5 and demo_c5.exists():
+        feats = json.loads(demo_c5.read_text())["features"]
+        issue = pd.Timestamp(config.parse_cycle(ev["demo"]))
+        streets = [
+            {
+                "name": s["name"],
+                "observed": s["observed"],
+                "source_urls": s["source_urls"],
+                "demo_cycle": ev["demo"],
+                **street_check(feats, s["match"], issue),
+            }
+            for s in json.loads(truth_file.read_text())
+        ]
+        result = json.loads(out.read_text())
+        result["streets"] = streets
+        out.write_text(json.dumps(result, indent=1))
+        for s in streets:
+            print(
+                f"street truth: {s['name']}: flagged={s['flagged']} flood={s['t_flood_local']} uncertain={s['t_uncertain_local']}"
+            )
     plot(obs, files, table, obs_cross, config.WEB_DATA / f"validation{suffix}.png", ev["label"])
     log.info("wrote %s and the PNG", out)
 

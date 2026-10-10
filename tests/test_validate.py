@@ -36,3 +36,21 @@ def test_first_warning_cycle_and_lead_time():
     first, lead = lead_time(table, pd.Timestamp("2024-09-27T01:15Z"))
     assert first == "20240926T18Z"
     assert abs(lead - 7.25) < 1e-9
+
+
+def test_street_check_flagged_and_local_time():
+    from noah.pipeline.validate import street_check
+
+    feats = [
+        {"properties": {"name": "Windsor Parkway Northeast", "t_uncertain": 12, "t_flood": 14}},
+        {"properties": {"name": "Other Road", "t_uncertain": 1, "t_flood": 2}},
+        {"properties": {"name": None, "t_uncertain": 1, "t_flood": None}},
+    ]
+    issue = pd.Timestamp("2024-09-26T12:00Z")
+    hit = street_check(feats, "Windsor Parkway", issue)
+    assert hit["flagged"] and hit["t_flood_local"] == "Thu Sep 26 10 PM"
+    assert street_check(feats, "Woodward Way", issue) == {
+        "flagged": False,
+        "t_flood_local": None,
+        "t_uncertain_local": None,
+    }

@@ -69,6 +69,7 @@ _Newest at the top of each table. Tag the owner as M (Margulan) or P (Priyanshu)
 ## Contract change proposals
 | # | Opened | Proposer | Change | Agreed by both? |
 |---|---|---|---|---|
+| CC4 | Fri 22:50 | M | C3 gains rows for **residential streets** computed by Noah from HAND (spec 003 step 3) plus an additive `source` column (`noaa` / `noah`). C5 is unchanged, so Priyanshu is not affected. Reason: NOAA's road list has no residential streets (verified: motorway/trunk/primary/secondary/tertiary only); Helene's reported Buckhead closures were residential. | M ☐ (proposed) |
 | CC2 | Fri 22:00 | M | C1/C5 lead hours extend from 1–18 to **0–18**: hour 0 = NWM `analysis_assim` (estimated now). Consumers: the slider already starts at 0 (009); routing/status treat 0 like any hour. No renames. | M ☑ · P ☐ |
 | CC1 | Fri 21:05 | M | Additive: C6 `events` + `cycles[].event`; C9 `NOAH_CYCLE`, `beyond_forecast_window` state, `/cameras` endpoints; new C11 (low spots), C12 (camera assessments); §5 rows for low spot, camera water, beyond window. Already written into `02-ARCHITECTURE.md`. Nothing existing was renamed or removed. | M ☑ · P ☐ (Priyanshu: confirm or object before building 006/009) |
 

@@ -174,5 +174,30 @@
   }
  ],
  "first_warning_cycle": "20240926T12Z",
- "lead_time_h": 13.2
+ "lead_time_h": 13.2,
+ "streets": [
+  {
+   "name": "Windsor Parkway",
+   "observed": "Bridge over Nancy Creek closed by flooding ~10:15 PM EDT Thu Sep 26, 2024 (City of Sandy Springs)",
+   "source_urls": [
+    "https://www.appenmedia.com/news/storm-floods-roadways-downs-trees-and-power-lines-in-north-metro-atlanta/article_7e3cd8fc-7ccf-11ef-830e-ffe3d7d5bfd8.html",
+    "https://11alive.com/article/weather/hurricane/sandy-springs-evacuation-nancy-creek-residents/85-7d555c98-b216-4a1d-a5fd-5a0fa6af3e3c"
+   ],
+   "demo_cycle": "20240926T12Z",
+   "flagged": true,
+   "t_flood_local": "Thu Sep 26 10 PM",
+   "t_uncertain_local": "Thu Sep 26 08 PM"
+  },
+  {
+   "name": "Woodward Way",
+   "observed": "Peachtree Creek flooded Woodward Way at Bobby Jones (photo caption, Sep 27, 2024; no time)",
+   "source_urls": [
+    "https://roughdraftatlanta.com/2024/09/27/atlanta-storm-damage-helene/"
+   ],
+   "demo_cycle": "20240926T12Z",
+   "flagged": false,
+   "t_flood_local": null,
+   "t_uncertain_local": null
+  }
+ ]
 }
