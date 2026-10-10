@@ -41,12 +41,14 @@ noah/                      Python package
     fetch_hand.py          spec 002
     build_segments.py      spec 003
     flood_times.py         spec 004
-    validate.py            spec 005
+    validate.py            spec 005 (also run per event, spec 011)
+    lowspots.py            spec 012 (terrain low spots on roads)
   api/                     Priyanshu
     app.py                 spec 006 (FastAPI)
     routing.py             spec 006
     agent.py               spec 007 (Gemini + tools + safety filter)
-    photo.py               spec 010 (stretch)
+    photo.py               spec 010 (water-depth classifier, shared with 013)
+    cameras.py             spec 013 (511GA camera list, capture, assessments)
 tests/                     one small test file per module with real logic
 fixtures/                  tiny hand-made files that follow the §4 contracts (for Priyanshu before real data lands)
 bot/                       Priyanshu — spec 008 (TypeScript, Photon Spectrum relay)
@@ -103,9 +105,12 @@ FeatureCollection, EPSG:4326, coordinates rounded to 5 dp. **Contains only segme
 ### C6 `web/data/cycles.json` — producer 004
 ```json
 {"demo_cycle": "20240926T18Z",
- "cycles": [{"cycle": "20240926T18Z", "issue_time": "2024-09-26T18:00:00Z",
+ "events": {"helene": {"label": "Hurricane Helene, Sep 26–27, 2024", "demo_cycle": "20240926T18Z"},
+            "isaias": {"label": "Hurricane Isaias, Oct 10, 2026", "demo_cycle": "20261010T06Z"}},
+ "cycles": [{"cycle": "20240926T18Z", "event": "helene", "issue_time": "2024-09-26T18:00:00Z",
              "valid_times": ["2024-09-26T19:00:00Z", "...18 entries"]}]}
 ```
+`events` and `cycles[].event` were added Oct 9 for spec 011. The top-level `demo_cycle` stays as the default scenario. An event appears only once its C5 files exist.
 
 ### C7 `web/data/aoi.geojson` — producer 003
 The AOI polygon (HUC10 0313000112), EPSG:4326.
@@ -125,13 +130,36 @@ The AOI polygon (HUC10 0313000112), EPSG:4326.
 |---|---|---|
 | `GET /health` | — | `{"ok": true, "cycle": "20240926T18Z"}` |
 | `GET /status` | `lat, lon, hours=18` | `{"state": STATE, "segments": [{"seg_id","name","state","eta_utc"}], "cycle"}`: worst state within 300 m and within `hours` |
-| `GET /route` | `from=lat,lon&to=lat,lon&depart_h=0` | `{"state": "route_found"\|"no_route"\|"out_of_coverage", "geometry": GeoJSON LineString\|null, "minutes": float\|null, "avoided": [seg_id], "map_url": str}` |
+| `GET /route` | `from=lat,lon&to=lat,lon&depart_h=0` | `{"state": "route_found"\|"no_route"\|"out_of_coverage"\|"beyond_forecast_window", "geometry": GeoJSON LineString\|null, "minutes": float\|null, "avoided": [seg_id], "map_url": str}` |
 | `POST /chat` | `{"sender": str, "text": str, "image_b64": str\|null}` | `{"reply": str}` |
+| `GET /cameras` (spec 013) | — | `[{"cam_id","name","lat","lon","latest": {"ts_utc","bucket","confidence","image_url"} \| null}]` |
+| `GET /cameras/{cam_id}/frames` (spec 013) | `from, to` (UTC ISO) | `[{"ts_utc","image_url","bucket"\|null,"confidence"\|null}]`. `image_url` points at the API's local static mount; demo only. |
 `STATE` ∈ `flooded | uncertain | no_forecast_flooding | out_of_coverage`.
-"Now" = lead hour 0 of `demo_cycle` in replay mode. A route removes every edge whose `t_uncertain <= depart_h + ROUTE_BUFFER_H`.
+"Now" = lead hour 0 of the active cycle in replay mode. The active cycle is env `NOAH_CYCLE` if set, otherwise C6 `demo_cycle`. A route removes every edge whose `t_uncertain <= depart_h + ROUTE_BUFFER_H`. A `depart_h` > 18 is outside the forecast window: `/route` returns `state: "beyond_forecast_window"` and the agent says so instead of guessing.
 
 ### C10 Map URL — producer 009, consumed by 006/007
 `{WEB_BASE}/?cycle=20240926T18Z&t=3&from=lat,lon&to=lat,lon&api={API_BASE}`. All parameters are optional. With `from`, `to` and `api` set, the map calls `/route` and draws the result.
+
+### C11 `web/data/lowspots.geojson` — producer 012, consumer 009
+FeatureCollection, EPSG:4326, coordinates at 5 dp. One LineString per road segment that crosses a terrain depression.
+| property | type | notes |
+|---|---|---|
+| seg_id | str | joins to C4 |
+| name | str \| null | |
+| depth_max_m | float | deepest fill depth under the segment, 2 dp |
+| pond_area_m2 | int | area of the depression it sits in |
+Static: it doesn't change by forecast hour and **doesn't affect routing or states** in the MVP.
+
+### C12 `data/interim/cctv_assessments.parquet` — producer + consumer 013 (Priyanshu only)
+| column | type | notes |
+|---|---|---|
+| cam_id | str | 511GA camera id |
+| ts_utc | timestamp (UTC) | capture time |
+| frame_path | str | relative to `data/raw/cctv/` |
+| bucket | str | `none\|curb\|half_tire\|door_sill_or_above\|cant_tell` (same as 010) |
+| confidence | str | `low\|med\|high` |
+| reference_object | str \| null | |
+The camera list is `data/raw/cctv/cameras.json`: `[{"cam_id","name","lat","lon","image_url"}]`.
 
 ## 5. User-facing state vocabulary (FROZEN)
 Every reply from the agent, the API and the map uses exactly these meanings. Wording can be shortened but must keep its meaning.
@@ -142,6 +170,10 @@ Every reply from the agent, the API and the map uses exactly these meanings. Wor
 | `uncertain` | **{road}: uncertain, treat as impassable** from around {time}. |
 | `no_forecast_flooding` | No flooding is forecast on this route through {end_time}. **This is not a safety guarantee.** Conditions change fast; never drive into water. *Turn Around Don't Drown.* |
 | `out_of_coverage` | That's outside Noah's coverage (Peachtree Creek watershed, Atlanta). Check local official warnings. |
+| `beyond_forecast_window` | That's more than 18 hours out, past Noah's forecast window. Ask again closer to the time. |
+| low spot (C11, informational) | **Low spot:** water can pool here in heavy rain when storm drains back up. Not part of the creek forecast. |
+| camera water (013) | **Camera on {road} shows water** around {reference} level at {time}. Treat nearby roads as impassable. (Image: Georgia DOT / 511GA) |
+A camera or photo report can only move a road to a **more** conservative state. Never use one to say water is gone.
 
 - Times are shown in America/New_York, e.g. "around 9 PM".
 - Always say "forecast". Mention 911 for emergencies whenever a message describes danger.
@@ -165,6 +197,9 @@ Every reply from the agent, the API and the map uses exactly these meanings. Wor
 | HELENE_CYCLES | hourly `20240926T12Z` … `20240927T12Z` | — |
 | BASELINE_CYCLE | `20240926T16Z` (gauge at low flow, 4.4 ft) | USGS IV |
 | DEMO_CYCLE | `20240926T18Z` (provisional, D5) | — |
+| EVENTS | `{"helene": {cycles 20240926T12Z…20240927T12Z, baseline 20240926T16Z, demo 20240926T18Z}, "isaias": {cycles 20261010T00Z…(latest), baseline 20261009T22Z, demo set by spec 011}}`. Pipeline CLIs take `--event`. | spec 011 |
+| NWM_LATENCY | ~1 h 45 min from cycle time to f018 in the bucket (t22z on Oct 9 landed 23:48Z) | measured Oct 9, 2026 |
+| ACTION_FLOW_CMS | `102.8` (3,630 cfs) | NWPS AANG1 |
 | UNCERTAIN_BAND_M | `0.5` | heuristic, see issues |
 | ROUTE_BUFFER_H | `1` | — |
 | SAMPLE_SPACING_M | `10` | — |

@@ -33,6 +33,10 @@ A single static `web/index.html`.
 6. Click a red or amber segment → popup with the street name, the state from §5, and the local time it enters that state.
 7. **Validation panel** (collapsible, if C8 exists): lead time ("NWM-based warning N h before Peachtree Creek reached flood stage") plus `validation.png`.
 8. Mobile: full-screen map, the slider docked at the bottom, tap targets ≥ 44 px, no horizontal scroll.
+9. **Scenario switch** (spec 011): if C6 has more than one `events` entry, show a small dropdown ("Helene 2024 / Isaias 2026") that reloads with that event's `demo_cycle`. Hidden if there's only one event.
+10. **Optional layers** (each only if its source exists; a toggle in the legend; off by default on mobile):
+    - Low spots (C11, spec 012): dotted violet `#a78bfa` lines, popup with the §5 low-spot text.
+    - Cameras (C12 via `/cameras`, spec 013): small camera markers. The popup shows the frame nearest the slider time, its assessment, and "Image: Georgia DOT / 511GA". Needs `api` in the URL.
 
 ## Acceptance criteria
 - [ ] Open `web/index.html` via `python -m http.server -d web` → fixture roads change color as the slider moves.

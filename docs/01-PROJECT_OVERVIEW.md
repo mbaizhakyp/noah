@@ -80,7 +80,7 @@ About 36 hours remain before the 7:00 AM Sunday internal deadline. Proposed spli
 ## Hackathon frame
 - **Event:** Hacklanta 2026, GSU Atlanta. Hacking runs Fri Oct 9, 8:30 PM to **Sun Oct 11, 9:00 AM ET (hard)**.
 - **Main track:** Social Good (Cox). The prompt, "people and places that get overlooked: access, safety, mobility", maps to safety (flood deaths), mobility (routing), and overlooked places (ungauged small creeks).
-- **Side challenges (2):** Photon: Agents in iMessage (must use Spectrum SDK). MLH: Best Use of Gemini API.
+- **Side challenges (3, FINAL Oct 9):** Photon: Agents in iMessage (must use Spectrum SDK). MLH: Best Use of Gemini API. Replit: Small Business ("Build the best small business app with Replit"; judges favor working, creative apps over technical complexity).
 - **Judging:** 3-min pitch + 2-min Q&A with 2 judges. Criteria: fits the prompt, polish, presentation, compelling use case.
 - **Submission:** Devpost write-up, public GitHub repo with a useful README, 2–3 min public demo video, demo link or run instructions.
 
@@ -96,7 +96,7 @@ Both build with Claude Code. No lab code is reused; everything is built fresh du
 | # | Decision | Value |
 |---|---|---|
 | D1 | Team | Margulan + Priyanshu |
-| D2 | Side challenges | Photon iMessage + MLH Gemini. Mercedes CV dropped; no Tiger Data. |
+| D2 | Track + side challenges | **FINAL (Oct 9, Margulan):** main track **Social Good**. Side challenges (max 3): **Photon iMessage + MLH Gemini + Replit Small Business**. Mercedes CV, Tiger Data, Domain Name and Zero Data are out. |
 | D3 | Name / domain | Noah; no domain purchase |
 | D4 | Coverage | Peachtree Creek HUC10 first, expandable within HUC8 03130001 |
 | D5 | Replay clock | Demo "now" = NWM short-range cycle **2024-09-26 18Z (2:00 PM EDT)**, provisional. Final rule: the earliest cycle from 12Z Sep 26 onward whose forecast at the gauge reach (feature_id 2047989) exceeds the minor-flood flow (5,700 cfs = 161.4 m³/s). Set by spec 005 after the midnight go/no-go. |

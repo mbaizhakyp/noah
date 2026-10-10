@@ -4,7 +4,7 @@
 
 Noah forecasts which road segments will flood in the next 18 hours and roughly when. It routes you around them and answers plain questions over iMessage ("can I get home tonight?").
 
-> Built at Hacklanta 2026 (Oct 9–11, Georgia State University) · Track: Social Good · Side challenges: Photon (Agents in iMessage), MLH Best Use of Gemini API.
+> Built at Hacklanta 2026 (Oct 9–11, Georgia State University) · Track: Social Good · Side challenges: Photon (Agents in iMessage), MLH Best Use of Gemini API, Replit (Small Business).
 
 **Status:** in progress. This README becomes the Devpost-ready version at feature freeze (Sun 00:00).
 

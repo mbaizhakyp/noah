@@ -4,7 +4,7 @@ Guiding rule: **least code that works, and boring code over clever code.** It's 
 
 ## Python (pipeline + API)
 - Python 3.12, managed with **uv** (`uv add <pkg>`, `uv run ...`), with a single `pyproject.toml` at the repo root.
-- Baseline dependencies: `xarray`, `h5netcdf`, `pandas`, `pyarrow`, `geopandas`, `shapely`, `rasterio`, `osmnx`, `networkx`, `httpx`, `fastapi`, `uvicorn`, `google-genai`, `python-dotenv`, `pytest`, `ruff`. **A new dependency needs one line of justification in the commit message.** Prefer the stdlib or something already installed.
+- Baseline dependencies: `xarray`, `h5netcdf`, `h5py` (h5netcdf can't read NWM files without it; verified Oct 9), `pandas`, `pyarrow`, `geopandas`, `shapely`, `rasterio`, `osmnx`, `networkx`, `httpx`, `fastapi`, `uvicorn`, `google-genai`, `python-dotenv`, `pytest`, `ruff`. **A new dependency needs one line of justification in the commit message.** Prefer the stdlib or something already installed.
 - Format and lint with `uv run ruff format && uv run ruff check --fix`. Default ruff config, line length 100.
 - Write plain module-level functions. Use a class only when state genuinely needs one; FastAPI app state is fine. No abstract base classes, factories or plugin systems.
 - Type hints on public functions. Each module's docstring says what it reads and writes, citing contract IDs (C1–C10).
@@ -38,7 +38,12 @@ Guiding rule: **least code that works, and boring code over clever code.** It's 
 - Run with `uv run pytest -q`. No mocks of Gemini or Photon in tests. Test the pure functions around them.
 
 ## Git
-- Push straight to `main` in small commits. Run `git pull --rebase` before each push. No long-lived branches; we have no time for PR review.
+- **Sync rule (mandatory, humans and AIs).** Two people commit to `main`, so never work on a stale copy:
+  1. **Before starting any change:** `git fetch && git status -sb`. If it says `behind`, run `git pull --rebase` first. If the pull touched `docs/`, `specs/` or `noah/config.py`, re-read those files before editing.
+  2. **Right before every commit:** run `git fetch && git status -sb` again. If behind: `git stash && git pull --rebase && git stash pop`, re-run the tests, then commit.
+  3. **Right after committing:** `git push`. If it's rejected, `git pull --rebase` and push again. Never force-push to `main`.
+  4. On a rebase conflict in a file the other person owns, stop and ask them. Don't guess.
+- Push straight to `main` in small commits. No long-lived branches; we have no time for PR review.
 - Commit message: `[spec-004] flood_times: channel-pixel filter`. Use `[docs]` for docs-only changes.
 - Never commit `data/`, `.env`, rasters or NetCDF files. `web/data/*` is committed, under 20 MB per file.
 - Shared files (`noah/config.py`, `docs/02-ARCHITECTURE.md`, `pyproject.toml`): tell the other person before pushing a change.

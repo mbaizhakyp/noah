@@ -17,6 +17,7 @@ Auth, a database, multiple simultaneous cycles per request, turn-by-turn directi
 ## Inputs
 - C4 `graph.graphml`, C5 `flood_<DEMO_CYCLE>.geojson`, C6 `cycles.json`, C7 `aoi.geojson`.
 - Paths from `config.py`, with a `NOAH_DATA=fixtures` env override for fixture mode.
+- Active cycle: env `NOAH_CYCLE` if set (e.g., an Isaias cycle for spec 011), otherwise C6 `demo_cycle`. Switching scenario means a restart with a different env and no code change.
 
 ## Outputs
 C9 exactly. `map_url` follows C10.
@@ -25,7 +26,7 @@ C9 exactly. `map_url` follows C10.
 1. **Startup:** load the graph with `ox.load_graphml`, the flood GeoJSON into a dict `seg_id → (t_uncertain, t_flood, name)`, and the AOI polygon. Keep everything in app state.
 2. **State of a segment at lead hour h:** `flooded` if `t_flood <= h`; `uncertain` if `t_uncertain <= h`; otherwise `no_forecast_flooding`.
 3. **/status:** if the point is outside the AOI → `out_of_coverage`. Otherwise find C5 segments within 300 m (shapely STRtree over C5 geometries in a metric CRS), state each at `h = hours`, and return the worst state (flooded > uncertain > no_forecast_flooding). `eta_utc` = `issue_time + t_* hours`, taken from C6.
-4. **/route:** if either endpoint is outside the AOI → `out_of_coverage`. Otherwise snap both points to the nearest nodes (`ox.distance.nearest_nodes`), copy a view of the graph without the edges whose `t_uncertain <= depart_h + ROUTE_BUFFER_H`, and run `nx.shortest_path(weight="travel_time")`. No path → `no_route`. Return the LineString (concatenate the edge geometries, falling back to node coords), total minutes, the `avoided` seg_ids on or near the unconstrained shortest path, and `map_url`.
+4. **/route:** if `depart_h > 18` → `beyond_forecast_window`. If either endpoint is outside the AOI → `out_of_coverage`. Otherwise snap both points to the nearest nodes (`ox.distance.nearest_nodes`), copy a view of the graph without the edges whose `t_uncertain <= depart_h + ROUTE_BUFFER_H`, and run `nx.shortest_path(weight="travel_time")`. No path → `no_route`. Return the LineString (concatenate the edge geometries, falling back to node coords), total minutes, the `avoided` seg_ids on or near the unconstrained shortest path, and `map_url`.
    - `# ponytail:` removes edges for the whole trip regardless of when you reach them; time-dependent routing is the upgrade.
 5. CORS: allow `WEB_BASE` origin only.
 6. Every endpoint wraps its logic. On an exception, log the trace server-side and return HTTP 200 with the conservative error state/message from `02-ARCHITECTURE.md` §5.

@@ -4,15 +4,18 @@ These rules apply to every AI agent working in this repo (Claude Code for both M
 
 ## The loop (spec-driven development)
 ```
-pick task (05-PROGRESS) → read context (CLAUDE.md order) → read spec
+SYNC: git fetch && git status -sb → behind? git pull --rebase, re-read changed docs/specs
+→ pick task (05-PROGRESS) → read context (CLAUDE.md order) → read spec
    → spec missing / vague / Draft?  → write or fix spec, ask human to approve, STOP
    → spec Approved?                 → implement exactly the spec
 → run its acceptance checks + tests + ruff
 → update 05-PROGRESS (your section) + 06-CURRENT_ISSUES
-→ commit "[spec-NNN] ..." → pull --rebase → push
+→ SYNC again (stash → pull --rebase → pop → re-test if anything came in)
+→ commit "[spec-NNN] ..." → push immediately
 ```
 
 ## Rules
+0. **Sync before every change and before every commit** (`03-CODE_STANDARDS.md` §Git, sync rule). Never edit or commit on a copy that is behind `origin/main`. If the pull changed a doc or spec you rely on, re-read it before continuing and tell your human what changed.
 1. **No code without an approved spec.** A spec is approved when its header says `Status: Approved`, and only a human sets that. If the spec is ambiguous, ask one specific question; don't guess. Small mechanical fixes (a typo, a lint error, a broken import) don't need a spec.
 2. **Implement the spec, the whole spec, and nothing but the spec.** No extra endpoints, options, refactors or "while I'm here" changes. Ideas go to the parking lot in `06-CURRENT_ISSUES.md`.
 3. **Contracts are frozen.** Never change a file format, column, property, endpoint or state name in `02-ARCHITECTURE.md` §4–5 on your own. If one is wrong, log it in `06-CURRENT_ISSUES.md` as `CONTRACT CHANGE PROPOSAL` and ask your human. Both humans must agree before it changes.

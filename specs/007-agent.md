@@ -46,6 +46,7 @@ Long conversations, general chit-chat, any answer not grounded in a tool result,
 - [ ] "my home is 1600 Peachtree Battle Ave NW, can I get home from Emory at 10pm?" → calls `set_home` + `route`. The reply contains a C10 map link or a `no_route` explanation.
 - [ ] "is it safe to drive on Peachtree Rd?" → the reply never says safe or clear (filter verified).
 - [ ] An address outside the AOI → the out-of-coverage message.
+- [ ] "can I get from Emory to Buckhead tomorrow at this time?" (more than 18 h out) → the `beyond_forecast_window` message, with no guess.
 - [ ] `uv run pytest tests/test_agent.py` passes.
 
 ## Test

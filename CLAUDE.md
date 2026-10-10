@@ -12,6 +12,7 @@ Claude Code loads this file automatically. Keep it short; the detail lives in `d
 7. The spec for your task in `specs/` — **no spec with `Status: Approved` → no code**
 
 ## Non-negotiables
+- **Sync first, every time.** Two people push to `main`. Before starting any change *and* again right before every commit, run `git fetch && git status -sb`. If it says `behind`, run `git pull --rebase` first, re-read any changed doc or spec that affects your task, and only then edit or commit. Push right after committing. Details: `docs/03-CODE_STANDARDS.md` §Git.
 - Spec first. Implement only what the approved spec says. Ideas outside it go to the parking lot in `docs/06-CURRENT_ISSUES.md`.
 - Data contracts in `docs/02-ARCHITECTURE.md` §4 change only when both humans agree.
 - Stay in your owner's directories (see `docs/05-PROGRESS.md` §Owners).
