@@ -14,7 +14,7 @@ This weekend Hurricane Isaias hit Atlanta, and Peachtree Creek went from 19 to 3
 
 ### What it does
 Noah forecasts which roads will flood, and when, up to 18 hours ahead, street by street.
-- **For everyday drivers (iPad and web map):** save Work, Home and delivery stops. Noah routes around flooded roads, says when to leave, warns when your own street floods first, and finds the best stop order.
+- **For everyday drivers (iPad app):** save Work, Home and delivery stops. Noah routes around flooded roads, says when to leave, warns when your own street floods first, and finds the best stop order.
 - **For anyone, by text (iMessage):** ask "Can I drive home from Midtown at 6 PM?" and get a plain answer with the street and the time. Text `alerts on` and Noah texts first when a road you use is about to flood. No app, no account.
 - **For cities and businesses (Noah Operations):** which schools, hospitals and fire stations get cut off from every open road and when; why a road floods (the creek, its threshold, how often it floods); what to fix first; the best hour to send deliveries; how often a candidate site gets cut off.
 
@@ -26,7 +26,7 @@ Noah never says a road is safe. Uncertain counts as impassable, every answer say
 - **Routing:** an OpenStreetMap drive graph (OSMnx, NetworkX); flooded and uncertain roads drop out hour by hour.
 - **Live checks:** NWS warnings, TomTom incidents, rain gauges and traffic cameras; a camera counts only when water shows in two AI checks.
 - **Agent:** FastAPI backend with an Azure OpenAI tool-calling agent (`check_route`, `check_area`, `remember_place`), reached over iMessage through Photon Spectrum with `spectrum-ts`: typing indicator, photos via `attachment()`, unprompted alerts via `space.send`. A route watch compares each new forecast with the last and texts only on change.
-- **Front ends:** MapLibre web map, an iPad app, and the Noah Operations console.
+- **Front ends:** an iPad app for everyday drivers and the Noah Operations console for cities and businesses (both MapLibre).
 
 ### Challenges we ran into
 - NOAA's road list skips residential streets, so the Helene streets that flooded weren't in it. We computed residential thresholds ourselves and checked them against NOAA's.

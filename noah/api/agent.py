@@ -75,7 +75,7 @@ How to answer:
   is empty, say no flooding is forecast at that spot (not a safety guarantee), then the nearby roads.
 - If a tool returns an error, say so plainly and ask for a street address. Never claim a place was
   saved or checked unless the tool result says so.
-- If a route result has a map_url, include it. Plain text, no markdown, at most 480 characters."""
+- Plain text, no markdown, at most 480 characters."""
 
 TOOLS = [
     {
@@ -453,8 +453,6 @@ def run_tool(name: str, args: dict, session: dict, ctx: dict) -> dict:
                 out[f"{label}_street_flooding"] = near
                 if rt["state"] == "route_found":
                     out["state"] = "endpoint_flooded"
-        if rt.get("map_url") and config.WEB_BASE:
-            out["map_url"] = rt["map_url"]
         if rt["state"] == "route_found":
             out["live"] = engine_extra(
                 "route", a["lat"], a["lon"], b["lat"], b["lon"], h, ctx["cycle"]

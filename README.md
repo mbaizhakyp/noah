@@ -12,7 +12,7 @@ More than half of flood drownings happen in a vehicle (CDC figure used by NWS "T
 ## What it does
 | Screen | For | What they get |
 |---|---|---|
-| **iPad / web map** | Everyday drivers | Work, home, deliveries: a route around flooded roads, "leave by" times, the best stop order |
+| **iPad** (`/ipad/`) | Everyday drivers | Work, home, deliveries: a route around flooded roads, "leave by" times, the best stop order |
 | **iMessage** | Anyone, no app | "Can I drive home from Midtown at 6 PM?" in plain language; `alerts on` for unprompted warnings on watched routes |
 | **Noah Operations** (`web/dispatch.html`) | Cities and businesses | City: facilities cut off from every open road, "Why" a road floods, what to fix first. Deliveries: best departure hour. Site check: how often a location gets cut off |
 
@@ -43,7 +43,7 @@ cd bot && npm install && npm start                           # iMessage relay
 scripts/demo_mode.sh                                         # Helene replay on :8100
 uv run pytest && (cd bot && npm test)                        # tests
 ```
-Pages: `/` map, `/dispatch.html` Noah Operations, `/ipad/` iPad app (needs the snapshot from release `demo-snapshot-20240926T12Z`, see `docs/10-IPAD_DEMO_SETUP.md`). One-time data build: `fetch_hand` → `build_segments` → `flood_times` → `validate` (`docs/05-PROGRESS.md`).
+Pages: `/` opens Noah Operations (`/dispatch.html`); `/ipad/` is the iPad app (needs the snapshot from release `demo-snapshot-20240926T12Z`, see `docs/10-IPAD_DEMO_SETUP.md`). One-time data build: `fetch_hand` → `build_segments` → `flood_times` → `validate` (`docs/05-PROGRESS.md`).
 
 ## Team
 - **Margulan Baizhakyp:** forecast pipeline (NWM, HAND thresholds, residential roads, validation), live loop, route watch and alerts, iMessage agent and relay, Noah Operations console.

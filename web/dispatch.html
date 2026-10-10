@@ -40,6 +40,7 @@
       radial-gradient(700px 220px at 78% -40px, rgba(134, 181, 250, .35), transparent 70%),
       linear-gradient(180deg, rgba(2, 23, 43, .97) 0%, rgba(4, 50, 90, .9) 46%, rgba(4, 50, 90, 0) 100%); }
   .hero { position: absolute; top: 22px; left: 432px; right: 240px; pointer-events: none; display: grid; gap: 10px; color: var(--pale); }
+  body:has(#why:not([hidden])) .hero { right: 372px; }  /* keep the caption clear of the Why card */
   .eyebrow { justify-self: start; display: inline-flex; align-items: center; gap: 8px; padding: 5px 12px 5px 9px;
     background: rgba(254, 236, 235, .08); border: 1px solid rgba(254, 236, 235, .22); border-radius: 999px; font-size: 13px; }
   .eyebrow .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--red); box-shadow: 0 0 0 3px rgba(248, 99, 91, .28); }
@@ -47,8 +48,6 @@
   h1 { margin: 0; font: 760 clamp(28px, 3.2vw, 44px)/1.04 var(--display); font-stretch: 112%; letter-spacing: -.02em; text-wrap: balance; }
   .caption .big { font: 650 clamp(17px, 1.5vw, 21px)/1.25 var(--display); font-stretch: 104%; }
   .caption .small { color: rgba(254, 236, 235, .82); font-size: 14px; margin-top: 2px; max-width: 64ch; }
-  .maplink { position: absolute; top: 22px; right: 64px; padding: 8px 14px; border-radius: 999px; background: var(--surface);
-    color: var(--ink); text-decoration: none; font-weight: 600; font-size: 14px; box-shadow: var(--shadow); }
   .maplibregl-ctrl-top-right { top: 12px; right: 4px; }
 
   .legend { position: absolute; right: 16px; bottom: 96px; background: var(--surface); border-radius: 12px; padding: 8px 12px;
@@ -69,8 +68,9 @@
   .timebar .ends { color: var(--muted); font-size: 12px; white-space: nowrap; }
 
   /* ---------- why card (floats over the map) ---------- */
-  .why { position: absolute; right: 16px; top: 220px; width: 340px; max-height: calc(100% - 340px); overflow-y: auto; background: var(--surface);
-    border-radius: 18px; box-shadow: var(--shadow); padding: 16px 16px 14px; display: grid; gap: 10px; }
+  .why { position: absolute; right: 16px; top: 84px; width: 340px; max-height: calc(100% - 196px); overflow-y: auto; background: var(--surface);
+    border-radius: 18px; box-shadow: var(--shadow); padding: 16px 16px 14px; display: grid; gap: 10px;
+    scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
   .why .close { position: absolute; top: 10px; right: 10px; width: 32px; height: 32px; border: 0; border-radius: 50%; background: var(--paper);
     cursor: pointer; font-weight: 700; }
   .why .k { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
@@ -80,9 +80,13 @@
   .why .cause b { color: var(--dark); }
   .why svg { display: block; width: 100%; height: auto; }
   .why svg text { font: 10.5px var(--body); fill: var(--muted); }
-  .facts { display: grid; gap: 6px; font-size: 13.5px; }
-  .facts div { display: flex; gap: 8px; align-items: baseline; }
-  .facts .ico { width: 18px; flex: none; text-align: center; color: var(--dark); font-weight: 700; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .stats div { background: var(--paper); border-radius: 10px; padding: 7px 8px; display: grid; gap: 1px; }
+  .stats b { font: 760 17px/1.1 var(--display); font-variant-numeric: tabular-nums; color: var(--deep); }
+  .stats span { font-size: 11.5px; line-height: 1.25; color: var(--muted); }
+  .facts { display: grid; gap: 6px; font-size: 13px; }
+  .facts div { display: flex; gap: 8px; align-items: flex-start; }
+  .facts svg { width: 16px; height: 16px; flex: none; margin-top: 1px; color: var(--dark); }
   .act { background: var(--pale); color: var(--red-ink); border-radius: 12px; padding: 8px 10px; font-size: 13.5px; font-weight: 600; }
   .fine { font-size: 12px; color: var(--muted); margin: 0; }
 
@@ -190,7 +194,7 @@
     color: var(--ink); box-shadow: 0 4px 12px -4px rgba(2, 23, 43, .4); }
   .maplibregl-popup-content { border-radius: 12px; padding: 10px 12px; font: 13.5px/1.4 var(--body); box-shadow: var(--shadow); }
 
-  @media (max-width: 1100px) { .hero { right: 16px; } .maplink { display: none; } .legend { display: none; } }
+  @media (max-width: 1100px) { .hero { right: 16px; } .legend { display: none; } }
   @media (max-width: 820px) {
     .stage { position: relative; height: 64vh; }
     .veil { height: 200px; }
@@ -212,7 +216,6 @@
     <h1 id="heroTitle">Close the road before the water does.</h1>
     <div class="caption" aria-live="polite"><div class="big" id="capBig">Loading forecast…</div><div class="small" id="capSmall"></div></div>
   </header>
-  <a class="maplink" href="index.html">Open the flood map →</a>
   <div class="legend" id="legend" aria-label="Map legend">
     <div><span class="sw" style="background:var(--soft)"></span>Creeks</div>
     <div><span class="sw" style="background:var(--red)"></span>Road underwater</div>
@@ -230,6 +233,7 @@
     <div class="when" id="whyWhen"></div>
     <div class="cause" id="whyCause"></div>
     <div id="whyChart"></div>
+    <div class="stats" id="whyStats"></div>
     <div class="facts" id="whyFacts"></div>
     <div class="act" id="whyAct" hidden></div>
     <p class="fine" id="whyNote"></p>
@@ -332,6 +336,12 @@ const fmtHour = new Intl.DateTimeFormat("en-US", { ...TZ, hour: "numeric" });
 const fmtDay = new Intl.DateTimeFormat("en-US", { ...TZ, weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 const local = (iso) => fmt.format(new Date(iso));
 const hourOf = (iso) => fmtHour.format(new Date(iso));
+const dayHour = (iso) => new Intl.DateTimeFormat("en-US", { ...TZ, weekday: "short", hour: "numeric" }).format(new Date(iso));
+const ICON = {  // Lucide (ISC), inline so the page needs no icon font
+  history: '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/>',
+  camera: '<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/>',
+};
+const icon = (k) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[k]}</svg>`;
 const C = { red: "#F8635B", amber: "#E8A33D", route: "#04325A", water: "#86B5FA", grey: "#9AA9BC", deep: "#02172B" };
 const STATUS_COLOR = { cut: C.red, later: C.amber, open: C.route, none: C.grey };
 const KIND_LETTER = { Hospital: "H", Clinic: "C", "Nursing home": "N", School: "S", "Fire station": "F", Police: "P" };
@@ -495,7 +505,7 @@ async function loadCity(cycle) {
     const every = r.events.length > 1 && r.events.every((e) => e.runs === e.of);
     if (every) top.append(el("span", "badge b-hold", "Every storm"));
     const chips = el("div", "chips");
-    r.events.forEach((e) => chips.append(el("span", "chip red", `${e.event}: ${e.runs}/${e.of}`)));
+    r.events.forEach((e) => chips.append(el("span", "chip", `${e.event} · ${e.runs}/${e.of}`)));
     if (r.major) chips.append(el("span", "chip blue", "Major road"));
     r.facilities.forEach((f) => chips.append(el("span", "chip", `Near ${f}`)));
     const det = el("div", "detail", `${r.creek ? r.creek + " overtops it" : "Creek overflow"}${r.road_above_creek_m != null ? ` · road ~${r.road_above_creek_m} m above the creek` : ""} · first under ${hourOf(r.first_utc)}`);
@@ -532,26 +542,31 @@ async function openWhy(segId, fly) {
   if (hourNow() < redAt) render(redAt);  // never explain a road that is not red yet on screen
   $("why").hidden = false; $("legend").hidden = true;
   $("whyName").textContent = alias(d.name);
-  $("whyWhen").textContent = `Risky from ~${local(d.uncertain_from_utc)}` + (d.flooded_from_utc ? ` · underwater from ~${hourOf(d.flooded_from_utc)}` : "");
+  const sameHour = d.flooded_from_utc && hourOf(d.flooded_from_utc) === hourOf(d.uncertain_from_utc);
+  $("whyWhen").textContent = sameHour ? `Underwater from ~${dayHour(d.flooded_from_utc)}` :
+    `Risky from ~${dayHour(d.uncertain_from_utc)}` + (d.flooded_from_utc ? ` · underwater ~${hourOf(d.flooded_from_utc)}` : "");
   $("whyCause").innerHTML = "";
-  const cause = el("span"); cause.append(el("b", null, d.creek ? d.creek.name : "The creek"), document.createTextNode(" overtops it."));
+  const cause = el("span"); cause.append(...(d.creek ? [el("b", null, d.creek.name), document.createTextNode(" overtops it.")] : [document.createTextNode("Creek overflow.")]));
   if (d.creek && d.creek.regulated) cause.append(document.createTextNode(" Its flow is partly set by Buford Dam releases upstream, which the forecast includes."));
   $("whyCause").append(cause);
   drawWhyChart(d, hourNow());
-  const facts = [];
-  const add = (ico, text) => { const row = el("div"); row.append(el("span", "ico", ico), el("span", null, text)); facts.push(row); };
-  if (d.water_reaches_road_cfs) add("≈", `Water reaches the road when the creek passes ${d.water_reaches_road_cfs.toLocaleString()} cfs; forecast peak ${d.peak.cfs.toLocaleString()} cfs at ${hourOf(d.peak.t)}${d.times_over ? ` (${d.times_over}×)` : ""}.`);
-  add("↕", `The road sits about ${d.road_above_creek_m} m above the creek.`);
-  add("↻", d.history.map((x) => `${x.event}: flagged in ${x.runs} of ${x.of} forecasts`).join(" · ") + ".");
-  add("◎", d.cameras.length ? `Cameras within 300 m: ${d.cameras.map((c) => `${c.title}${c.last_check ? ` (last check: ${c.last_check.replace("_", " ")})` : ""}`).join("; ")}.` : "No traffic camera within 300 m.");
-  add("§", `Threshold from the ${d.source}.`);
-  $("whyFacts").replaceChildren(...facts);
+  const stat = (v, l) => { const c = el("div"); c.append(el("b", null, v), el("span", null, l)); return c; };
+  $("whyStats").replaceChildren(...[
+    d.water_reaches_road_cfs && stat(`${d.water_reaches_road_cfs.toLocaleString()} cfs`, "creek flow that floods it"),
+    d.times_over && stat(`${d.times_over}×`, `that at the ${hourOf(d.peak.t)} peak`),
+    d.road_above_creek_m != null && stat(`${d.road_above_creek_m} m`, "road above the creek"),
+  ].filter(Boolean));
+  const row = (k, text) => { const r = el("div"); r.innerHTML = icon(k); r.append(el("span", null, text)); return r; };
+  const hist = d.history.map((x) => `${x.runs}/${x.of} ${x.event.split(" ")[0]}`).join(", ");
+  $("whyFacts").replaceChildren(
+    row("history", `Flagged in ${hist} forecasts`),
+    row("camera", d.cameras.length ? `${d.cameras.map((c) => c.title).join("; ")} within 300 m` : "No traffic camera within 300 m"));
   const every = d.history.length > 1 && d.history.every((x) => x.runs === x.of);
   const barricade = new Date(new Date(d.uncertain_from_utc).getTime() - 3600e3);
   $("whyAct").hidden = false;
-  $("whyAct").textContent = (mode === "fleet" ? `Plan deliveries across ${alias(d.name)} before ~${fmtHour.format(barricade)}.` : `Barricade before ~${fmtHour.format(barricade)}.`) +
-    (every ? " It floods in every recorded storm: a candidate for a road-raising or culvert study." : "");
-  $("whyNote").textContent = d.not_modeled;
+  $("whyAct").textContent = (mode === "fleet" ? `Route deliveries off it before ~${fmtHour.format(barricade)}.` : `Barricade before ~${fmtHour.format(barricade)}.`) +
+    (every ? " Floods in every recorded storm: study raising it or a bigger culvert." : "");
+  $("whyNote").textContent = `Threshold: ${d.source}. Creek overflow only: storm drains and dam failure are not modeled.`;
   if (fly) {
     const f = flood.find((x) => x.properties.seg_id === segId);
     if (f) { const cs = f.geometry.coordinates; map.fitBounds(cs.reduce((b, c) => b.extend(c), new maplibregl.LngLatBounds(cs[0], cs[0])), { padding: framePad(), maxZoom: 16 }); }
@@ -743,9 +758,7 @@ async function run() {
     const pts = [[d.depot.lon, d.depot.lat], ...d.stops.filter((s) => s.state !== "out_of_coverage").map((s) => [s.lon, s.lat])];
     map.fitBounds(pts.reduce((bb, q) => bb.extend(q), new maplibregl.LngLatBounds(pts[0], pts[0])), { padding: framePad(), maxZoom: 14, duration: 0 });
     setMode(mode);
-    const firstCut = Math.min(...d.stops.filter((s) => s.state === "go_before").map((s) => s.cut_h));
-    const worst = streetsBy[18].size, busy = streetsBy.findIndex((x) => x.size >= 0.8 * worst);
-    render(mode === "fleet" ? (isFinite(firstCut) ? firstCut : 0) : Math.max(0, busy));
+    render(0);  // every check opens at the forecast's first hour; play or drag the time bar from there
     loadCity(d.cycle);
     await loadBarricades(d.cycle);
   } catch (e) { showError(e.message); }

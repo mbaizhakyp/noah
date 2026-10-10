@@ -19,7 +19,6 @@ esac
 cat <<EOF
 Noah demo mode: forecast ${CYCLE}, API on http://localhost:8100 (live API stays on :8000)
   Operations board (agencies + businesses): http://localhost:8100/dispatch.html?cycle=${CYCLE}
-  Map at the run's own clock:              http://localhost:8100/?cycle=${CYCLE}
   iPad app (users, recorded snapshot):     http://localhost:8100/ipad/
   iMessage from the demo forecast:         cd bot && API_BASE=http://localhost:8100 npm start
 EOF
