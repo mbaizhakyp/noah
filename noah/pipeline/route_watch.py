@@ -176,6 +176,7 @@ def camera_message(row: dict, route: dict | None, first: dict | None) -> str:
 def queue(text: str, image: str | None = None) -> None:
     from noah.pipeline.camera_watch import notify  # desktop + ntfy fallback (spec 017 fallback)
 
+    text = config.road_alias(text)
     OUTBOX.parent.mkdir(parents=True, exist_ok=True)
     with open(OUTBOX, "a") as fh:
         item = {
@@ -230,7 +231,7 @@ def run_once() -> None:
                 queue(msg)
     if hist["runs"]:
         LATEST.parent.mkdir(parents=True, exist_ok=True)
-        LATEST.write_text(summary(hist["runs"][-1], routes))
+        LATEST.write_text(config.road_alias(summary(hist["runs"][-1], routes)))
 
     seen = {(a["cam_id"], a["ts"]) for a in hist["camera_alerts"]}
     rows = [json.loads(x) for x in CHECKS.read_text().splitlines()] if CHECKS.exists() else []

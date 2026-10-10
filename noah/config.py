@@ -206,6 +206,16 @@ def aoi_union(geojson_text: str):
     return shapely.union_all([shape(f["geometry"]) for f in json.loads(geojson_text)["features"]])
 
 
+# Texts only: official road names nobody says -> what Atlanta calls them (data keeps the OSM names).
+ROAD_ALIASES = {"Horace E Tate Freeway": "Downtown Connector"}
+
+
+def road_alias(text: str) -> str:
+    for official, common in ROAD_ALIASES.items():
+        text = text.replace(official, common)
+    return text
+
+
 # Runtime (env)
 GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "")
 API_BASE = os.environ.get("API_BASE", "http://localhost:8000")

@@ -69,3 +69,12 @@ def test_messages_use_safe_vocabulary_and_lead_time():
     )
     assert "2.5 h earlier" in msg and "Windy.com" in msg and not is_banned(msg)
     assert first_warning([run], "r01", "2026-10-10T13:00:00Z") is None  # Noah didn't have it yet
+
+
+def test_texts_use_the_name_people_say():
+    from noah.config import road_alias
+
+    assert (
+        road_alias("cut from ~7 AM at Horace E Tate Freeway")
+        == "cut from ~7 AM at Downtown Connector"
+    )

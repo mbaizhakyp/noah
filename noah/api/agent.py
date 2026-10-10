@@ -541,6 +541,7 @@ def answer(sender: str, text: str) -> str:
             reply = template_reply(last_result)
     if needs_guarantee(last_result, reply):
         reply = finalize(reply[: MAX_CHARS - 40].rstrip() + " This is not a safety guarantee.")
+    reply = config.road_alias(reply)  # never longer: aliases are shorter than the official names
     session["history"].extend(
         [{"role": "user", "content": text}, {"role": "assistant", "content": reply}]
     )
