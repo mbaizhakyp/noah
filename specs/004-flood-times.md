@@ -3,48 +3,46 @@
 | | |
 |---|---|
 | Owner | Margulan |
-| Status | Draft |
-| Time box | 2 h |
-| Depends on | C1 (001), C2 (002), C3 + C4 (003) |
+| Status | Approved (Margulan, Fri 22:15; rewritten for CC3) |
+| Time box | 1.5 h |
+| Depends on | C1 (001), C3 + C4 (003), FIM `hydrotable.parquet` (002) |
 | Produces | C5 `web/data/flood_<cycle>.geojson`, C6 `web/data/cycles.json` |
 
 ## Goal
-For each forecast cycle, compute when each road segment enters the uncertain and flooded states. Write map- and API-ready files.
+For each forecast cycle, compute when each road segment enters the uncertain and flooded states, and write map- and API-ready files.
 
 ## Non-goals
-Recession / reopening (parking lot). Depth on the road (we only flag "water reaches it"). Storm-drain flooding.
+Recession / reopening (parking lot). Water depth on the road. Storm-drain flooding.
 
 ## Inputs
-C1 per cycle, C2, C3, C4 (for geometry and names), `config.BASELINE_CYCLE`, `config.UNCERTAIN_BAND_M`.
+C1 per cycle, C3, C4 (geometry and names), `hydrotable.parquet` (all branches, for the uncertain band), `config.BASELINE_CYCLE`, `UNCERTAIN_BAND_M`.
 
 ## Outputs
-C5 per cycle in `HELENE_CYCLES`, plus C6 with `demo_cycle = config.DEMO_CYCLE`.
+C5 per cycle in the event, plus C6 with `demo_cycle = config.DEMO_CYCLE` (`20240926T12Z`).
 
 ## Behavior
-Algorithm exactly as in `docs/02-ARCHITECTURE.md` §2:
-1. `stage(hydro_id, t)`: for each HydroID, `numpy.interp(q, curve.q_cms, curve.stage_m)` using the HydroID's `feature_id` flow from C1. Flow above the curve's max → clamp to the max stage and **log a warning with the count**. (`# ponytail:` clamping understates extreme stage; extrapolating linearly is the upgrade.)
-2. Baseline stage per HydroID from `BASELINE_CYCLE` lead 1.
-3. Channel-pixel filter: drop C3 samples with `hand_m <= baseline_stage(hydro_id)`.
-4. `hand_min[seg_id, hydro_id] = min(hand_m)` over the remaining samples.
-5. Per (seg, hydro), over lead_h 0–18 (0 = now): `t_flood` = first lead_h with `stage >= hand_min`; `t_uncertain` = first lead_h with `stage >= hand_min - UNCERTAIN_BAND_M`. Per segment, take the minimum across its HydroIDs. `feature_id` = the reach of the HydroID that set `t_uncertain`.
-6. Persistence is implied: we only store first-entry hours, and consumers treat states as sticky.
-7. Join geometry and `name` from C4 edges. Keep only segments with non-null `t_uncertain`. Round coords to 5 dp, `hand_min_m` to 2 dp, and write C5.
-8. Write or update C6 with all processed cycles and their 19 `valid_times` (index = lead_h, 0–18).
-9. Log per cycle: n uncertain, n flooded, earliest `t_flood`.
+Exactly `docs/02-ARCHITECTURE.md` §2:
+1. Per C3 row: `uncertain_q = interp(max(threshold_hand − band, 0.5·threshold_hand), curve.stage → curve.q)` on that row's (HydroID, branch) curve. If the curve is missing, `uncertain_q = threshold_q` (no band) and log the count.
+2. Baseline guard: drop rows whose `threshold_q ≤ q(feature_id, BASELINE_CYCLE, lead 1)`. Log the count.
+3. Per cycle: build Q[feature_id, lead 0–18]. For each row, `t_flood` = first lead with `q ≥ threshold_q` and `t_uncertain` = first lead with `q ≥ uncertain_q`, vectorized. Per segment, take the minimum over rows. `feature_id` = the row that set `t_uncertain`. `hand_min_m` = min `threshold_hand`.
+4. Keep segments with non-null `t_uncertain`. Join geometry + `name` from C4 edges. Round coords to 5 dp and write C5.
+5. Write C6: every processed cycle with 19 `valid_times` (index = lead_h), `demo_cycle`, and `events.helene`.
+6. Log per cycle: n uncertain, n flooded, earliest `t_flood`.
 
 ## Acceptance criteria
 - [ ] `uv run pytest tests/test_flood_times.py` passes.
-- [ ] C5 exists for every Helene cycle and validates against the contract (a small check prints property names and types for one feature).
-- [ ] Sanity: the low-flow cycle `BASELINE_CYCLE` produces ~0 flooded segments (expected after the channel filter). Print the count.
-- [ ] Sanity: the demo cycle produces flooded segments clustered along Peachtree and Nancy Creek, viewed on the map (009) or a quick `geopandas.plot`. Screenshot goes in PROGRESS.
+- [ ] C5 exists for every Helene cycle and matches the contract (print property names/types for one feature).
+- [ ] `BASELINE_CYCLE` gives ~0 flooded segments. Print the count.
+- [ ] The demo cycle's flooded segments sit along Peachtree / Nancy Creek. Check with a quick plot or the map; screenshot in PROGRESS.
 - [ ] Each C5 file is under 20 MB.
 
 ## Test
-`tests/test_flood_times.py` with a hand-built 2-HydroID rating table, 3 segments and an 18-hour flow series. Asserts:
-- a segment whose hand_min is crossed at hour 5 gets `t_flood=5`;
-- a segment within the band gets `t_uncertain` < `t_flood`;
-- a segment never reached is absent;
-- a channel sample (hand ≤ baseline stage) is ignored, so a culvert segment uses its approach elevation.
+`tests/test_flood_times.py`: 2 reaches, 3 C3 rows, a 19-hour flow series. Asserts:
+- a row crossed at hour 5 gives `t_flood = 5`;
+- the uncertain band gives `t_uncertain < t_flood`;
+- a never-reached segment is absent;
+- a row wet at baseline flow is dropped;
+- the per-segment minimum across rows.
 
 ## Fallback
-If C2 or C3 are late, run with only the gauge reach and its HydroIDs to produce a partial C5 for the demo neighborhood. Note it in PROGRESS.
+If C3 is late: thresholds for gauge-reach roads only, from fimpact directly (feature_id 2047989) → partial C5 for the demo neighborhood.

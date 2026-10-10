@@ -1,50 +1,49 @@
-# 003 — AOI, road graph, HAND sampling
+# 003 — AOI, road graph, NOAA per-road thresholds
 
 | | |
 |---|---|
 | Owner | Margulan |
-| Status | Draft |
-| Time box | 3 h (step 1 ≤ 45 min, pushed immediately) |
-| Depends on | step 1: none · step 2: 002 rasters |
-| Produces | C7 `web/data/aoi.geojson`, C4 `data/interim/graph.graphml`, C3 `data/interim/seg_hand.parquet` |
+| Status | Approved (Margulan, Fri 22:15; step 2 rewritten for CC3) |
+| Time box | 1.5 h (step 1 ≤ 45 min, pushed immediately) |
+| Depends on | step 1: `data/interim/aoi.geojson` (fetched by 002) · step 2: 002's `osm_roads_fimpact.csv` |
+| Produces | C7 `web/data/aoi.geojson`, C4 `data/interim/graph.graphml`, C3 `data/interim/seg_thresholds.parquet` |
 
 ## Goal
-Build the drivable road network for the Peachtree Creek watershed and record the HAND values and catchments each road segment passes through.
+Build the drivable road network for the Peachtree Creek watershed and attach NOAA's flow threshold for each road segment, i.e. the flow at which it gets wet.
 
 ## Non-goals
-Per-hour flood logic (004). Routing (006). Lane-level or elevation-of-bridge-deck modeling.
+Per-hour flood logic (004). Routing (006). Our own HAND sampling (replaced by CC3; NOAA's thresholds come from the same HAND data).
 
 ## Inputs
-- WBD HUC10 query (see 002 Inputs) for `0313000112`.
-- OSM via `osmnx`.
-- 002 rasters: HAND + catchments.
+- AOI polygon (HUC10 0313000112) from `data/interim/aoi.geojson`.
+- OSM via `osmnx` 2.x.
+- `data/raw/hand/03130001/osm_roads_fimpact.csv`: columns `osmid, highway, name, huc8, osmid_catchid, HydroID, feature_id, order_, branch, threshold_hand, threshold_discharge, threshold_hand_ft, threshold_discharge_cfs` (verified Oct 9).
 
 ## Outputs
-C7, C4, C3, exactly as specified in `docs/02-ARCHITECTURE.md` §4. Also copy `aoi.geojson` to `data/interim/`.
+C7, C4, C3, exactly as specified in `docs/02-ARCHITECTURE.md` §4.
 
 ## Behavior
 **Step 1: AOI + graph (push immediately; Priyanshu needs it).**
-1. Fetch the HUC10 polygon and write C7.
-2. `G = ox.graph_from_polygon(aoi_buffered_2km, network_type="drive", retain_all=False)`. Buffer in a metric CRS (EPSG:5070), then return to 4326.
-3. `ox.add_edge_speeds(G)`, `ox.add_edge_travel_times(G)`. Set the `seg_id` edge attribute = `f"{u}-{v}-{k}"`.
-4. `ox.save_graphml(G, DATA_INTERIM/"graph.graphml")`. Log node and edge counts. `data/` is gitignored, so **if graphml is under 20 MB, copy it to `fixtures/graph.graphml` and push** for Priyanshu. Otherwise share it directly (AirDrop / Drive) and note in PROGRESS.
+1. Copy the AOI to C7.
+2. `ox.graph_from_polygon(aoi buffered 2 km in EPSG:5070, network_type="drive", retain_all=False)`.
+3. `ox.routing.add_edge_speeds`, `ox.routing.add_edge_travel_times`. Set the `seg_id` edge attribute = `f"{u}-{v}-{k}"`.
+4. `ox.save_graphml` to C4. If it's under 20 MB, also copy to `fixtures/graph.graphml` and push for Priyanshu.
 
-**Step 2: HAND sampling.**
-5. Edges → GeoDataFrame (`ox.graph_to_gdfs(G, nodes=False)`), reprojected to the HAND raster CRS.
-6. Drop edges where `bridge` or `tunnel` is truthy. OSMnx values can be a str, a list or NaN; treat any non-null value other than `"no"` as truthy. Log the count dropped.
-7. Keep only edges intersecting the AOI (unbuffered). Edges in the buffer stay in the graph for routing but never flood (no HAND rows).
-8. Densify: points every `SAMPLE_SPACING_M` along each line, including endpoints (`shapely` `line.interpolate`).
-9. Sample both rasters at all points with `rasterio`'s `sample()` (or windowed read + index). Drop nodata samples.
-10. Write C3: one row per valid sample `(seg_id, hydro_id, hand_m)`.
+**Step 2: thresholds (CC3).**
+5. Edges → GeoDataFrame. Keep edges intersecting the unbuffered AOI. Buffer edges stay in the graph for routing but never flood.
+6. Drop edges whose `bridge` or `tunnel` tag is truthy (a str other than "no", or a list containing one).
+7. Explode `osmid` lists. Inner-join to fimpact on `osmid`.
+8. Drop rows with `threshold_hand < MIN_ROAD_HAND_M` (0.3 m): road at channel level, a crossing artifact. Log the count.
+9. Write C3. Log: AOI edges, bridges/tunnels, segments with a threshold (match rate), artifacts dropped.
 
 ## Acceptance criteria
-- [ ] Step 1: `graph.graphml` loads with `ox.load_graphml`. Every edge has `seg_id`, `length`, `travel_time`. Node and edge counts logged in PROGRESS.
-- [ ] C3 written. Logged: segments in AOI, segments with ≥1 sample, bridges/tunnels excluded, total samples.
-- [ ] Spot-check: Northside Dr NW where it meets Peachtree Creek (near the gauge, 33.8203, -84.4076) has samples with low HAND on the approaches. Print them.
+- [ ] Step 1: `graph.graphml` loads with `ox.load_graphml`. Every edge has `seg_id`, `length`, `travel_time`. Node/edge counts in PROGRESS.
+- [ ] C3 written with the logged counts. The match rate (AOI non-bridge edges with ≥1 threshold) is in PROGRESS. If it's below 50%, open an issue (OSM way ids may have changed since FIM was built; fallback below).
+- [ ] Spot-check: Northside Dr NW near the gauge (33.8203, -84.4076) has a threshold of roughly 277–367 m³/s.
 
 ## Test
-`tests/test_build_segments.py`: a two-edge toy GeoDataFrame (one with `bridge="yes"`, one with `bridge=["yes","no"]`) → the bridge filter drops both bridge edges. The densify function returns points ≤ 10 m apart including both endpoints.
+`tests/test_build_segments.py`: the bridge tag filter handles str/list/NaN. `edge_thresholds()` drops bridge edges, explodes osmid lists, joins thresholds, and drops rows below the floor.
 
 ## Fallback
-- OSMnx Overpass slow or rate-limited → reduce the buffer to 500 m, or download a Geofabrik Georgia extract and clip.
-- Sampling slow → sample only edges within 500 m of a stream (catchment raster pixels with HAND < 10 m). Log it.
+- Overpass slow or rate-limited → reduce the buffer to 500 m, or use a Geofabrik Georgia extract.
+- Low osmid match rate → spatial join of unmatched edges to `osm_roads_subset.gpkg` (same bucket folder) within 5 m.

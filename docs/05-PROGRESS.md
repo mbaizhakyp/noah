@@ -9,9 +9,9 @@ _Last updated: Fri Oct 9, 2026, 9:30 PM ET (challenges final: Photon + Gemini + 
 | Fri ~22:00 | Accounts ready (no AWS needed: HAND comes from the public CIROH bucket): Gemini key, Photon line, Replit (ask the booth about deploy plan/credits), **511GA key check (BL-7)** | ☐ |
 | **Sat 00:00** | **GO/NO-GO:** NWM forecast at gauge reach vs observed (spec 001 + quick 005 plot). Spectrum echo bot works on a real phone (spec 008). | ☑ forecast **GO** (22:08, lead 13.2 h) · echo bot: Priyanshu |
 | **Sat 01:00** | **Camera capture running** (013 step 1). Cameras keep no recordings, so Isaias rain starting early Sat is lost if this slips. | ☐ |
-| Sat 03:00 | `graph.graphml` + `aoi.geojson` pushed (003 step 1). Map shows fixture flood roads. | ☐ |
-| Sat 09:00 | `seg_hand.parquet` + `rating.parquet` exist | ☐ |
-| Sat 12:00 | First real `flood_<cycle>.geojson` on the map | ☐ |
+| Sat 03:00 | `graph.graphml` + `aoi.geojson` pushed (003 step 1). Map shows fixture flood roads. | ☑ graph pushed Fri 22:30 as `fixtures/graph.graphml.gz` |
+| Sat 09:00 | `seg_thresholds.parquet` + `rating.parquet` exist | ☑ Fri 22:23 |
+| Sat 12:00 | First real `flood_<cycle>.geojson` on the map | ☑ files in `web/data/` Fri 22:24 (map is 009) |
 | **Sat 14:00** | **E2E:** text to iMessage → agent → real flood data → reply + detour + map link. **Isaias go/no-go (011).** | ☐ |
 | Sat 20:00 | Helene lead-time number + 2–3 street confirmations. Camera assessments on the map (if 013 is on track). | ☐ |
 | **Sun 00:00** | **FEATURE FREEZE.** README, Devpost draft, pitch script. | ☐ |
@@ -40,8 +40,8 @@ Never start a lower priority while a higher one in your lane is unfinished, **ex
 |---|---|---|---|---|---|
 | 001 | NWM forecast fetch + subset | Margulan | P0 | 2 h | **Done** (22:08; Helene, 26 cycles × 19 files, 1,895 reaches) |
 | 002 | FIM HAND + rating curves fetch | Margulan | P0 | 1 h | **Done** (21:57) |
-| 003 | AOI, road graph, HAND sampling | Margulan | P0 | 3 h | Draft |
-| 004 | Flood times per segment | Margulan | P0 | 2 h | Draft |
+| 003 | AOI, road graph, NOAA per-road thresholds (CC3) | Margulan | P0 | 1.5 h | **Done** (22:23) |
+| 004 | Flood times per segment | Margulan | P0 | 1.5 h | **Done** (22:24; 26 Helene cycles) |
 | 005 | Validation: lead time + street truth | Margulan | P1 | 3 h | **Part A done: GO** (22:08). Part C (streets) after 004 |
 | 011 | Hurricane Isaias live run (bonus demo) | Margulan | P1 | 2 h | Draft |
 | 012 | Street low spots (storm-drain stand-in) | Margulan | P3 | 2 h | Draft |
@@ -99,6 +99,8 @@ _Append-only. Format: `HH:MM Name — what was done — how verified (command)`.
 - 20:45 — Live NWM latency measured: cycle t22z (Oct 9) f018 landed in GCS at 23:48Z (~1 h 45 min). — GCS JSON API listing, prefix `nwm.20261009/short_range/nwm.t22z...f018`
 - 20:45 — Isaias check: 20261009T22Z forecast at 2047989 = 1.1 / 1.6 / 4.1 / 17.5 / 30.0 / 25.5 m³/s at f003/6/9/12/15/18 (peak ≈ 1,061 cfs, below action 3,630). Observed 2026-10-09 20:00 EDT: 2.08 ft, 18 cfs. Reading NWM needed `h5py` alongside `h5netcdf`. — `uv run --with xarray --with h5netcdf --with h5py`, `xr.open_dataset(..., engine="h5netcdf")["streamflow"].sel(feature_id=2047989)`
 - 21:45 — HAND data found in a public bucket, no AWS account needed: `s3://ciroh-owp-hand-fim/hand_fim_4_9_9_0/03130001/` (OWP HAND-FIM v4.9.9.0, 461 files, 0.79 GB). Branch 0: HAND 106 MB, catchments 3.7 MB, hydroTable 110.6 MB; HUC-level `hydrotable.parquet` 3.3 MB. — anonymous S3 ListObjectsV2 over HTTPS
+- 22:24 — **Spec 004 done.** 26 C5 files + `cycles.json` in `web/data/` (2.3 MB total). **Demo run 20240926T12Z (8 AM EDT): 425 segments uncertain, 251 forecast flooded, first flood at +10 h (6 PM EDT).** Baseline run 16Z: nothing flagged at hours 0–1 (first flood +12 h). Earliest named streets: Graves Rd (+10), Buford Hwy / Lake Forrest Dr NE (+11), Moores Mill Rd / McLendon Dr (+13), Northside Dr NW / Paces Ferry Rd NW (+16), Collier Rd NW / Defoor Ave NW (+17). Flags cluster along Nancy Creek and the North/South Forks of Peachtree Creek. — `uv run python -m noah.pipeline.flood_times --event helene`
+- 22:23 — **Spec 003 done (CC3).** Graph: 21,178 nodes, 51,277 edges (AOI + 2 km), 36.3 MB → `fixtures/graph.graphml.gz` (4.8 MB; `gunzip -k` it). AOI edges 34,891 (626 bridge/tunnel dropped); 5,070 segments carry NOAA thresholds (101 reaches, 16,176 rows). 93% of NOAA's 3,216 AOI road ways are in our graph; NOAA lists only roads ≤ 25 m above a creek, so the rest can't creek-flood. 1 segment dropped as a crossing artifact (< 0.3 m). — `uv run python -m noah.pipeline.build_segments`
 - 22:08 — **GO/NO-GO = GO.** Observed (USGS 02336300): action 13 ft up 2024-09-26 04:30Z (first rise), **minor 17 ft up 2024-09-27 01:15Z (9:15 PM EDT)**, moderate 01:45Z, major 03:45Z, peak 23.75 ft at 12:15Z. **Every** short-range cycle from 20240926T12Z on forecast the gauge reach (2047989) above minor flood flow (161.4 m³/s). **First warning: 20240926T12Z (8 AM EDT) → lead time 13.2 h.** Honest caveats: the 12Z run timed the crossing well (02:00Z, 45 min late) and overshot the peak (680 vs 566 m³/s observed); the 14Z–21Z runs forecast the crossing 3–11 h late and under-forecast the peak (190–440 m³/s); runs from 22Z on are closer. Chart: `web/data/validation.png`, data: `web/data/validation.json`. — `uv run python -m noah.pipeline.validate --event helene`
 - 21:57 — **Spec 002 done.** HAND + catchments (EPSG:5070, 10 m, bounds 1042230,1247150 – 1147330,1385760; HAND nodata 32767, catchments nodata 0) and `hydrotable.parquet` from the public CIROH bucket. Catchment rasters store short IDs: **HydroID = 1274·10000 + raster value** (`branches/0/hydroid_prefix.txt`). C2 written: 190 AOI HydroIDs, 187 with monotonic curves (3 missing), 107 reaches, 15,708 rows. Gauge HydroID 12740437: (stage m, q m³/s) = (4.3, 218), (8.5, 795), (12.8, 2052). — `uv run python -m noah.pipeline.fetch_hand`
 - 21:57 — **R15 finding:** `osm_roads_fimpact.csv` has, per OSM way × HydroID, `threshold_hand` (m) and `threshold_discharge` (m³/s), i.e. the flow at which that road gets wet. 23,835 rows, 11,534 OSM ways, 37 branches. Northside Dr NW at the gauge reach: 277 m³/s (9,792 cfs) on the level-path branch, 367 m³/s on branch 0. Helene's observed peak was 566 m³/s. See R15 for the proposal.

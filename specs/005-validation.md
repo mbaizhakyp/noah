@@ -29,7 +29,7 @@ C8, a chart PNG, and the final `DEMO_CYCLE` written to `config.py` (shared file:
 2. For each cycle, compute the forecast peak (q, time) and the first valid time where q ≥ `MINOR_FLOOD_CMS` (or null).
 3. `first_warning_cycle` = the earliest cycle with a non-null crossing. `lead_time_h = observed minor_cross_utc − issue_time(first_warning_cycle)`.
 4. Chart: observed Q (cfs and m³/s) plus each cycle's forecast trace, with threshold lines. Save the PNG.
-5. **Go/no-go rule:** GO if `first_warning_cycle` is issued ≥ 3 h before the observed minor crossing (≤ 2024-09-26T22Z). Otherwise trigger B1's fallback. Set `DEMO_CYCLE` = `first_warning_cycle` (if it is earlier than 18Z, keep 18Z for a cleaner story; log the choice).
+5. **Go/no-go rule:** GO if `first_warning_cycle` is issued ≥ 3 h before the observed minor crossing (≤ 2024-09-26T22Z). Otherwise trigger B1's fallback. Set `DEMO_CYCLE` = `first_warning_cycle`. **Result (Fri 22:08): `20240926T12Z`, adopted by Margulan (D5); the old "keep 18Z" rule is superseded because the 18Z run forecast the crossing ~7 h late.**
 
 **Part C (after 004).**
 6. Street truth: find 2–3 streets in HUC10 0313000112 with **citable, dated** public photos or news showing flooding on Sep 27, 2024. For each, record the street, source URL, and whether C5 for `DEMO_CYCLE` flags it and at what hour. **Do not include any street we can't cite.** Add these to C8 under `"streets": [{"name","source_url","flagged":bool,"t_flood_local":str|null}]` (an additive field; announce it in PROGRESS).

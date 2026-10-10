@@ -73,7 +73,7 @@ EVENTS = {
         "label": "Hurricane Helene, Sep 26–27, 2024",
         "cycles": cycle_range("20240926T12Z", "20240927T12Z"),
         "baseline": "20240926T16Z",  # gauge at low flow (4.4 ft)
-        "demo": "20240926T18Z",  # provisional (D5); spec 005 sets the final value
+        "demo": "20240926T12Z",  # D5 final (Margulan, Oct 9): earliest + most skillful run, 13.2 h lead
         "usgs_window": ("2024-09-26T00:00-04:00", "2024-09-28T00:00-04:00"),
     },
     "isaias": {
@@ -102,6 +102,9 @@ FIM_FILES = {
 
 # Flood logic
 UNCERTAIN_BAND_M = 0.5  # heuristic, see 06-CURRENT_ISSUES R4
+MIN_ROAD_HAND_M = (
+    0.3  # NOAA thresholds below this = road at channel level (culvert/crossing artifact), R3
+)
 ROUTE_BUFFER_H = 1
 SAMPLE_SPACING_M = 10
 

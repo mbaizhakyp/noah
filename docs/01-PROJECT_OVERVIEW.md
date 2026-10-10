@@ -99,7 +99,7 @@ Both build with Claude Code. No lab code is reused; everything is built fresh du
 | D2 | Track + side challenges | **FINAL (Oct 9, Margulan):** main track **Social Good**. Side challenges (max 3): **Photon iMessage + MLH Gemini + Replit Small Business**. Mercedes CV, Tiger Data, Domain Name and Zero Data are out. |
 | D3 | Name / domain | Noah; no domain purchase |
 | D4 | Coverage | Peachtree Creek HUC10 first, expandable within HUC8 03130001 |
-| D5 | Replay clock | Demo "now" = NWM short-range cycle **2024-09-26 18Z (2:00 PM EDT)**, provisional. Final rule: the earliest cycle from 12Z Sep 26 onward whose forecast at the gauge reach (feature_id 2047989) exceeds the minor-flood flow (5,700 cfs = 161.4 m³/s). Set by spec 005 after the midnight go/no-go. |
+| D5 | Replay clock | **FINAL (Margulan, Oct 9): demo "now" = NWM cycle `20240926T12Z` (8:00 AM EDT, Sep 26).** It was the first run to forecast Peachtree Creek above minor flood flow, 13.2 h before the observed crossing (9:15 PM), and the most accurate on timing. It also fits the commute story: leave for work at 8 AM, ask about the drive home at ~6 PM (+10 h). |
 | D6 | Output wording | Four frozen states: **Do not cross / Uncertain: treat as impassable / No forecast flooding (not a safety guarantee) / Outside coverage**. Exact text in `02-ARCHITECTURE.md` §5. |
 | D7 | Data store | No database. Parquet + GeoJSON files, loaded into memory by the API. |
 | D10 | Forecast vs real-time | **Forecast first (Margulan, Oct 9).** The product predicts which roads flood in the next 18 h. "Now" is hour 0 of the same map, from NWM's current-conditions analysis: same pipeline, one extra file per cycle. Observed real-time data (gauge, team photos, cameras) is a **confirmation layer**, never the core. We prove the forecast was real with the Helene replay (005) and, if GO, Isaias (011). |
@@ -107,7 +107,7 @@ Both build with Claude Code. No lab code is reused; everything is built fresh du
 
 ## Demo script (target, 3 min)
 1. **Hook (20 s).** Helene, Peachtree Creek, Sep 26, 2024. People were driving home that night.
-2. **Map replay (60 s).** It's 2:00 PM. Drag the slider and watch roads along Peachtree and Nancy Creek go amber, then red, from about 9 PM, hours before the crest. Show the lead-time number from spec 005 and 2–3 streets confirmed by news photos.
+2. **Map replay (60 s).** It's 8:00 AM. Drag the slider and watch roads along Peachtree and Nancy Creek go amber, then red, from about 9 PM, hours before the crest. Show the lead-time number from spec 005 and 2–3 streets confirmed by news photos.
 3. **Live iMessage (60 s).** On a real phone: "can I get home to [address] tonight?" Noah answers "Do not cross X; here's a detour" with a map link.
 4. **How + limits (30 s).** NWM → rating curves → HAND → roads. River/creek only. Never says safe.
 5. **Ask/close (10 s).**

@@ -10,7 +10,7 @@ NWM short_range .nc (GCS) ──► fetch_nwm ──► nwm/<cycle>.parquet ─�
 FIM hydroTable (CIROH S3)     ► fetch_hand ► rating.parquet ─────┼─► flood_times ─► web/data/flood_<cycle>.geojson ──┐
 FIM HAND + catchments rasters ─┘                                 │                                                  │
 OSM drive network (OSMnx) ──► build_segments ─► graph.graphml ───┼──────────────────────────────────────────────┐   │
-                                             └► seg_hand.parquet ┘                                              ▼   ▼
+  + NOAA fimpact thresholds                   └► seg_thresholds ──┘                                              ▼   ▼
 USGS IV + NWS thresholds ──► validate ─► web/data/validation.json          FastAPI (noah/api): /status /route /chat
                                                                                  ▲            │ Gemini agent (tools =
                                                        iMessage ⇄ Photon Spectrum relay (bot/, TS)   plain functions)
@@ -18,15 +18,14 @@ USGS IV + NWS thresholds ──► validate ─► web/data/validation.json     
                                                                   Web map (web/index.html, static, MapLibre)
 ```
 
-## 2. Core algorithm (flood time per road segment)
-We deliberately avoid raster thresholding and polygon joins for each forecast hour.
+## 2. Core algorithm (flood time per road segment) — CC3, approved Oct 9
+We use **NOAA OWP FIM 4.9's own per-road flood thresholds** (`osm_roads_fimpact.csv`: per OSM way × HydroID, the HAND height and the discharge at which the road gets wet). We don't sample HAND ourselves. NOAA computes *where / at what flow*; Noah adds *when* (forecast), routing, and delivery.
 
-1. **Once:** sample the HAND raster and the catchment (HydroID) raster every ≤10 m along each road segment. Store one row per sample: `(seg_id, hydro_id, hand_m)`. Bridges and tunnels produce no samples.
-2. **Per cycle:** for each HydroID, `stage(t) = interp(q(feature_id, t), rating_curve(hydro_id))`.
-3. **Channel-pixel filter:** discard samples with `hand_m <= stage_baseline(hydro_id)`, where the baseline is stage at the low-flow cycle (`BASELINE_CYCLE`). These pixels are the stream channel itself, e.g. a culvert crossing burned into the DEM. Dropping them makes a crossing's threshold the elevation of the road approach. Note: `hand_m <= stage` is the same comparison FIM uses to mark a pixel wet.
-4. For each segment, `hand_min = min(hand_m)` over the remaining samples, per HydroID.
-5. Lead hour 0 = **now** (NWM analysis of current conditions); hours 1–18 = forecast. `t_flood` = first lead hour (0–18) where `stage(t) >= hand_min`. `t_uncertain` = first lead hour where `stage(t) >= hand_min - UNCERTAIN_BAND_M`.
-6. **Conservative persistence:** once a segment enters a state it stays there for the rest of the 18 h window. Recession is not modeled.
+1. **Once (003):** join OSMnx drive edges to the thresholds by OSM way id. Drop `bridge`/`tunnel` edges (bare-earth HAND would call every bridge flooded). Drop threshold rows with `threshold_hand < MIN_ROAD_HAND_M` (0.3 m): the road sits at channel level, a culvert/crossing artifact. Result: C3, one row per (segment, HydroID, branch).
+2. **Uncertain band:** per row, `uncertain_q` = discharge on that HydroID/branch rating curve at stage `max(threshold_hand − UNCERTAIN_BAND_M, 0.5 · threshold_hand)`.
+3. **Baseline guard:** drop rows whose `threshold_q` ≤ the reach's flow in `BASELINE_CYCLE` (wet at low flow = artifact).
+4. **Per cycle (004):** lead hour 0 = **now** (NWM analysis), 1–18 = forecast. `t_flood` = first lead with `q(feature_id) ≥ threshold_q`; `t_uncertain` = first lead with `q ≥ uncertain_q`. Per segment, take the minimum over its rows (conservative; equals FIM's max-extent composite across branches).
+5. **Conservative persistence:** once a segment enters a state it stays there for the rest of the 18 h window. Recession is not modeled.
 
 ## 3. Repo layout
 ```
@@ -61,7 +60,7 @@ specs/                     one spec per unit of work
 ```
 
 ## 4. Data contracts (FROZEN — change only with both humans' agreement)
-Cycle IDs everywhere use the format `YYYYMMDDTHHZ`, e.g. `20240926T18Z`. All times are UTC ISO-8601 with `Z`. Units are SI.
+Cycle IDs everywhere use the format `YYYYMMDDTHHZ`, e.g. `20240926T12Z`. All times are UTC ISO-8601 with `Z`. Units are SI.
 
 ### C1 `data/interim/nwm/<cycle>.parquet` — producer 001
 | column | type | notes |
@@ -80,13 +79,16 @@ Cycle IDs everywhere use the format `YYYYMMDDTHHZ`, e.g. `20240926T18Z`. All tim
 | q_cms | float32 | |
 Sorted by `hydro_id, stage_m`. Contains only HydroIDs that intersect the AOI.
 
-### C3 `data/interim/seg_hand.parquet` — producer 003
+### C3 `data/interim/seg_thresholds.parquet` — producer 003, consumer 004 (CC3)
 | column | type | notes |
 |---|---|---|
 | seg_id | str | `"{u}-{v}-{key}"` from OSMnx |
-| hydro_id | int64 | catchment the sample falls in |
-| hand_m | float32 | HAND at the sample, metres |
-One row per sample point (≤10 m spacing). No rows for `bridge` or `tunnel` segments, or for samples outside the HAND/catchment rasters.
+| hydro_id | int64 | FIM HydroID the threshold belongs to |
+| feature_id | int64 | NWM reach of that HydroID |
+| branch_id | int64 | FIM branch (0 or a level path) |
+| threshold_hand_m | float32 | NOAA `threshold_hand` (m) |
+| threshold_q_cms | float32 | NOAA `threshold_discharge` (m³/s): flow at which the road gets wet |
+Only AOI edges, no bridges/tunnels, no rows below `MIN_ROAD_HAND_M`.
 
 ### C4 `data/interim/graph.graphml` — producer 003
 OSMnx `network_type="drive"` graph for the AOI buffered by 2 km, EPSG:4326. Every edge carries `seg_id`, `length` (m), `travel_time` (s) from `ox.add_edge_speeds` + `ox.add_edge_travel_times`, plus `name` and `highway` where present.
@@ -100,14 +102,14 @@ FeatureCollection, EPSG:4326, coordinates rounded to 5 dp. **Contains only segme
 | t_uncertain | int | first lead hour (0–18) in the uncertain band; 0 = already estimated now |
 | t_flood | int \| null | first lead hour (0–18) forecast flooded |
 | feature_id | int | controlling reach |
-| hand_min_m | float | 2 dp |
+| hand_min_m | float | lowest NOAA `threshold_hand` among the segment's rows, 2 dp |
 
 ### C6 `web/data/cycles.json` — producer 004
 ```json
-{"demo_cycle": "20240926T18Z",
- "events": {"helene": {"label": "Hurricane Helene, Sep 26–27, 2024", "demo_cycle": "20240926T18Z"},
+{"demo_cycle": "20240926T12Z",
+ "events": {"helene": {"label": "Hurricane Helene, Sep 26–27, 2024", "demo_cycle": "20240926T12Z"},
             "isaias": {"label": "Hurricane Isaias, Oct 10, 2026", "demo_cycle": "20261010T06Z"}},
- "cycles": [{"cycle": "20240926T18Z", "event": "helene", "issue_time": "2024-09-26T18:00:00Z",
+ "cycles": [{"cycle": "20240926T12Z", "event": "helene", "issue_time": "2024-09-26T18:00:00Z",
              "valid_times": ["2024-09-26T18:00:00Z", "...19 entries, index = lead_h 0–18"]}]}
 ```
 `events` and `cycles[].event` were added Oct 9 for spec 011. The top-level `demo_cycle` stays as the default scenario. An event appears only once its C5 files exist.
@@ -128,7 +130,7 @@ The AOI polygon (HUC10 0313000112), EPSG:4326.
 ### C9 HTTP API — producer 006/007, base `http://localhost:8000`
 | method + path | request | response |
 |---|---|---|
-| `GET /health` | — | `{"ok": true, "cycle": "20240926T18Z"}` |
+| `GET /health` | — | `{"ok": true, "cycle": "20240926T12Z"}` |
 | `GET /status` | `lat, lon, hours=18` | `{"state": STATE, "segments": [{"seg_id","name","state","eta_utc"}], "cycle"}`: worst state within 300 m and within `hours` |
 | `GET /route` | `from=lat,lon&to=lat,lon&depart_h=0` | `{"state": "route_found"\|"no_route"\|"out_of_coverage"\|"beyond_forecast_window", "geometry": GeoJSON LineString\|null, "minutes": float\|null, "avoided": [seg_id], "map_url": str}` |
 | `POST /chat` | `{"sender": str, "text": str, "image_b64": str\|null}` | `{"reply": str}` |
@@ -138,7 +140,7 @@ The AOI polygon (HUC10 0313000112), EPSG:4326.
 "Now" = lead hour 0 of the active cycle in replay mode. The active cycle is env `NOAH_CYCLE` if set, otherwise C6 `demo_cycle`. A route removes every edge whose `t_uncertain <= depart_h + ROUTE_BUFFER_H`. A `depart_h` > 18 is outside the forecast window: `/route` returns `state: "beyond_forecast_window"` and the agent says so instead of guessing.
 
 ### C10 Map URL — producer 009, consumed by 006/007
-`{WEB_BASE}/?cycle=20240926T18Z&t=3&from=lat,lon&to=lat,lon&api={API_BASE}`. All parameters are optional. With `from`, `to` and `api` set, the map calls `/route` and draws the result.
+`{WEB_BASE}/?cycle=20240926T12Z&t=3&from=lat,lon&to=lat,lon&api={API_BASE}`. All parameters are optional. With `from`, `to` and `api` set, the map calls `/route` and draws the result.
 
 ### C11 `web/data/lowspots.geojson` — producer 012, consumer 009
 FeatureCollection, EPSG:4326, coordinates at 5 dp. One LineString per road segment that crosses a terrain depression.
@@ -196,13 +198,13 @@ A camera or photo report can only move a road to a **more** conservative state. 
 | MINOR_FLOOD_CMS | `161.4` (5,700 cfs) | NWPS AANG1 |
 | HELENE_CYCLES | hourly `20240926T12Z` … `20240927T12Z` | — |
 | BASELINE_CYCLE | `20240926T16Z` (gauge at low flow, 4.4 ft) | USGS IV |
-| DEMO_CYCLE | `20240926T18Z` (provisional, D5) | — |
-| EVENTS | `{"helene": {cycles 20240926T12Z…20240927T12Z, baseline 20240926T16Z, demo 20240926T18Z}, "isaias": {cycles 20261010T00Z…(latest), baseline 20261009T22Z, demo set by spec 011}}`. Pipeline CLIs take `--event`. | spec 011 |
+| DEMO_CYCLE | `20240926T12Z` (D5 final: 8 AM EDT run, earliest + most skillful, 13.2 h lead) | spec 005 |
+| EVENTS | `{"helene": {cycles 20240926T12Z…20240927T12Z, baseline 20240926T16Z, demo 20240926T12Z}, "isaias": {cycles 20261010T00Z…(latest), baseline 20261009T22Z, demo set by spec 011}}`. Pipeline CLIs take `--event`. | spec 011 |
 | NWM_LATENCY | ~1 h 45 min from cycle time to f018 in the bucket (t22z on Oct 9 landed 23:48Z) | measured Oct 9, 2026 |
 | ACTION_FLOW_CMS | `102.8` (3,630 cfs) | NWPS AANG1 |
 | UNCERTAIN_BAND_M | `0.5` | heuristic, see issues |
 | ROUTE_BUFFER_H | `1` | — |
-| SAMPLE_SPACING_M | `10` | — |
+| MIN_ROAD_HAND_M | `0.3` (crossing-artifact floor for NOAA thresholds) | CC3, R3 |
 | NWM_URL | `https://storage.googleapis.com/national-water-model/nwm.{YYYYMMDD}/short_range/nwm.t{HH}z.short_range.channel_rt.f{FFF}.conus.nc` | verified Oct 9, 2026 |
 | GEMINI_MODEL | from env `GEMINI_MODEL` | check ai.google.dev for the current Flash model |
 | API_BASE, WEB_BASE | from env | — |
