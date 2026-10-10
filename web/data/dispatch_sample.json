@@ -1,70 +1,58 @@
 {
- "business": "Peachtree Corner Pharmacy (sample)",
+ "business": "Maya's pharmacy (example), Chamblee",
  "depot": {
-  "label": "Peachtree Road Northeast",
-  "lat": 33.83991,
-  "lon": -84.3792
+  "label": "Maya's pharmacy (example), Chamblee",
+  "lat": 33.8876,
+  "lon": -84.3058
  },
  "stops": [
   {
    "id": "S1",
-   "label": "Woodward Way Northwest",
-   "lat": 33.8214,
-   "lon": -84.41226
+   "label": "Northcrest Way, Doraville",
+   "lat": 33.89489,
+   "lon": -84.25161
   },
   {
    "id": "S2",
-   "label": "Windsor Parkway Northeast",
-   "lat": 33.88506,
-   "lon": -84.36256
+   "label": "Graves Rd, Norcross",
+   "lat": 33.90696,
+   "lon": -84.22585
   },
   {
    "id": "S3",
-   "label": "Hanover West Court",
-   "lat": 33.82242,
-   "lon": -84.43179
+   "label": "Kingsport Dr NE, Sandy Springs",
+   "lat": 33.90907,
+   "lon": -84.38329
   },
   {
    "id": "S4",
-   "label": "Peachtree Battle Circle Northwest",
-   "lat": 33.82259,
-   "lon": -84.41893
+   "label": "McLendon Dr, Clarkston",
+   "lat": 33.8224,
+   "lon": -84.2618
   },
   {
    "id": "S5",
-   "label": "Bohler Road Northwest",
-   "lat": 33.82133,
-   "lon": -84.42926
+   "label": "Hammond Dr, Dunwoody",
+   "lat": 33.91934,
+   "lon": -84.34777
   },
   {
    "id": "S6",
-   "label": "Collier Road Northwest",
-   "lat": 33.80995,
-   "lon": -84.4338
+   "label": "Bradford Square NE, Chamblee",
+   "lat": 33.86266,
+   "lon": -84.28424
   },
   {
    "id": "S7",
-   "label": "Caldwell Road Northeast at East Osborne Road Northeast",
-   "lat": 33.86417,
-   "lon": -84.33391
+   "label": "North Peachtree Rd, Chamblee",
+   "lat": 33.90374,
+   "lon": -84.29496
   },
   {
    "id": "S8",
-   "label": "Ansley Circle Northeast at Monroe Drive Northeast",
-   "lat": 33.80053,
-   "lon": -84.37163
-  },
-  {
-   "id": "S9",
-   "label": "Fairwood Lane Northeast at Fisher Trail Northeast",
-   "lat": 33.84091,
-   "lon": -84.30568
-  },
-  {
-   "id": "S10",
-   "label": "Airport cargo area (outside coverage)",
-   "lat": 33.6407,
-   "lon": -84.4277
+   "label": "Joseph Way NW, Norcross",
+   "lat": 33.90553,
+   "lon": -84.20907
   }
  ]
 }

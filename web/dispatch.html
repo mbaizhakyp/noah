@@ -4,144 +4,228 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Noah Dispatch</title>
+<meta name="theme-color" content="#f4f7fb">
 <link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,500..800&family=Public+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <style>
+  /* Layout: the map runs edge to edge; a paper-to-sky veil carries the headline; the tools float on white cards.
+     Light only, on purpose: it is shown on a projector. Red / amber / green are flood states, never decoration. */
   :root {
-    --bg: #0b0f14; --panel: #121821; --line: #233041; --text: #e6edf3; --muted: #8b9bb0;
-    --red: #ef4444; --amber: #f59e0b; --cyan: #22d3ee; --slate: #64748b; --green: #34d399;
+    --paper: #f4f7fb; --surface: #ffffff; --ink: #0e1a2b; --muted: #56677e; --line: #e1e7ef; --sky: #cfe0f6;
+    --navy: #13284d; --red: #d92d20; --amber: #b45309; --amber-line: #f59e0b; --green: #0f9d6b; --slate: #64748b;
+    --creek: #3b82f6; --focus: #2563eb;
+    --shadow: 0 18px 48px -18px rgba(14, 26, 43, .32), 0 2px 6px rgba(14, 26, 43, .06);
+    --display: "Archivo", "Helvetica Neue", Arial, sans-serif;
+    --body: "Public Sans", -apple-system, "Segoe UI", Roboto, sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+    color-scheme: light;
   }
   * { box-sizing: border-box; }
-  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
-    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
-  header { padding: 12px 16px; border-bottom: 1px solid var(--line); display: flex; gap: 12px;
-    align-items: baseline; flex-wrap: wrap; }
-  header h1 { margin: 0; font-size: 18px; }
-  header .sub { color: var(--muted); }
-  header a { color: var(--cyan); margin-left: auto; }
-  main { display: grid; grid-template-columns: 420px 1fr; height: calc(100% - 50px); }
-  aside { overflow-y: auto; border-right: 1px solid var(--line); padding: 14px 16px 24px; }
-  #map { height: 100%; }
-  label { display: block; color: var(--muted); font-size: 12px; margin: 10px 0 4px; }
-  select, input, textarea, button { width: 100%; background: var(--panel); color: var(--text);
-    border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px; font: inherit; }
-  textarea { min-height: 120px; font-family: ui-monospace, Menlo, monospace; font-size: 12px; }
-  button { cursor: pointer; background: #1d4ed8; border-color: #1d4ed8; font-weight: 600; min-height: 44px; }
-  button.secondary { background: var(--panel); border-color: var(--line); }
+  html, body { margin: 0; height: 100%; background: var(--paper); color: var(--ink); font: 15px/1.5 var(--body); }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+  .tnum { font-variant-numeric: tabular-nums; }
+
+  /* ---------- map stage ---------- */
+  .stage { position: fixed; inset: 0; }
+  #map { position: absolute; inset: 0; }
+  .veil { position: absolute; inset: 0 0 auto 0; height: 300px; pointer-events: none;
+    background:
+      radial-gradient(900px 260px at 72% -60px, var(--sky), transparent 70%),
+      linear-gradient(180deg, rgba(244, 247, 251, .97) 0%, rgba(244, 247, 251, .93) 60%, rgba(244, 247, 251, 0) 100%); }
+  .hero { position: absolute; top: 22px; left: 432px; right: 230px; pointer-events: none; display: grid; gap: 10px; }
+  .eyebrow { justify-self: start; display: inline-flex; align-items: center; gap: 8px; padding: 5px 12px 5px 8px;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 999px; font-size: 13px; color: var(--muted);
+    box-shadow: 0 1px 2px rgba(14, 26, 43, .06); }
+  .eyebrow .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 3px rgba(15, 157, 107, .18); }
+  .eyebrow.backup .dot { background: var(--slate); box-shadow: 0 0 0 3px rgba(100, 116, 139, .18); }
+  h1 { margin: 0; font: 760 clamp(28px, 3.2vw, 44px)/1.04 var(--display); font-stretch: 112%; letter-spacing: -.02em; text-wrap: balance; }
+  .caption .big { font: 650 clamp(17px, 1.5vw, 21px)/1.25 var(--display); font-stretch: 104%; }
+  .caption .small { color: var(--muted); font-size: 14px; margin-top: 2px; max-width: 62ch; }
+  .maplink { position: absolute; top: 22px; right: 64px; padding: 8px 14px; border-radius: 999px; background: var(--surface);
+    color: var(--ink); text-decoration: none; font-weight: 600; font-size: 14px; border: 1px solid var(--line); box-shadow: var(--shadow); }
+  .maplink:hover { border-color: var(--ink); }
+  .maplibregl-ctrl-top-right { top: 12px; right: 4px; }
+
+  .legend { position: absolute; right: 16px; bottom: 104px; background: var(--surface); border-radius: 16px; padding: 12px 14px;
+    box-shadow: var(--shadow); font-size: 13px; display: grid; gap: 5px; }
+  .legend div { display: flex; align-items: center; gap: 8px; }
+  .sw { width: 22px; height: 5px; border-radius: 3px; flex: none; }
+
+  .timebar { position: absolute; left: 432px; right: 16px; bottom: 28px; max-width: 720px; margin-inline: auto;
+    display: flex; align-items: center; gap: 14px; padding: 8px 18px 8px 8px; background: var(--surface);
+    border-radius: 999px; box-shadow: var(--shadow); }
+  .timebar .play { width: 48px; height: 48px; flex: none; border: 0; border-radius: 50%; background: var(--navy); color: #fff;
+    font-size: 16px; cursor: pointer; transition: background-color .15s; }
+  .timebar .play:hover { background: #0b1a33; }
+  .seg { display: grid; line-height: 1.2; min-width: 112px; }
+  .seg .k { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .seg .v { font-weight: 650; font-size: 16px; }
+  .timebar input[type=range] { flex: 1; min-width: 0; accent-color: var(--navy); }
+  .timebar .ends { color: var(--muted); font-size: 12px; white-space: nowrap; }
+
+  /* ---------- floating panel ---------- */
+  .panel { position: fixed; top: 16px; left: 16px; bottom: 16px; width: 400px; overflow-y: auto; overscroll-behavior: contain;
+    background: var(--surface); border-radius: 22px; box-shadow: var(--shadow); padding: 20px 20px 24px; display: grid;
+    align-content: start; gap: 14px; }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand b { font: 760 22px/1 var(--display); font-stretch: 112%; letter-spacing: -.01em; }
+  .brand span { color: var(--muted); font-size: 13px; }
+  .business { color: var(--muted); font-size: 14px; margin-top: -6px; }
+  .command { display: flex; align-items: stretch; gap: 8px; padding: 6px; border: 1px solid var(--line); border-radius: 999px; }
+  .command label { flex: 1; min-width: 0; display: grid; padding: 4px 6px 4px 14px; cursor: pointer; }
+  .command .k { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .command select { border: 0; background: transparent; padding: 0; font-weight: 600; min-width: 0; cursor: pointer; }
+  .btn { border: 0; border-radius: 999px; background: var(--navy); color: #fff; font-weight: 650; padding: 0 20px; min-height: 48px;
+    cursor: pointer; white-space: nowrap; transition: background-color .15s; }
+  .btn:hover { background: #0b1a33; }
+  .btn:disabled { opacity: .7; cursor: progress; }
+  .btn.ghost { background: var(--paper); color: var(--ink); border: 1px solid var(--line); min-height: 40px; }
+  .btn.ghost:hover { border-color: var(--ink); }
+  details { border: 1px solid var(--line); border-radius: 14px; padding: 10px 14px; }
+  details summary { cursor: pointer; font-weight: 600; font-size: 14px; }
+  details[open] summary { margin-bottom: 8px; }
+  .field { display: grid; gap: 4px; margin-top: 8px; }
+  .field > span { font-size: 12px; color: var(--muted); }
+  .field input, .field textarea { width: 100%; border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; background: var(--paper); }
+  .field textarea { min-height: 128px; font: 12px/1.5 var(--mono); }
   .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-  .tabs { display: flex; gap: 6px; margin: 16px 0 10px; }
-  .tabs button { flex: 1; background: var(--panel); border-color: var(--line); font-weight: 500; }
-  .tabs button.on { border-color: var(--cyan); color: var(--cyan); }
-  .card { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin: 8px 0;
-    background: var(--panel); cursor: pointer; }
-  .card .top { display: flex; gap: 8px; align-items: center; justify-content: space-between; }
-  .card .name { font-weight: 600; }
-  .card .detail { color: var(--muted); margin-top: 4px; }
-  .badge { padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 700; white-space: nowrap; }
-  .b-hold { background: rgba(239,68,68,.15); color: var(--red); border: 1px solid var(--red); }
-  .b-go_before { background: rgba(245,158,11,.15); color: var(--amber); border: 1px solid var(--amber); }
-  .b-no_forecast_flooding { background: rgba(100,116,139,.18); color: #cbd5e1; border: 1px solid var(--slate); }
+  .banner { padding: 10px 12px; border-radius: 12px; border: 1px solid #f5c2bd; color: #912018; background: #fdecea; display: none; }
+
+  .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .tile { border-radius: 14px; padding: 10px 12px; border: 1px solid var(--line); display: grid; gap: 2px; min-width: 0; }
+  .tile .n { font: 760 30px/1 var(--display); font-variant-numeric: tabular-nums; }
+  .tile .t { font-size: 12.5px; color: var(--muted); line-height: 1.25; }
+  .tile.hold { background: #fdecea; border-color: #f5c2bd; } .tile.hold .n { color: var(--red); }
+  .tile.go { background: #fff4e0; border-color: #f7d398; } .tile.go .n { color: var(--amber); }
+  .tile.ok { background: var(--paper); } .tile.ok .n { color: var(--ink); }
+  .summary { color: var(--muted); font-size: 13px; }
+
+  .tabs { display: grid; grid-template-columns: 1fr 1fr; padding: 4px; background: var(--paper); border-radius: 999px; }
+  .tabs button { border: 0; background: transparent; border-radius: 999px; padding: 8px 10px; font-weight: 600; color: var(--muted); cursor: pointer;
+    transition: background-color .15s, color .15s; }
+  .tabs button.on { background: var(--surface); color: var(--ink); box-shadow: 0 1px 3px rgba(14, 26, 43, .12); }
+  #results { display: grid; gap: 8px; }
+  .card { border: 1px solid var(--line); border-radius: 16px; padding: 12px 14px; background: var(--surface); cursor: pointer;
+    transition: border-color .15s, box-shadow .15s; }
+  .card:hover { border-color: #c7d2e0; box-shadow: 0 6px 18px -10px rgba(14, 26, 43, .35); }
+  .card .top { display: flex; gap: 10px; align-items: center; justify-content: space-between; }
+  .card .name { display: flex; align-items: center; font-weight: 650; min-width: 0; }
+  .card .detail { color: var(--muted); margin-top: 6px; font-size: 13.5px; }
+  .num { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; font-weight: 750; font-size: 12.5px;
+    color: #fff; margin-right: 10px; flex: none; box-shadow: 0 0 0 2px var(--surface), 0 0 0 3px var(--line); }
+  .badge { padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; white-space: nowrap; border: 1px solid; }
+  .b-hold { background: #fdecea; color: #b42318; border-color: #f5c2bd; }
+  .b-hold::before { content: "✕ "; }
+  .b-go_before { background: #fff4e0; color: #92400e; border-color: #f7d398; }
+  .b-no_forecast_flooding { background: #eef2f7; color: #334155; border-color: #d5dde7; }
   .b-out_of_coverage { background: transparent; color: var(--muted); border: 1px dashed var(--slate); }
-  .banner { margin: 10px 0; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--red);
-    color: #fecaca; background: rgba(239,68,68,.1); display: none; }
-  .summary { color: var(--muted); margin: 6px 0 2px; }
-  table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  th, td { text-align: left; padding: 6px 4px; border-bottom: 1px solid var(--line); }
-  th { color: var(--muted); font-weight: 500; }
-  .legend { position: absolute; bottom: 92px; right: 10px; background: rgba(18,24,33,.92);
-    border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 12px; }
-  .legend div { display: flex; align-items: center; gap: 6px; margin: 2px 0; }
-  .sw { width: 18px; height: 4px; border-radius: 2px; display: inline-block; }
-  .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
-  .caption { position: absolute; top: 10px; left: 10px; right: 60px; max-width: 520px; background: rgba(11,15,20,.88);
-    border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
-  .caption .big { font-size: 17px; font-weight: 700; }
-  .caption .small { color: var(--muted); font-size: 12px; margin-top: 4px; }
-  .timebar { position: absolute; left: 10px; right: 10px; bottom: 30px; max-width: 640px; margin: 0 auto;
-    background: rgba(11,15,20,.9); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px;
-    display: flex; gap: 10px; align-items: center; }
-  .timebar input[type=range] { flex: 1; padding: 0; accent-color: var(--cyan); }
-  .timebar button { width: auto; min-height: 36px; padding: 4px 12px; }
-  .timebar .ends { color: var(--muted); font-size: 11px; white-space: nowrap; }
-  .pin { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-weight: 800;
-    font-size: 13px; color: #0b0f14; border: 2px solid #0b0f14; box-shadow: 0 0 0 2px rgba(255,255,255,.25); cursor: pointer; }
-  .depot { width: 30px; height: 30px; border-radius: 8px; background: var(--cyan); color: #0b0f14; display: grid;
-    place-items: center; font-weight: 800; border: 2px solid #0b0f14; }
-  .cut { display: flex; align-items: center; gap: 4px; pointer-events: none; }
-  .cut .x { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-weight: 900;
-    font-size: 14px; color: #fff; background: var(--red); border: 2px solid #0b0f14; }
-  .cut .x.later { background: #0b0f14; color: var(--amber); border-color: var(--amber); }
-  .cut .lbl { background: rgba(11,15,20,.9); border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px;
-    font-size: 11px; white-space: nowrap; color: var(--text); }
-  .num { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; font-weight: 800;
-    font-size: 12px; color: #0b0f14; margin-right: 8px; flex: none; }
-  .card .name { display: flex; align-items: center; }
-  footer { color: var(--muted); font-size: 12px; margin-top: 16px; }
-  .mapwrap { position: relative; height: 100%; }
-  @media (max-width: 820px) {
-    main { grid-template-columns: 1fr; grid-template-rows: auto 55vh; height: auto; }
-    aside { border-right: 0; border-bottom: 1px solid var(--line); }
-    .mapwrap { height: 60vh; }
-    .legend { font-size: 10px; padding: 4px 6px; bottom: 76px; }
-    .caption .big { font-size: 15px; }
-    .caption .small { display: none; }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; font-variant-numeric: tabular-nums; }
+  th, td { text-align: left; padding: 8px 4px; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; }
+  footer { color: var(--muted); font-size: 12.5px; border-top: 1px solid var(--line); padding-top: 12px; }
+
+  /* ---------- markers ---------- */
+  .pin { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 13px; color: #fff;
+    border: 3px solid #fff; box-shadow: 0 6px 14px -4px rgba(14, 26, 43, .5); cursor: pointer; }
+  .depot { width: 34px; height: 34px; border-radius: 11px; background: var(--navy); color: #fff; display: grid; place-items: center;
+    font-weight: 800; font-size: 16px; border: 3px solid #fff; box-shadow: 0 6px 14px -4px rgba(14, 26, 43, .5); }
+  .cut { display: flex; align-items: center; gap: 6px; pointer-events: none; }
+  .cut .x { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-weight: 900; font-size: 13px;
+    color: #fff; background: var(--red); border: 2px solid #fff; box-shadow: 0 4px 10px -3px rgba(14, 26, 43, .5); }
+  .cut .x.later { background: #fff; color: var(--amber); border-color: var(--amber-line); }
+  .cut .lbl { background: var(--surface); border-radius: 999px; padding: 2px 9px; font-size: 12px; font-weight: 600; white-space: nowrap;
+    color: var(--ink); box-shadow: 0 4px 12px -4px rgba(14, 26, 43, .4); }
+  .maplibregl-popup-content { border-radius: 12px; padding: 10px 12px; font: 13.5px/1.4 var(--body); box-shadow: var(--shadow); }
+
+  @media (max-width: 1100px) {
+    .hero { right: 16px; } .hero .sub { display: none; } .maplink { display: none; }
+    .legend { display: none; }
   }
+  @media (max-width: 820px) {
+    .stage { position: relative; height: 64vh; }
+    .veil { height: 200px; }
+    .hero { left: 16px; right: 16px; top: 14px; } h1 { font-size: 26px; } .caption .small { display: none; }
+    .timebar { left: 12px; right: 12px; bottom: 14px; gap: 10px; padding-right: 14px; }
+    .seg { min-width: 0; } .timebar .ends { display: none; }
+    .panel { position: static; width: auto; margin: 16px; overflow: visible; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 </head>
 <body>
-<header>
-  <h1>Noah Dispatch</h1>
-  <span class="sub">Flood-aware delivery planning for small businesses · metro Atlanta</span>
-  <a href="index.html">Open flood map →</a>
-</header>
-<main>
-  <aside>
-    <div id="business" class="summary"></div>
-    <label for="cycle">Plan with the forecast issued at</label>
-    <select id="cycle"></select>
-    <label>Depot (label · lat · lon)</label>
-    <input id="depotLabel">
-    <div class="row" style="margin-top:6px"><input id="depotLat"><input id="depotLon"></div>
-    <label for="stops">Stops: one per line, <code>label, lat, lon</code></label>
-    <textarea id="stops" spellcheck="false"></textarea>
-    <div style="margin-top:10px"><button id="run">Check deliveries</button></div>
-    <div id="error" class="banner" role="alert"></div>
-
-    <div class="tabs" role="tablist">
-      <button id="tabStops" class="on" role="tab">Deliveries</button>
-      <button id="tabBarr" role="tab">Barricade list (city crews)</button>
-    </div>
-    <section id="paneStops">
-      <div id="runSummary" class="summary"></div>
-      <div id="results"></div>
-    </section>
-    <section id="paneBarr" hidden>
-      <div class="summary">Streets forecast to flood, earliest first. For public works / emergency management to pre-position barricades.</div>
-      <div style="margin:8px 0"><button id="csv" class="secondary">Download CSV</button></div>
-      <table><thead><tr><th>Street</th><th>Floods from</th><th>Length</th></tr></thead><tbody id="barrBody"></tbody></table>
-    </section>
-    <footer>Forecasts from the NOAA National Water Model, updated hourly. River and creek flooding only.
-      Not a safety guarantee. Never drive into water. Emergency: 911.</footer>
-  </aside>
-  <div class="mapwrap">
-    <div id="map"></div>
-    <div class="caption"><div class="big" id="capBig">Loading forecast…</div><div class="small" id="capSmall"></div></div>
-    <div class="legend">
-      <div><span class="sw" style="background:#3b82f6"></span>Creeks and rivers</div>
-      <div><span class="sw" style="background:var(--red)"></span>Road forecast underwater</div>
-      <div><span class="sw" style="background:var(--amber)"></span>Road uncertain: treat as impassable</div>
-      <div><span class="sw" style="background:var(--green)"></span>Route open</div>
-      <div><span class="sw" style="background:repeating-linear-gradient(90deg,var(--red) 0 5px,transparent 5px 8px)"></span>Route cut by flooding (✕ = where)</div>
-    </div>
-    <div class="timebar">
-      <button id="play" class="secondary" aria-label="Play">▶</button>
-      <span class="ends" id="tStart"></span>
-      <input id="slider" type="range" min="0" max="18" step="1" value="0" aria-label="Departure time">
-      <span class="ends" id="tEnd"></span>
-    </div>
+<div class="stage">
+  <div id="map" role="region" aria-label="Delivery routes and roads forecast to flood"></div>
+  <div class="veil" aria-hidden="true"></div>
+  <header class="hero">
+    <div class="eyebrow" id="eyebrowBox"><span class="dot" aria-hidden="true"></span><span id="eyebrow">Loading forecast…</span></div>
+    <h1>Deliver before the water does.</h1>
+    <div class="caption" aria-live="polite"><div class="big" id="capBig">Loading forecast…</div><div class="small" id="capSmall"></div></div>
+  </header>
+  <a class="maplink" href="index.html">Open the flood map →</a>
+  <div class="legend" aria-label="Map legend">
+    <div><span class="sw" style="background:var(--creek)"></span>Creeks and rivers</div>
+    <div><span class="sw" style="background:var(--red)"></span>Road forecast underwater</div>
+    <div><span class="sw" style="background:var(--amber-line)"></span>Road uncertain: treat as impassable</div>
+    <div><span class="sw" style="background:var(--green)"></span>Route: no forecast flooding then</div>
+    <div><span class="sw" style="background:var(--amber-line);height:7px"></span>Route closes later: go before</div>
+    <div><span class="sw" style="background:repeating-linear-gradient(90deg,var(--red) 0 6px,transparent 6px 10px)"></span>Route cut by flooding (✕ marks where)</div>
   </div>
-</main>
+  <div class="timebar">
+    <button id="play" class="play" aria-label="Play the forecast hour by hour">▶</button>
+    <div class="seg"><span class="k">Driver leaves</span><span class="v tnum" id="tNow">Now</span></div>
+    <span class="ends tnum" id="tStart"></span>
+    <input id="slider" type="range" min="0" max="18" step="1" value="0" aria-label="Departure time, now to 18 hours ahead">
+    <span class="ends tnum" id="tEnd"></span>
+  </div>
+</div>
+
+<aside class="panel">
+  <div class="brand">
+    <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><rect width="30" height="30" rx="9" fill="#13284d"/><path d="M15 6c3.6 4.6 6 8 6 11a6 6 0 0 1-12 0c0-3 2.4-6.4 6-11z" fill="#cfe0f6"/><path d="M11.5 18.5c1 1.6 2.2 2.3 3.5 2.3" stroke="#13284d" stroke-width="1.6" fill="none" stroke-linecap="round"/></svg>
+    <b>Noah Dispatch</b><span>for small businesses</span>
+  </div>
+  <div id="business" class="business"></div>
+  <div class="command">
+    <label for="cycle"><span class="k">Forecast</span><select id="cycle"></select></label>
+    <button id="run" class="btn">Check deliveries</button>
+  </div>
+  <div id="error" class="banner" role="alert"></div>
+  <details>
+    <summary>Edit depot and stops</summary>
+    <label class="field"><span>Depot name</span><input id="depotLabel" name="depot" autocomplete="off"></label>
+    <div class="row">
+      <label class="field"><span>Latitude</span><input id="depotLat" name="depot-lat" inputmode="decimal" autocomplete="off"></label>
+      <label class="field"><span>Longitude</span><input id="depotLon" name="depot-lon" inputmode="decimal" autocomplete="off"></label>
+    </div>
+    <label class="field"><span>Stops, one per line: <code>label, lat, lon</code></span><textarea id="stops" name="stops" spellcheck="false" autocomplete="off"></textarea></label>
+  </details>
+
+  <div class="tiles" aria-label="Deliveries by verdict">
+    <div class="tile hold"><span class="n" id="nHold">–</span><span class="t">Hold: route forecast cut</span></div>
+    <div class="tile go"><span class="n" id="nGo">–</span><span class="t">Go before a time</span></div>
+    <div class="tile ok"><span class="n" id="nOk">–</span><span class="t">No forecast flooding</span></div>
+  </div>
+  <div class="tabs" role="tablist">
+    <button id="tabStops" class="on" role="tab">Deliveries</button>
+    <button id="tabBarr" role="tab">Barricade list</button>
+  </div>
+  <section id="paneStops">
+    <div id="runSummary" class="summary tnum"></div>
+    <div id="results"></div>
+  </section>
+  <section id="paneBarr" hidden>
+    <p class="summary">Streets forecast to flood, earliest first, for public works and emergency management to pre-position barricades.</p>
+    <button id="csv" class="btn ghost">Download CSV</button>
+    <table><thead><tr><th>Street</th><th>Floods from</th><th>Length</th></tr></thead><tbody id="barrBody"></tbody></table>
+  </section>
+  <footer>Forecasts from the NOAA National Water Model, updated hourly. River and creek flooding only.
+    Not a safety guarantee. Never drive into water. Emergency: 911.</footer>
+</aside>
 <script>
 const API = new URLSearchParams(location.search).get("api") || "";
 const $ = (id) => document.getElementById(id);
@@ -150,11 +234,11 @@ const fmt = new Intl.DateTimeFormat("en-US", { ...TZ, weekday: "short", hour: "n
 const fmtHour = new Intl.DateTimeFormat("en-US", { ...TZ, hour: "numeric" });
 const fmtDay = new Intl.DateTimeFormat("en-US", { ...TZ, weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 const local = (iso) => fmt.format(new Date(iso));
-const C = { red: "#ef4444", amber: "#f59e0b", green: "#34d399", grey: "#64748b", cyan: "#22d3ee" };
-let data = null, lastBarricades = [], pins = [], cuts = [], depotMarker = null, timer = null;
+const C = { red: "#e5322d", amber: "#f59e0b", green: "#12a36c", grey: "#94a3b8", creek: "#3b82f6" };
+let data = null, lastBarricades = [], pins = [], cuts = [], depotMarker = null, timer = null, liveCycles = new Set();
 
 const atHour = (h) => new Date(new Date(data.issue_time).getTime() + h * 3600e3);
-// Route status if a driver leaves at slider hour h: open / closing later / cut.
+// Route status if a driver leaves at slider hour h: no forecast flooding then / closing later / cut.
 function statusAt(s, h) {
   if (s.state === "out_of_coverage") return "none";
   if (s.state === "hold") return "cut";
@@ -180,12 +264,12 @@ function parseStops(text) {
   return text.split("\n").map((l) => l.trim()).filter(Boolean).map((l, i) => {
     const parts = l.split(",").map((x) => x.trim());
     const lon = parseFloat(parts.pop()), lat = parseFloat(parts.pop());
-    if (!isFinite(lat) || !isFinite(lon)) throw new Error(`Line ${i + 1}: expected "label, lat, lon"`);
+    if (!isFinite(lat) || !isFinite(lon)) throw new Error(`Line ${i + 1}: expected "label, lat, lon", for example "Main St, 33.80, -84.40".`);
     return { id: "S" + (i + 1), label: parts.join(", ") || "Stop " + (i + 1), lat, lon };
   });
 }
 
-const map = new maplibregl.Map({ container: "map", style: "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
+const map = new maplibregl.Map({ container: "map", style: "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
   center: [-84.37, 33.85], zoom: 11.3, attributionControl: { compact: true } });
 map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
 const mapReady = new Promise((ok) => map.on("load", ok));
@@ -194,22 +278,22 @@ async function setupLayers() {
   const streams = await fetch("data/streams.geojson").then((r) => r.json());
   map.addSource("streams", { type: "geojson", data: streams });
   map.addLayer({ id: "streams", type: "line", source: "streams",
-    paint: { "line-color": "#3b82f6", "line-opacity": 0.8,
+    paint: { "line-color": C.creek, "line-opacity": 0.7,
       "line-width": ["interpolate", ["linear"], ["get", "order"], 1, 1, 3, 2.5, 5, 4.5] } });
   map.addSource("flood", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
   map.addLayer({ id: "flood-casing", type: "line", source: "flood", filter: ["<", ["get", "t_uncertain"], -1],
-    paint: { "line-color": "#000", "line-width": 6, "line-opacity": 0.6 } });
+    paint: { "line-color": "#ffffff", "line-width": 7, "line-opacity": 0.9 } });
   map.addLayer({ id: "uncertain", type: "line", source: "flood", filter: ["<", ["get", "t_uncertain"], -1],
-    paint: { "line-color": C.amber, "line-width": 2.5 } });
+    paint: { "line-color": C.amber, "line-width": 3, "line-dasharray": [2, 1.2] } });
   map.addLayer({ id: "flooded", type: "line", source: "flood", filter: ["<", ["get", "t_uncertain"], -1],
-    paint: { "line-color": C.red, "line-width": 3.5 } });
+    paint: { "line-color": C.red, "line-width": 4 } });
   map.addSource("routes", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
   map.addLayer({ id: "routes-open", type: "line", source: "routes", filter: ["!=", ["get", "st"], "cut"],
     layout: { "line-cap": "round", "line-join": "round" },
-    paint: { "line-color": ["match", ["get", "st"], "later", C.amber, C.green], "line-width": ["case", ["get", "hi"], 6, 3.5], "line-opacity": 0.95 } });
+    paint: { "line-color": ["match", ["get", "st"], "later", C.amber, C.green], "line-width": ["case", ["get", "hi"], 7, 4.5], "line-opacity": 0.95 } });
   map.addLayer({ id: "routes-cut", type: "line", source: "routes", filter: ["==", ["get", "st"], "cut"],
     layout: { "line-join": "round" },
-    paint: { "line-color": C.red, "line-width": ["case", ["get", "hi"], 5, 3], "line-dasharray": [1.5, 1.2] } });
+    paint: { "line-color": C.red, "line-width": ["case", ["get", "hi"], 6, 4], "line-dasharray": [1.5, 1.2] } });
   for (const id of ["uncertain", "flooded"]) {
     map.on("click", id, (e) => {
       if (!data) return;
@@ -231,6 +315,7 @@ let highlighted = null;
 function render(h) {
   if (!data || !map.getSource("routes")) return;  // layers still loading
   $("slider").value = h;
+  $("tNow").textContent = h === 0 ? `Now · ${fmtHour.format(atHour(0))}` : fmt.format(atHour(h));
   // roads underwater / uncertain by hour h
   map.setFilter("flood-casing", ["<=", ["get", "t_uncertain"], h]);
   map.setFilter("flooded", ["all", ["!=", ["get", "t_flood"], null], ["<=", ["get", "t_flood"], h]]);
@@ -247,8 +332,8 @@ function render(h) {
   const n = { cut: 0, later: 0, open: 0 };
   stops.forEach((s) => n[s.st] !== undefined && n[s.st]++);
   $("capBig").textContent = h === 0 ? `Leaving now (${fmt.format(atHour(0))})` : `If a driver leaves at ${fmt.format(atHour(h))}`;
-  $("capSmall").textContent = `${n.cut} route${n.cut === 1 ? "" : "s"} cut by flooding · ${n.later} open but closing later · ${n.open} open. ` +
-    `Red roads are forecast underwater by then. Drag the slider to see the night unfold.`;
+  $("capSmall").textContent = `${n.cut} route${n.cut === 1 ? "" : "s"} cut by flooding · ${n.later} closing later · ${n.open} with no forecast flooding. ` +
+    `Red roads are forecast underwater by then. Drag the time bar to see the day unfold.`;
 }
 
 // Show a cut label only where it matters now (route cut, or stop selected), earliest first, never overlapping.
@@ -257,7 +342,7 @@ function layoutCutLabels(h) {
   [...cuts].sort((a, b) => a.s.cut_at.impassable_from_utc.localeCompare(b.s.cut_at.impassable_from_utc)).forEach(({ el, s, n }) => {
     const want = statusAt(s, h) === "cut" || highlighted === n;
     const p = map.project([s.cut_at.lon, s.cut_at.lat]);
-    const clash = shown.some((q) => Math.abs(q.x - p.x) < 170 && Math.abs(q.y - p.y) < 22);
+    const clash = shown.some((q) => Math.abs(q.x - p.x) < 170 && Math.abs(q.y - p.y) < 24);
     const show = want && (!clash || highlighted === n);
     el.querySelector(".lbl").style.display = show ? "" : "none";
     if (show) shown.push(p);
@@ -270,13 +355,14 @@ function drawMarkers() {
   if (depotMarker) depotMarker.remove();
   const d = document.createElement("div"); d.className = "depot"; d.textContent = "⌂"; d.title = "Depot: " + data.depot.label;
   depotMarker = new maplibregl.Marker({ element: d }).setLngLat([data.depot.lon, data.depot.lat])
-    .setPopup(new maplibregl.Popup({ offset: 14 }).setText("Depot: " + data.depot.label)).addTo(map);
+    .setPopup(new maplibregl.Popup({ offset: 16 }).setText("Depot: " + data.depot.label)).addTo(map);
   data.stops.forEach((s, i) => {
     if (s.state === "out_of_coverage") { pins.push(null); return; }
     const el = document.createElement("div"); el.className = "pin"; el.textContent = i + 1;
+    el.setAttribute("role", "button"); el.setAttribute("aria-label", `Stop ${i + 1}: ${s.label}, ${badgeText(s)}`);
     el.onclick = () => focusStop(i);
     pins.push(new maplibregl.Marker({ element: el }).setLngLat([s.lon, s.lat])
-      .setPopup(new maplibregl.Popup({ offset: 14 }).setText(`${i + 1}. ${s.label}: ${badgeText(s)}`)).addTo(map));
+      .setPopup(new maplibregl.Popup({ offset: 16 }).setText(`${i + 1}. ${s.label}: ${badgeText(s)}`)).addTo(map));
     if (s.cut_at) {
       const c = document.createElement("div"); c.className = "cut";
       const x = document.createElement("span"); x.className = "x"; x.textContent = "✕";
@@ -284,17 +370,20 @@ function drawMarkers() {
       l.textContent = `${(s.cut_at.street || "Road").replace(/ (Northwest|Northeast|Southwest|Southeast)$/, "")} · impassable ~${fmtHour.format(new Date(s.cut_at.impassable_from_utc))}`;
       c.append(x, l);
       c.title = l.textContent;
-      cuts.push({ el: c, s, n: i + 1, marker: new maplibregl.Marker({ element: c, anchor: "left", offset: [-11, 0] }).setLngLat([s.cut_at.lon, s.cut_at.lat]).addTo(map) });
+      cuts.push({ el: c, s, n: i + 1, marker: new maplibregl.Marker({ element: c, anchor: "left", offset: [-12, 0] }).setLngLat([s.cut_at.lon, s.cut_at.lat]).addTo(map) });
     }
   });
 }
 
+// Keep the trip in the clear part of the map: right of the panel, below the headline, above the time bar.
+const framePad = () => innerWidth > 820 ? { top: 210, bottom: 110, left: 450, right: innerWidth > 1100 ? 250 : 40 }
+  : { top: 130, bottom: 90, left: 30, right: 30 };
 function focusStop(i) {
   const s = data.stops[i];
   highlighted = i + 1;
   if (s.route) {
     const b = s.route.reduce((bb, c) => bb.extend(c), new maplibregl.LngLatBounds(s.route[0], s.route[0]));
-    map.fitBounds(b, { padding: 80, maxZoom: 15 });
+    map.fitBounds(b, { padding: framePad(), maxZoom: 15 });
   }
   render(+$("slider").value);
 }
@@ -309,14 +398,17 @@ async function run() {
   try {
     const res = await fetch(`${API}/dispatch`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     const d = await res.json();
-    if (!res.ok) throw new Error(d.detail || "Request failed");
+    if (!res.ok) throw new Error((d.detail || "The check failed") + ". Fix the depot or stops and try again.");
     await layersReady;
     data = d; highlighted = null;
     map.getSource("flood").setData(await fetch(`data/flood_${d.cycle}.geojson`).then((r) => r.json()));
+    const live = liveCycles.has(d.cycle);
+    $("eyebrow").textContent = `${live ? "Live NOAA forecast" : "Backup: Hurricane Helene 2024 forecast"} · issued ${fmtDay.format(new Date(d.issue_time))}`;
+    $("eyebrowBox").classList.toggle("backup", !live);
     $("tStart").textContent = fmtHour.format(atHour(0)); $("tEnd").textContent = fmtHour.format(atHour(18));
     const counts = d.stops.reduce((a, s) => ((a[s.state] = (a[s.state] || 0) + 1), a), {});
-    $("runSummary").textContent = `Forecast issued ${fmtDay.format(new Date(d.issue_time))}, valid to ${local(d.valid_until)} · ` +
-      `${counts.hold || 0} hold · ${counts.go_before || 0} go before · ${counts.no_forecast_flooding || 0} no forecast flooding`;
+    $("nHold").textContent = counts.hold || 0; $("nGo").textContent = counts.go_before || 0; $("nOk").textContent = counts.no_forecast_flooding || 0;
+    $("runSummary").textContent = `${d.stops.length} stops · forecast valid to ${local(d.valid_until)}`;
     $("results").replaceChildren(...d.stops.map((s, i) => {
       const c = document.createElement("div"); c.className = "card";
       const top = document.createElement("div"); top.className = "top";
@@ -328,10 +420,16 @@ async function run() {
       const det = document.createElement("div"); det.className = "detail";
       det.textContent = detailText(s) + (s.minutes != null ? ` Drive ≈ ${Math.round(s.minutes)} min now.` : "");
       c.append(top, det);
-      if (s.state !== "out_of_coverage") c.onclick = () => focusStop(i);
+      if (s.state !== "out_of_coverage") {
+        c.onclick = () => focusStop(i);
+        c.tabIndex = 0; c.setAttribute("role", "button");
+        c.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); focusStop(i); } };
+      }
       return c;
     }));
     drawMarkers();
+    const pts = [[d.depot.lon, d.depot.lat], ...d.stops.filter((s) => s.state !== "out_of_coverage").map((s) => [s.lon, s.lat])];
+    map.fitBounds(pts.reduce((bb, q) => bb.extend(q), new maplibregl.LngLatBounds(pts[0], pts[0])), { padding: framePad(), maxZoom: 14, duration: 0 });
     const firstCut = Math.min(...d.stops.filter((s) => s.state === "go_before").map((s) => s.cut_h));
     render(isFinite(firstCut) ? firstCut : 0);
     await loadBarricades(d.cycle);
@@ -343,7 +441,7 @@ async function loadBarricades(cycle) {
   lastBarricades = await fetch(`${API}/barricades?cycle=${cycle}`).then((r) => r.json());
   $("barrBody").replaceChildren(...lastBarricades.map((b) => {
     const tr = document.createElement("tr");
-    for (const v of [b.street, local(b.first_flood_utc), (b.length_m / 1000).toFixed(2) + " km"]) {
+    for (const v of [b.street, local(b.first_flood_utc), (b.length_m / 1000).toFixed(2) + " km"]) {
       const td = document.createElement("td"); td.textContent = v; tr.append(td);
     }
     return tr;
@@ -352,8 +450,8 @@ async function loadBarricades(cycle) {
 
 $("slider").oninput = (e) => render(+e.target.value);
 $("play").onclick = () => {
-  if (timer) { clearInterval(timer); timer = null; $("play").textContent = "▶"; return; }
-  $("play").textContent = "❚❚";
+  if (timer) { clearInterval(timer); timer = null; $("play").textContent = "▶"; $("play").setAttribute("aria-label", "Play the forecast hour by hour"); return; }
+  $("play").textContent = "❚❚"; $("play").setAttribute("aria-label", "Pause");
   if (+$("slider").value >= 18) render(0);
   timer = setInterval(() => {
     const h = +$("slider").value + 1;
@@ -372,7 +470,7 @@ $("csv").onclick = () => {
 for (const [btn, pane] of [["tabStops", "paneStops"], ["tabBarr", "paneBarr"]]) {
   $(btn).onclick = () => {
     for (const [b2, p2] of [["tabStops", "paneStops"], ["tabBarr", "paneBarr"]]) {
-      $(b2).classList.toggle("on", b2 === btn); $(p2).hidden = p2 !== pane;
+      $(b2).classList.toggle("on", b2 === btn); $(b2).setAttribute("aria-selected", b2 === btn); $(p2).hidden = p2 !== pane;
     }
   };
 }
@@ -383,16 +481,17 @@ $("cycle").onchange = run;
   const [cycles, sample] = await Promise.all([fetch("data/cycles.json").then((r) => r.json()), fetch("data/dispatch_sample.json").then((r) => r.json())]);
   // Live runs first (newest on top); Helene kept as a labeled backup (D5).
   const live = cycles.cycles.filter((c) => c.event === "live").sort((a, b) => b.cycle.localeCompare(a.cycle));
+  liveCycles = new Set(live.map((c) => c.cycle));
   const backup = cycles.cycles.filter((c) => c.event === "helene");
   const pick = new URLSearchParams(location.search).get("cycle") || (live[0] || {}).cycle || cycles.demo_cycle;
-  const group = (label, list, suffix) => {
+  const group = (label, list, f, suffix) => {
     const g = document.createElement("optgroup"); g.label = label;
     g.append(...list.map((c) => { const o = document.createElement("option"); o.value = c.cycle;
-      o.textContent = fmtDay.format(new Date(c.issue_time)) + suffix; o.selected = c.cycle === pick; return o; }));
+      o.textContent = f.format(new Date(c.issue_time)) + suffix; o.selected = c.cycle === pick; return o; }));
     return g;
   };
-  $("cycle").replaceChildren(...[live.length && group("Live forecast", live, " (live)"),
-    backup.length && group("Backup: Hurricane Helene 2024", backup, " (Helene)")].filter(Boolean));
+  $("cycle").replaceChildren(...[live.length && group("Live forecast", live, fmt, " · live"),
+    backup.length && group("Backup: Hurricane Helene 2024", backup, fmtDay, " · Helene")].filter(Boolean));
   $("business").textContent = sample.business + " · sample stops on public streets";
   $("depotLabel").value = sample.depot.label; $("depotLat").value = sample.depot.lat; $("depotLon").value = sample.depot.lon;
   $("stops").value = sample.stops.map((s) => `${s.label}, ${s.lat}, ${s.lon}`).join("\n");
