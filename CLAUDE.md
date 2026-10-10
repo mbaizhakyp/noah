@@ -9,6 +9,7 @@ Claude Code loads this file automatically. Keep it short; the detail lives in `d
 4. `docs/04-AI_WORKFLOW_RULES.md` — how you (the AI) must work in this repo
 5. `docs/05-PROGRESS.md` — what's done, who owns what, the clock
 6. `docs/06-CURRENT_ISSUES.md` — open risks, blockers, parking lot
+   - `docs/07-DATA_SOURCES.md` — the 82 verified, working data sources (read when a task touches data inputs)
 7. The spec for your task in `specs/` — **no spec with `Status: Approved` → no code**
 
 ## Non-negotiables
