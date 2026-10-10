@@ -54,12 +54,12 @@
   .caption .small { color: var(--dark); font-size: 14px; margin-top: 2px; max-width: 64ch; }
   .maplibregl-ctrl-top-right { top: 12px; right: 4px; }
 
-  .legend { position: absolute; right: 16px; bottom: 96px; background: var(--surface); border-radius: 12px; padding: 8px 12px;
+  .legend { position: absolute; right: 16px; bottom: 180px; background: var(--surface); border-radius: 12px; padding: 8px 12px;
     box-shadow: var(--shadow); font-size: 12px; display: grid; gap: 3px; }
   .legend div { display: flex; align-items: center; gap: 8px; }
   .sw { width: 22px; height: 5px; border-radius: 3px; flex: none; }
 
-  .timebar { position: absolute; left: 432px; right: 16px; bottom: 28px; max-width: 720px; margin-inline: auto;
+  .timebar { position: absolute; left: 432px; right: 16px; bottom: 108px; max-width: 720px; margin-inline: auto;
     display: flex; align-items: center; gap: 14px; padding: 8px 18px 8px 8px; background: var(--surface);
     border-radius: 999px; box-shadow: var(--shadow); }
   .play { width: 48px; height: 48px; flex: none; border: 0; border-radius: 50%; background: var(--accent); color: var(--on-ink);
@@ -72,7 +72,7 @@
   .timebar .ends { color: var(--muted); font-size: 12px; white-space: nowrap; }
 
   /* ---------- why card (floats over the map) ---------- */
-  .why { position: absolute; right: 16px; top: 84px; width: 340px; max-height: calc(100% - 196px); overflow-y: auto; background: var(--surface);
+  .why { position: absolute; right: 16px; top: 84px; width: 340px; max-height: calc(100% - 276px); overflow-y: auto; background: var(--surface);
     border-radius: 18px; box-shadow: var(--shadow); padding: 16px 16px 14px; display: grid; gap: 10px;
     scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
   .why .close { position: absolute; top: 10px; right: 10px; width: 32px; height: 32px; border: 0; border-radius: 50%; background: var(--paper);
@@ -101,10 +101,6 @@
   .brand { display: flex; align-items: center; gap: 10px; }
   .brand b { font: 900 27px/1 var(--display); letter-spacing: -.03em; }
   .brand span { color: var(--muted); font-size: 13px; }
-  .tabs { display: grid; grid-template-columns: repeat(4, 1fr); padding: 4px; background: var(--paper); border-radius: 999px; }
-  .tabs button { border: 0; background: transparent; border-radius: 999px; padding: 8px 6px; font-weight: 600; font-size: 14px; color: var(--muted);
-    cursor: pointer; transition: background-color .15s, color .15s; }
-  .tabs button.on { background: var(--deep); color: var(--on-ink); }
   .command { display: flex; align-items: stretch; gap: 8px; padding: 6px; border: 1px solid var(--line); border-radius: 999px; }
   .command label { flex: 1; min-width: 0; display: grid; padding: 4px 6px 4px 14px; cursor: pointer; }
   .command .k { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
@@ -212,9 +208,10 @@
     .stage { position: relative; height: 64vh; }
     .veil { height: 200px; }
     .hero { left: 16px; right: 16px; top: 14px; } h1 { font-size: 26px; } .caption .small { display: none; }
-    .timebar { left: 12px; right: 12px; bottom: 14px; gap: 10px; padding-right: 14px; }
+    .timebar { left: 12px; right: 12px; bottom: 76px; gap: 10px; padding-right: 14px; }
+    .peoplenav { left: 50%; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); }
     .seg { min-width: 0; } .timebar .ends { display: none; }
-    .why { left: 12px; right: 12px; width: auto; top: auto; bottom: 86px; max-height: 55vh; }
+    .why { left: 12px; right: 12px; width: auto; top: auto; bottom: 148px; max-height: 50vh; }
     .panel { position: static; width: auto; margin: 16px; overflow: visible; }
   }
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
@@ -262,12 +259,6 @@
 
 <aside class="panel">
   <div class="brand"><b>Noah</b><span>Operations for cities and businesses</span></div>
-  <div class="tabs" role="tablist" aria-label="Who is planning">
-    <button id="tabPeople" role="tab">People</button>
-    <button id="tabCity" role="tab">City</button>
-    <button id="tabFleet" role="tab">Deliveries</button>
-    <button id="tabSite" role="tab">Site check</button>
-  </div>
   <div class="command">
     <label for="cycle"><span class="k">Forecast</span><select id="cycle"></select></label>
     <button id="run" class="btn">Run check</button>
@@ -337,7 +328,7 @@
     Not a safety guarantee. Never drive into water. Emergency: 911.</footer>
 </aside>
 <div class="people" id="peopleWrap" hidden><iframe id="peopleFrame" title="Noah for everyday drivers"></iframe></div>
-  <nav class="peoplenav" id="peopleNav" aria-label="Who is planning" hidden>
+  <nav class="peoplenav" id="peopleNav" aria-label="Who is planning">
     <button data-mode="people" class="on">People</button><button data-mode="city">City</button><button data-mode="fleet">Deliveries</button><button data-mode="site">Site check</button>
   </nav>
 <script>
@@ -460,7 +451,7 @@ async function setupLayers() {
   });
 }
 const layersReady = mapReady.then(setupLayers);
-const framePad = () => innerWidth > 820 ? { top: 230, bottom: 110, left: 450, right: innerWidth > 1100 ? 380 : 40 } : { top: 130, bottom: 90, left: 30, right: 30 };
+const framePad = () => innerWidth > 820 ? { top: 230, bottom: 190, left: 450, right: innerWidth > 1100 ? 380 : 40 } : { top: 130, bottom: 90, left: 30, right: 30 };
 
 // ---------- render at forecast hour h ----------
 function render(h) {
@@ -695,13 +686,11 @@ $("sviBtn").onclick = () => {
 function setMode(m) {
   mode = m;
   const is = (x) => m === x;
-  for (const [tab, pane, key] of [["tabPeople", null, "people"], ["tabCity", "paneCity", "city"], ["tabFleet", "paneFleet", "fleet"], ["tabSite", "paneSite", "site"]]) {
-    $(tab).classList.toggle("on", is(key)); $(tab).setAttribute("aria-selected", is(key)); if (pane) $(pane).hidden = !is(key);
-  }
-  $("peopleWrap").hidden = $("peopleNav").hidden = !is("people");
+  for (const [pane, key] of [["paneCity", "city"], ["paneFleet", "fleet"], ["paneSite", "site"]]) $(pane).hidden = !is(key);
+  $("peopleWrap").hidden = !is("people");
   document.querySelector(".panel").inert = is("people");
   if (is("people") && !$("peopleFrame").getAttribute("src")) $("peopleFrame").src = "ipad/";
-  document.querySelectorAll("#peopleNav button").forEach((b) => b.classList.toggle("on", b.dataset.mode === m));
+  document.querySelectorAll("#peopleNav button").forEach((b) => { b.classList.toggle("on", b.dataset.mode === m); b.setAttribute("aria-current", b.dataset.mode === m ? "page" : "false"); });
   $("heroTitle").textContent = { people: "Know before the water does.", city: "Close the road before the water does.", fleet: "Deliver before the water does.", site: "Choose the spot storms cut off least." }[m];
   $("tKey").textContent = is("fleet") ? "Driver leaves" : "Forecast time";
   $("timebar").hidden = is("site");
@@ -827,11 +816,7 @@ $("csv").onclick = () => {
   const a = el("a"); a.href = URL.createObjectURL(new Blob([rows.map((r) => r.map((v) => `"${String(v).replaceAll('"', '""')}"`).join(",")).join("\n")], { type: "text/csv" }));
   a.download = `noah_barricades_${$("cycle").value}.csv`; a.click();
 };
-$("tabPeople").onclick = () => setMode("people");
 document.querySelectorAll("#peopleNav button").forEach((b) => (b.onclick = () => setMode(b.dataset.mode)));
-$("tabCity").onclick = () => setMode("city");
-$("tabFleet").onclick = () => setMode("fleet");
-$("tabSite").onclick = () => setMode("site");
 $("siteDepot").onclick = () => testSite(+$("depotLat").value, +$("depotLon").value);
 $("whyClose").onclick = closeWhy;
 $("run").onclick = run;
