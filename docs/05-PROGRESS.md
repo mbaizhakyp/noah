@@ -8,7 +8,7 @@ _Last updated: Fri Oct 9, 2026, 9:30 PM ET (challenges final: Photon + Gemini + 
 | Fri 20:30 | Hacking starts | ☑ |
 | Fri ~22:00 | Accounts ready (no AWS needed: HAND comes from the public CIROH bucket): Gemini key, Photon line, Replit (ask the booth about deploy plan/credits), ~~511GA key check (BL-7)~~ dropped, cameras = Windy (spec 013) | ☐ |
 | **Sat 00:00** | **GO/NO-GO:** NWM forecast at gauge reach vs observed (spec 001 + quick 005 plot). Spectrum echo bot works on a real phone (spec 008). | ☑ forecast **GO** (22:08, lead 13.2 h) · echo bot: Priyanshu |
-| **Sat 01:00** | **Camera capture running** (013 step 1). Cameras keep no recordings, so Isaias rain starting early Sat is lost if this slips. | ☐ |
+| ~~Sat 01:00~~ | ~~Camera capture running~~ **dropped:** cameras are now checked on demand when a user asks (013 redesign, Priyanshu 23:59). | — |
 | Sat 03:00 | `graph.graphml` + `aoi.geojson` pushed (003 step 1). Map shows fixture flood roads. | ☑ graph pushed Fri 22:30 as `fixtures/graph.graphml.gz` |
 | Sat 09:00 | `seg_thresholds.parquet` + `rating.parquet` exist | ☑ Fri 22:23 |
 | Sat 12:00 | First real `flood_<cycle>.geojson` on the map | ☑ files in `web/data/` Fri 22:24 (map is 009) |
@@ -33,7 +33,7 @@ Lanes are set up so neither person waits on the other. Priyanshu builds against 
 - **P1** = what makes it convincing, or can't be done later.
 - **P2** = strong extras.
 - **P3** = only if ahead of schedule.
-Never start a lower priority while a higher one in your lane is unfinished, **except** 013 step 1, which is time-critical.
+Never start a lower priority while a higher one in your lane is unfinished, (013 is no longer time-critical: on-demand checks only).
 
 ## Specs
 | Spec | Title | Owner | Pri | Time box | Status |
@@ -49,10 +49,9 @@ Never start a lower priority while a higher one in your lane is unfinished, **ex
 | 007 | Gemini agent + safety filter | Priyanshu | P0 | 3 h | Draft |
 | 008 | iMessage relay (Photon Spectrum) | Priyanshu | P0 | 2 h | Draft |
 | 009 | Web map with time slider | Priyanshu | P0 | 3 h | Draft |
-| 013 | Traffic cameras: step 1 capture | Priyanshu | **P1 (by 01:00)** | 45 min | Draft |
 | 010 | Camera water classifier `classify()` (user photos removed) | Priyanshu | P2 | 1.5 h | Draft |
 | 014 | Dispatch board + barricade list (Replit entry) | Margulan | P1 | 3 h | **Done** (Fri 22:55, standalone; mount = I3) |
-| 013 | Traffic cameras: steps 2–3 assess + show | Priyanshu | P2 | 2.5 h | Draft |
+| 013 | Camera snapshot check, on demand (Windy) | Priyanshu | P2 | 2 h | Draft |
 
 Status flow: `Draft → Approved (human) → In progress → Done (acceptance criteria shown passing)`.
 
@@ -82,13 +81,13 @@ Each research item has a 30-min time box and produces a written finding in `06-C
 - **Sun 00:00–05:00:** 011 Isaias validation if GO, final re-runs, video.
 
 ### Priyanshu
-- **Fri 20:30–00:00:** accounts (Gemini, Photon at their booth, Replit booth: deploy plan/credits) → **BL-7 key check** → approve 006–010, 013 → **008** echo bot on a real phone → **013 step 1 capture running by 01:00** if J4 allows (`caffeinate`, laptop plugged in) → **fixtures/** per contracts C4–C6.
-- **Sat 00:00–05:00:** **009** map on fixtures → **006** routing + API (switch to the real `graph.graphml` when it's pushed). Check the capture is still running before sleeping.
-- **Sat 05:00–09:00:** sleep (capture keeps running).
-- **Sat 09:00–14:00:** **007** agent wired to 006 + 008 → **E2E at 14:00**.
-- **Sat 14:00–20:00:** **BL-9 Replit deploy** (if J6 agreed) → **010** `classify()` → **013** steps 2–3 (assess frames or our own storm photos, `/cameras`, map markers) → 009 scenario switch + optional layers → BL-2/BL-3 only if ahead.
-- **Sat 20:00–Sun 00:00:** README run instructions, test the map on a phone from iMessage.
-- **Sun 00:00–05:00:** video capture, tunnel test, submit prep.
+- **Fri 20:30–00:00 (done):** data sources verified (82, `docs/07`), keys in `.env` (Windy, Census, Mapillary, Synoptic, TomTom), CC6 written, **006 routing + API done** on real Helene data. Photon (008) moved later.
+- **Sat 00:00–05:00:** **009** map on the real C5 + `/route` (5 km radius + route corridor, CC6).
+- **Sat 05:00–09:00:** sleep. Nothing needs to run overnight (cameras are on demand).
+- **Sat 09:00–14:00:** **007** Gemini agent on 006 → **E2E at 14:00** (web chat first; iMessage via 008 when Photon is set up).
+- **Sat 14:00–20:00:** **010** `classify()` → **013** on-demand camera checks in `/status` + `/route` → 008 Photon relay → BL-9 Replit deploy if time.
+- **Sat 20:00–Sun 00:00:** README run instructions, test the map on a phone.
+- **Sun 00:00–05:00:** video capture, submit prep.
 
 ## Log
 _Append-only. Format: `HH:MM Name — what was done — how verified (command)`._

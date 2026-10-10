@@ -1,72 +1,51 @@
-# 013 — Public traffic cameras (Windy Webcams) during Isaias
+# 013 — Camera snapshot check (Windy Webcams), on demand
 
 | | |
 |---|---|
 | Owner | Priyanshu |
 | Status | Draft |
-| Priority | **Step 1 is time-critical (P1): the camera list + assessment loop must run before the heavy rain (Sat morning).** Steps 2–3 are P2, after the Sat 14:00 E2E milestone. |
-| Time box | step 1: 45 min · steps 2–3: 2.5 h |
-| Depends on | `WINDY_API_KEY` (in `.env`, verified Fri 22:00); 010's `classify()` for step 2; C5 for "near a flagged road" |
-| Produces | `data/raw/cctv/cameras.json`, C12, `/cameras` endpoints (C9), camera markers on the map (009) |
+| Priority | P2. Start after the Sat 14:00 E2E milestone. Not time-critical: nothing runs in the background. |
+| Time box | 2 h |
+| Depends on | `WINDY_API_KEY` (in `.env`, verified Fri 22:00); 010's `classify()`; 006's `/status` and `/route` |
+| Produces | `noah/api/cameras.py`, a `cameras` field in `/status` and `/route`, camera markers on the map (009) |
 
-> **511GA removed (Priyanshu, Fri Oct 9 ~23:00 ET): not doable this weekend** (developer key under manual review, terms unknown). Windy Webcams is the only camera source. J4's options B/C are superseded.
+> **Design (Priyanshu, Fri Oct 9 ~23:59 ET): no 24/7 monitoring.** Cameras are checked **only when a user asks**: when they check their area (`/status`) or search a route (`/route`). Noah takes the snapshot each nearby camera shows *at that moment*, runs it through the water check, and returns the result. No background loop, no recording, no stored images. 511GA was dropped earlier (not doable).
 
 ## Goal
-Check public traffic cameras across Georgia for visible water during Isaias, using the same Gemini classifier as 010, and show the results on the map. This gives real ground observations next to the forecast. Helene has nothing to check (no archived frames), so this only applies to Isaias and live use.
+When a user checks their 5 km radius or searches a route, show what the nearest public traffic cameras see **right now**: water on the road or not. This gives a live, real observation next to the creek forecast.
 
 ## Non-goals
-Video. Pothole detection (parking lot). Anything with people or license plates. Committing, re-hosting or redistributing images.
+Background capture or monitoring. Recording or storing images. Video. Pothole detection (parking lot). Anything about people or license plates. Cameras outside the user's radius or route corridor.
 
 ## Known facts (verified Fri Oct 9, ~22:00–22:45 ET)
-- **Coverage:** `regions=US.GA` lists **2,467 Georgia webcams** in 462 places. 2,452 are active, 2,440 tagged `traffic`, 1,685 in metro Atlanta, 230 in the Peachtree bbox. Nearly all had updated within the last 2 h.
-- **API:** `GET https://api.windy.com/webcams/api/v3/webcams?regions=US.GA&bbox=N,E,S,W&limit=50&offset=N&include=location,categories,images,urls` with header `x-windy-api-key`. The free tier caps `offset` at 1,000, so list Georgia in bbox tiles (quad-split any tile with total > 1,000).
-- **Images:** `images.current.preview` (400×224). Free-tier image URLs **expire after 10 minutes**. Fetch fresh URLs each time; never store URLs for later.
-- **Terms** (`api.windy.com/webcams/terms`):
-  - Show the credit "Webcams provided by Windy.com" with links to windy.com and the add-a-webcam page.
-  - Link every displayed image to its webcam page (`urls`) or player.
-  - Use images only through API URLs, at original size or smaller.
-  - Storing images and automated analysis aren't addressed. **Default: keep only our assessment (C12), never the image.**
-- Free-tier request limits aren't published. Pace calls (≤1 req/s) and log any 429s.
+- **Coverage:** Windy lists **2,467 Georgia webcams** (`regions=US.GA`): 2,440 traffic, 1,685 in metro Atlanta, 230 in the Peachtree bbox. Nearly all had updated within the last 2 h.
+- **API:** `GET https://api.windy.com/webcams/api/v3/webcams?nearby={lat},{lon},{radius_km}&limit=50&include=location,images,urls` with header `x-windy-api-key`. Paging stops at offset 1,000 on the free tier. A radius query never comes near that.
+- **Images:** `images.current.preview` (400×224). Free-tier image URLs expire after **10 minutes**.
+- **Terms:** show the credit "Webcams provided by Windy.com" with links, link each displayed image to its webcam page, and use images only through API URLs at original size or smaller. Storing images isn't addressed, so we never store them.
 
 ## Behavior
-**Step 1: list + capture loop (before the heavy rain).**
-1. `python -m noah.api.cameras list`: tile Georgia, write `data/raw/cctv/cameras.json` as `[{"cam_id","name","lat","lon","page_url"}]`, and log the count.
-2. `caffeinate -i uv run python -m noah.api.cameras watch --every 900`. Every 15 min:
-   1. Pick the **watch set**: cameras within 2 km of an active NWS Flood or Flash Flood Warning polygon (07 §2) or of a C5 segment flagged within the next 6 h. Cap the set at 150 cameras per round.
-   2. For each camera in the set, fetch a fresh image URL and get the bytes in memory.
-   3. Skip the camera if the bytes hash the same as its last round.
-   4. Otherwise pass the bytes to step 2's assessment (or queue them in memory until 010 exists) and **discard the bytes**.
-   5. Log failures and keep going.
-
-**Step 2: assess (once 010's `classify()` exists).**
-3. Run `photo.classify()` on each new frame in the watch set and append to C12 (with `frame_path = null`). Budget: ≤ 500 Gemini calls per day. Log the count.
-
-**Step 3: serve and show.**
-4. `/cameras` returns the list with `latest` assessments. `/cameras/{cam_id}/frames` returns assessment history. Each item's `image_url` is a **freshly fetched** Windy URL for the current image only (it expires in 10 min).
-5. Map (009 optional layer): camera markers. The popup shows the current image (linked to the webcam page), the latest assessment with its time, and the credit "Webcams provided by Windy.com".
-6. Override rule (same as 010): a `bucket ≥ curb` assessment can only upgrade C4 segments within 100 m to `flooded` from that time onward. Never downgrade.
-
-## Discovered
-- Fri Oct 9, 22:00–22:45 ET: Windy key works.
-  - Georgia counts are as above.
-  - Image fetch returned 200, PNG, about 118 KB.
-  - Paging past offset 1,000 returns 400 "Offset is over API tier limit 1000!".
-  - The `region=` parameter is ignored. Use `regions=`.
+1. **`cameras_near(lat, lon, radius_km)`**: one Windy `nearby` call. Returns active cameras with `cam_id, name, lat, lon, image_url, page_url`. Cache the camera *list* per ~1 km grid cell for 10 minutes; image URLs expire after that anyway.
+2. **`check(cam)`**: fetch the current snapshot bytes in memory → `photo.classify(bytes)` (010) → `{bucket, confidence, reference_object}`. Discard the bytes. Cache the *result* per `cam_id` for **10 minutes**, so many users near the same camera cost one Gemini call.
+3. **In `/status`**: pick the `MAX_CAMS_STATUS = 5` cameras nearest the user within `ALERT_RADIUS_KM`. Check them in parallel (thread pool, 8 s total timeout) and add `"cameras": [{cam_id, name, lat, lon, distance_m, ts_utc, bucket, confidence, image_url, page_url}]`.
+4. **In `/route`**: cameras within `CORRIDOR_BUFFER_M` of the route line, at most `MAX_CAMS_ROUTE = 8`, spread along the route (nearest to evenly spaced points). Same check, same fields, under `"cameras"`.
+5. **Override rule:** a `bucket ≥ curb` result upgrades C4/C5 segments within 100 m of that camera to `flooded` **for that response**, and the reply uses the §5 "camera water" wording. Never downgrade: a dry camera never clears a forecast flag.
+6. **Failure:** if Windy, the snapshot or Gemini fails or times out, that camera returns `bucket: "cant_tell"` and the response still returns on time. Cameras never block a forecast answer.
+7. **Map (009):** camera markers for the cameras in the response only. The popup shows the snapshot (linked to its webcam page), the result and its time, and "Webcams provided by Windy.com".
+8. **Log** each check (cam_id, time, bucket, confidence; no image) to C12 for the demo stats and backtesting.
 
 ## Acceptance criteria
-- [ ] Step 1 is running before Sat 08:00. PROGRESS records the Georgia camera count and the watch-set size each round.
-- [ ] Across Sat 08:00–Sun 00:00, the watch loop completes ≥ 1 round per hour (log round timestamps).
-- [ ] `curl localhost:8000/cameras` returns the list with `latest` assessments.
-- [ ] The map shows markers. Clicking one shows the current image + bucket + time + Windy credit, and the image links to its webcam page.
-- [ ] No images on disk or in git (`find data/raw/cctv -name '*.jpg' -o -name '*.png'` and `git ls-files | grep -iE 'jpg|png'` are empty for camera frames).
+- [ ] `curl "localhost:8000/status?lat=33.84&lon=-84.38"` returns a `cameras` list (≤ 5) with a bucket for each, in under 10 s cold and under 1 s on a repeat within 10 min (cache).
+- [ ] `/route` returns ≤ 8 corridor cameras, each within 1 km of the route line (checked by a script).
+- [ ] With Windy unreachable (bad key in env), `/status` still returns the forecast answer and cameras show `cant_tell`.
+- [ ] No image files anywhere: `find . -name '*.jpg' -o -name '*.png' -newer specs/013-traffic-cameras.md` (excluding `web/` assets) is empty, and nothing camera-related is in git.
+- [ ] The map popup shows the snapshot, the result, the time and the Windy credit, and links to the webcam page.
 
 ## Test
-`tests/test_cameras.py`:
-- The Georgia filter keeps an inside camera and drops an outside one.
-- The bbox quad-split stops at ≤ 1,000 per tile (pure function on counts).
-- The dedupe skips identical bytes.
-- The watch-set selector picks cameras within 2 km of a polygon.
+`tests/test_cameras.py` (no network):
+- Corridor selection keeps cameras within 1 km of a line and caps at 8, spread out.
+- The radius pick returns the 5 nearest.
+- The result cache returns the cached value inside 10 min and refetches after.
+- The override upgrades and never downgrades.
 
 ## Fallback
-- Windy rate-limits us: shrink the watch set to cameras within 1 km of active warnings only.
-- Classifier not ready: show current images on the map without assessments, labeled "camera view" only.
+Gemini unavailable or over budget: show the snapshots with "camera view" only, with no assessment and no override.

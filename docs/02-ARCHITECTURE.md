@@ -48,7 +48,7 @@ noah/                      Python package
     routing.py             spec 006
     agent.py               spec 007 (Gemini + tools + safety filter)
     photo.py               spec 010 (water-depth classifier, shared with 013)
-    cameras.py             spec 013 (Windy webcam list, watch loop, assessments)
+    cameras.py             spec 013 (on-demand Windy snapshot checks for /status and /route)
     dispatch.py            spec 014 (Margulan: dispatch board + barricade list, FastAPI router)
 tests/                     one small test file per module with real logic
 fixtures/                  tiny hand-made files that follow the §4 contracts (for Priyanshu before real data lands)
@@ -137,8 +137,7 @@ FeatureCollection, EPSG:4326, coordinates rounded to 5 dp. **Contains only segme
 | `GET /status` | `lat, lon, hours=18` | `{"state": STATE, "segments": [{"seg_id","name","state","eta_utc","distance_m"}], "cycle"}`: **every** segment within `ALERT_RADIUS_KM` (5 km) and within `hours`, nearest first; `state` = worst (CC6) |
 | `GET /route` | `from=lat,lon&to=lat,lon&depart_h=0` | `{"state": "route_found"\|"no_route"\|"out_of_coverage"\|"beyond_forecast_window", "geometry": GeoJSON LineString\|null, "minutes": float\|null, "avoided": [seg_id], "corridor": [{"seg_id","name","state","eta_utc"}], "map_url": str}`. `corridor` = every segment within `CORRIDOR_BUFFER_M` (1 km) of the route (CC6) |
 | `POST /chat` | `{"sender": str, "text": str, "image_b64": str\|null}` | `{"reply": str}` |
-| `GET /cameras` (spec 013) | — | `[{"cam_id","name","lat","lon","latest": {"ts_utc","bucket","confidence","image_url"} \| null}]` |
-| `GET /cameras/{cam_id}/frames` (spec 013) | `from, to` (UTC ISO) | `[{"ts_utc","image_url","bucket"\|null,"confidence"\|null}]`. `image_url` is a freshly fetched Windy URL for the current image (expires in 10 min). Frames aren't stored (CC6). |
+| (spec 013, CC6) | — | **No separate camera endpoints.** `/status` and `/route` gain `"cameras": [{"cam_id","name","lat","lon","distance_m","ts_utc","bucket","confidence","image_url","page_url"}]`, checked on demand (≤5 in the radius, ≤8 along the route). `image_url` = fresh Windy URL (expires in 10 min); nothing stored. |
 `STATE` ∈ `flooded | uncertain | no_forecast_flooding | out_of_coverage`.
 "Now" = lead hour 0 of the active cycle in replay mode. The active cycle is env `NOAH_CYCLE` if set, otherwise C6 `demo_cycle`. A route removes every edge whose `t_uncertain <= depart_h + ROUTE_BUFFER_H`. A `depart_h` > 18 is outside the forecast window: `/route` returns `state: "beyond_forecast_window"` and the agent says so instead of guessing.
 
@@ -171,7 +170,7 @@ Static: it doesn't change by forecast hour and **doesn't affect routing or state
 | bucket | str | `none\|curb\|half_tire\|door_sill_or_above\|cant_tell` (same as 010) |
 | confidence | str | `low\|med\|high` |
 | reference_object | str \| null | |
-The camera list is `data/raw/cctv/cameras.json`: `[{"cam_id","name","lat","lon","image_url"}]`.
+C12 is a log of on-demand checks only (no images, no background capture; CC6).
 
 ## 5. User-facing state vocabulary (FROZEN)
 Every reply from the agent, the API and the map uses exactly these meanings. Wording can be shortened but must keep its meaning.
