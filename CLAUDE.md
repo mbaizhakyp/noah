@@ -10,6 +10,7 @@ Claude Code loads this file automatically. Keep it short; the detail lives in `d
 5. `docs/05-PROGRESS.md` — what's done, who owns what, the clock
 6. `docs/06-CURRENT_ISSUES.md` — open risks, blockers, parking lot
    - `docs/07-DATA_SOURCES.md` — the 82 verified, working data sources (read when a task touches data inputs)
+   - `docs/08-DEMO.md` — Sunday demo playbook: one story, timed scripts per judge, Saturday checklist, fact sheet
 7. The spec for your task in `specs/` — **no spec with `Status: Approved` → no code**
 
 ## Non-negotiables
