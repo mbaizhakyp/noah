@@ -581,7 +581,11 @@ const fmtClock = new Intl.DateTimeFormat("en-US", { ...tz, hour: "numeric" });
 const fmtMin = new Intl.DateTimeFormat("en-US", { ...tz, hour: "numeric", minute: "2-digit" });
 const MAX_MIN = 18 * 60, STEP_MIN = 5;
 const minTime = (m) => new Date(issue.getTime() + m * 60e3);
-const nowMin = () => (snap ? snap.now_min : issue ? Math.max(0, Math.min(MAX_MIN, Math.ceil((Date.now() - issue.getTime()) / 60e3 / STEP_MIN) * STEP_MIN)) : 0);
+// Replay (I17c): a link that pins an old run (?cycle=) uses that run's clock: ?now=<minutes after issue>, default its issue time
+// (same rule as the agent with NOAH_CYCLE), so a Saturday run replayed on Sunday starts at its own "now", not at the end of the window.
+const replayNow = () => P.get("cycle") && issue && (P.get("now") != null || Date.now() - issue.getTime() > MAX_MIN * 60e3);
+const nowMin = () => (snap ? snap.now_min : replayNow() ? Math.max(0, Math.min(MAX_MIN, +P.get("now") || 0))
+  : issue ? Math.max(0, Math.min(MAX_MIN, Math.ceil((Date.now() - issue.getTime()) / 60e3 / STEP_MIN) * STEP_MIN)) : 0);
 const nowH = () => Math.floor(nowMin() / 60);
 const depMin = () => +$("hour").value; // departure, minutes after the forecast's issue time
 const depH = () => Math.min(18, Math.floor(depMin() / 60)); // the forecast hour the trip starts in; routing adds its own 1 h buffer
@@ -612,7 +616,7 @@ function setTimeUI(h, countTxt) { // h = forecast hour drawn on the map; the lab
   if (document.activeElement !== $("depTime")) $("depTime").value = hhmm(minTime(m));
   const today = etParts(new Date()), dep = etParts(minTime(m));
   $("depDay").textContent = m <= nowMin() ? "now" : new Intl.DateTimeFormat("en-US", { ...tz, weekday: "short" }).format(minTime(m));
-  $("hourLbl").textContent = m <= nowMin() ? `Now · ${fmtMin.format(new Date())}` : fmtDay.format(minTime(m));
+  $("hourLbl").textContent = m <= nowMin() ? `Now · ${fmtMin.format(replayNow() ? minTime(nowMin()) : new Date())}` : fmtDay.format(minTime(m));
   $("hourSub").textContent = countTxt || "";
   const cap = $("caption");
   cap.hidden = !countTxt && m <= nowMin();
@@ -1154,6 +1158,17 @@ $("pastHour").addEventListener("input", () => showPastHour(+$("pastHour").value)
 document.querySelectorAll("#tabs button").forEach((b) => (b.onclick = () => selectTab(b.dataset.tab)));
 // ---------- stop plan: which stops get cut off first, and the latest departure that makes them all ----------
 let lastLegs = [], lastPlan = null, planToken = 0;
+// Map and dispatch board agree (J20): a stop whose own street is forecast impassable when the driver gets there is a Hold,
+// even if its corner can be reached by open roads (same rule as POST /dispatch).
+function holdOwnStreet(plan) {
+  for (const s of [...(plan.stops || []), plan.dest].filter(Boolean)) {
+    const st = s.street;
+    if (s.state !== "hold" && st && st.state_at_arrival && st.state_at_arrival !== "no_forecast_flooding") {
+      Object.assign(s, { state: "hold", cut_h: st.t_uncertain, arrive_min: null, in_best: false, street_hold: true });
+    }
+  }
+  return plan;
+}
 const VERDICT = { go_before: "Cut from", hold: "Cut before you'd get there, from", no_forecast_flooding: "Reachable through", out_of_coverage: "Outside Georgia", no_road_forecast: "No road timing here yet" };
 const USE_TRIP = true; // spec 019: /trip routes the whole run time-aware; false = the old per-leg /route + /plan
 const tripUrl = () => `${API}/trip?from=${origin.lat},${origin.lon}&to=${dest.lat},${dest.lon}&stops=${stopPlaces().map((p) => `${p.lat},${p.lon}`).join(";")}&depart_h=${(depMin() / 60).toFixed(3)}&cycle=${cyc.cycle}&corridor_m=${CORRIDOR_M}`;
@@ -1165,7 +1180,7 @@ async function runPlan() {
     const r = await fetch(tripUrl()).then((x) => x.json());
     if (token !== planToken) return;
     if (r.state !== "ok") return;
-    lastPlan = { ...r, pts };
+    lastPlan = holdOwnStreet({ ...r, pts });
     renderPlan();
   } catch (e) { /* the plan is extra; the route stands without it */ }
 }
@@ -1212,7 +1227,8 @@ function renderPlan() {
     const sm = document.createElement("small"); sm.textContent = s.arrive_min != null ? `arrive ~${Math.round(s.arrive_min)} min after leaving${acc > 60 ? `, nearest open road ${acc} m away` : ""}` : s.state === "hold" ? "skipped on this run" : ""; nm.append(sm);
     const st = s.street, stOn = st && st.state_at_arrival !== "no_forecast_flooding", stLater = st && !stOn && st.t_uncertain != null;
     const v = document.createElement("span"); v.className = "pv " + (stOn && s.state !== "hold" ? "street" : s.state);
-    v.textContent = s.state === "hold" ? (s.cut_h == null ? "Not reachable in time after the stops before it" : `${s.cut_h * 60 <= m ? "Forecast cut since" : VERDICT.hold} ${timeOf(s.cut_h)}`)
+    v.textContent = s.street_hold ? `Hold: ${s.street.name || "its street"} forecast ${s.street.state_at_arrival === "flooded" ? "under" : "uncertain"} ${s.cut_h * 60 <= m ? "since" : "from"} ${timeOf(s.cut_h)}`
+      : s.state === "hold" ? (s.cut_h == null ? "Not reachable in time after the stops before it" : `${s.cut_h * 60 <= m ? "Forecast cut since" : VERDICT.hold} ${timeOf(s.cut_h)}`)
       : stOn ? `${st.name || "Its street"} forecast ${st.state_at_arrival === "flooded" ? "under" : "uncertain"} ${st.t_uncertain * 60 <= m ? "since" : "from"} ${timeOf(st.t_uncertain)} · stop at the corner`
       : stLater ? `${VERDICT[s.state] || ""} ${s.state === "no_forecast_flooding" ? timeOf(18) : timeOf(s.cut_h)} · its street turns ${st.t_flood != null ? "under" : "uncertain"} ${timeOf(st.t_uncertain)}`.trim() : s.state === "go_before" && s.cut_h != null ? `${VERDICT[s.state]} ${timeOf(s.cut_h)}` : s.state === "no_forecast_flooding" ? `${VERDICT[s.state]} ${timeOf(18)}` : VERDICT[s.state] || s.state;
     row.append(num, nm, v); return row;
@@ -1363,7 +1379,7 @@ async function findRoute(full = true) {
       // that can't be reached before its roads are forecast cut is skipped (the plan card says which and when)
       const t = await fetch(tripUrl(), { signal }).then((x) => x.json());
       if (seq !== searchSeq) return;
-      if (t.state === "ok") { r = t.route; legs = t.legs; r.access_lines = legs.map((l) => l.access_line).filter(Boolean); lastPlan = { ...t, pts: [...stopPlaces(), dest] }; }
+      if (t.state === "ok") { r = t.route; legs = t.legs; r.access_lines = legs.map((l) => l.access_line).filter(Boolean); lastPlan = holdOwnStreet({ ...t, pts: [...stopPlaces(), dest] }); }
       else { r = { state: t.state, message: t.message, corridor: [], avoided: [] }; legs = []; lastPlan = null; }
     } else {
       // one /route per leg (start → stops → destination), joined into one answer

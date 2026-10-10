@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Noah Dispatch</title>
+<title>Noah Operations</title>
 <meta name="theme-color" content="#f4f7fb">
 <link rel="icon" href="data:,">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -73,7 +73,7 @@
     background: var(--surface); border-radius: 22px; box-shadow: var(--shadow); padding: 20px 20px 24px; display: grid;
     align-content: start; gap: 14px; }
   .brand { display: flex; align-items: center; gap: 10px; }
-  .brand b { font: 760 22px/1 var(--display); font-stretch: 112%; letter-spacing: -.01em; }
+  .brand b { font: 760 20px/1 var(--display); font-stretch: 112%; letter-spacing: -.01em; }
   .brand span { color: var(--muted); font-size: 13px; }
   .business { color: var(--muted); font-size: 14px; margin-top: -6px; }
   .command { display: flex; align-items: stretch; gap: 8px; padding: 6px; border: 1px solid var(--line); border-radius: 999px; }
@@ -104,6 +104,20 @@
   .tile.go { background: #fff4e0; border-color: #f7d398; } .tile.go .n { color: var(--amber); }
   .tile.ok { background: var(--paper); } .tile.ok .n { color: var(--ink); }
   .summary { color: var(--muted); font-size: 13px; }
+  .tabs.mode { grid-template-columns: 1fr 1fr; }
+  .pane { display: grid; gap: 12px; }
+  [hidden] { display: none !important; }
+  .pane h2 { margin: 4px 0 0; font: 700 15px/1.3 var(--display); font-stretch: 104%; }
+  .tile.net { background: var(--paper); } .tile.net .n { color: var(--ink); }
+  .tile.net.now .n { color: var(--red); }
+  .chart { border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px 6px; }
+  .chart .cap { font-size: 12.5px; color: var(--muted); margin-bottom: 4px; }
+  .chart svg { display: block; width: 100%; height: auto; }
+  .chart rect.bar { fill: #c9d6e8; cursor: pointer; transition: fill .15s; }
+  .chart rect.bar.past { fill: #8fa7c7; }
+  .chart rect.bar.on { fill: var(--navy); }
+  .chart rect.bar:hover { fill: #5f7ea8; }
+  .chart text { font: 10.5px var(--body); fill: var(--muted); }
 
   .tabs { display: grid; grid-template-columns: 1fr 1fr; padding: 4px; background: var(--paper); border-radius: 999px; }
   .tabs button { border: 0; background: transparent; border-radius: 999px; padding: 8px 10px; font-weight: 600; color: var(--muted); cursor: pointer;
@@ -163,7 +177,7 @@
   <div class="veil" aria-hidden="true"></div>
   <header class="hero">
     <div class="eyebrow" id="eyebrowBox"><span class="dot" aria-hidden="true"></span><span id="eyebrow">Loading forecast…</span></div>
-    <h1>Deliver before the water does.</h1>
+    <h1 id="heroTitle">Close the road before the water does.</h1>
     <div class="caption" aria-live="polite"><div class="big" id="capBig">Loading forecast…</div><div class="small" id="capSmall"></div></div>
   </header>
   <a class="maplink" href="index.html">Open the flood map →</a>
@@ -177,7 +191,7 @@
   </div>
   <div class="timebar">
     <button id="play" class="play" aria-label="Play the forecast hour by hour">▶</button>
-    <div class="seg"><span class="k">Driver leaves</span><span class="v tnum" id="tNow">Now</span></div>
+    <div class="seg"><span class="k" id="tKey">Forecast time</span><span class="v tnum" id="tNow">Now</span></div>
     <span class="ends tnum" id="tStart"></span>
     <input id="slider" type="range" min="0" max="18" step="1" value="0" aria-label="Departure time, now to 18 hours ahead">
     <span class="ends tnum" id="tEnd"></span>
@@ -187,41 +201,52 @@
 <aside class="panel">
   <div class="brand">
     <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><rect width="30" height="30" rx="9" fill="#13284d"/><path d="M15 6c3.6 4.6 6 8 6 11a6 6 0 0 1-12 0c0-3 2.4-6.4 6-11z" fill="#cfe0f6"/><path d="M11.5 18.5c1 1.6 2.2 2.3 3.5 2.3" stroke="#13284d" stroke-width="1.6" fill="none" stroke-linecap="round"/></svg>
-    <b>Noah Dispatch</b><span>for small businesses</span>
+    <b>Noah Operations</b><span>for cities and fleets</span>
   </div>
-  <div id="business" class="business"></div>
+  <div class="tabs mode" role="tablist" aria-label="Who is planning">
+    <button id="tabBarr" role="tab">City operations</button>
+    <button id="tabStops" role="tab">Fleet dispatch</button>
+  </div>
   <div class="command">
     <label for="cycle"><span class="k">Forecast</span><select id="cycle"></select></label>
-    <button id="run" class="btn">Check deliveries</button>
+    <button id="run" class="btn">Run check</button>
   </div>
   <div id="error" class="banner" role="alert"></div>
-  <details>
-    <summary>Edit depot and stops</summary>
-    <label class="field"><span>Depot name</span><input id="depotLabel" name="depot" autocomplete="off"></label>
-    <div class="row">
-      <label class="field"><span>Latitude</span><input id="depotLat" name="depot-lat" inputmode="decimal" autocomplete="off"></label>
-      <label class="field"><span>Longitude</span><input id="depotLon" name="depot-lon" inputmode="decimal" autocomplete="off"></label>
-    </div>
-    <label class="field"><span>Stops, one per line: <code>label, lat, lon</code></span><textarea id="stops" name="stops" spellcheck="false" autocomplete="off"></textarea></label>
-  </details>
 
-  <div class="tiles" aria-label="Deliveries by verdict">
-    <div class="tile hold"><span class="n" id="nHold">–</span><span class="t">Hold: route forecast cut</span></div>
-    <div class="tile go"><span class="n" id="nGo">–</span><span class="t">Go before a time</span></div>
-    <div class="tile ok"><span class="n" id="nOk">–</span><span class="t">No forecast flooding</span></div>
-  </div>
-  <div class="tabs" role="tablist">
-    <button id="tabStops" class="on" role="tab">Deliveries</button>
-    <button id="tabBarr" role="tab">Barricade list</button>
-  </div>
-  <section id="paneStops">
-    <div id="runSummary" class="summary tnum"></div>
-    <div id="results"></div>
-  </section>
-  <section id="paneBarr" hidden>
+  <section id="paneBarr" class="pane">
+    <div class="tiles" aria-label="Streets forecast cut over the forecast window">
+      <div class="tile net now"><span class="n" id="cNow">–</span><span class="t" id="cNowT">streets cut at issue time</span></div>
+      <div class="tile net"><span class="n" id="cMid">–</span><span class="t" id="cMidT">by +6 h</span></div>
+      <div class="tile net"><span class="n" id="cEnd">–</span><span class="t" id="cEndT">by +18 h</span></div>
+    </div>
+    <div class="chart">
+      <div class="cap">Streets forecast underwater or uncertain, hour by hour. Click an hour to see it on the map.</div>
+      <div id="timeline" aria-label="Streets forecast cut by hour"></div>
+    </div>
+    <h2>Barricade priorities</h2>
     <p class="summary">Streets forecast to flood, earliest first, for public works and emergency management to pre-position barricades.</p>
     <button id="csv" class="btn ghost">Download CSV</button>
     <table><thead><tr><th>Street</th><th>Floods from</th><th>Length</th></tr></thead><tbody id="barrBody"></tbody></table>
+  </section>
+
+  <section id="paneStops" class="pane" hidden>
+    <div id="business" class="business"></div>
+    <details>
+      <summary>Edit depot and stops</summary>
+      <label class="field"><span>Depot name</span><input id="depotLabel" name="depot" autocomplete="off"></label>
+      <div class="row">
+        <label class="field"><span>Latitude</span><input id="depotLat" name="depot-lat" inputmode="decimal" autocomplete="off"></label>
+        <label class="field"><span>Longitude</span><input id="depotLon" name="depot-lon" inputmode="decimal" autocomplete="off"></label>
+      </div>
+      <label class="field"><span>Stops, one per line: <code>label, lat, lon</code></span><textarea id="stops" name="stops" spellcheck="false" autocomplete="off"></textarea></label>
+    </details>
+    <div class="tiles" aria-label="Deliveries by verdict">
+      <div class="tile hold"><span class="n" id="nHold">–</span><span class="t">Hold: route forecast cut</span></div>
+      <div class="tile go"><span class="n" id="nGo">–</span><span class="t">Go before a time</span></div>
+      <div class="tile ok"><span class="n" id="nOk">–</span><span class="t">No forecast flooding</span></div>
+    </div>
+    <div id="runSummary" class="summary tnum"></div>
+    <div id="results"></div>
   </section>
   <footer>Forecasts from the NOAA National Water Model, updated hourly. River and creek flooding only.
     Not a safety guarantee. Never drive into water. Emergency: 911.</footer>
@@ -236,6 +261,8 @@ const fmtDay = new Intl.DateTimeFormat("en-US", { ...TZ, weekday: "short", month
 const local = (iso) => fmt.format(new Date(iso));
 const C = { red: "#e5322d", amber: "#f59e0b", green: "#12a36c", grey: "#94a3b8", creek: "#3b82f6" };
 let data = null, lastBarricades = [], pins = [], cuts = [], depotMarker = null, timer = null, liveCycles = new Set();
+// Two audiences, one forecast (J20): agencies plan the network (City operations), businesses plan their drivers (Fleet dispatch).
+let mode = new URLSearchParams(location.search).get("mode") === "fleet" ? "fleet" : "city", streetsBy = [];
 
 const atHour = (h) => new Date(new Date(data.issue_time).getTime() + h * 3600e3);
 // Route status if a driver leaves at slider hour h: no forecast flooding then / closing later / cut.
@@ -334,6 +361,52 @@ function render(h) {
   $("capBig").textContent = h === 0 ? `Leaving now (${fmt.format(atHour(0))})` : `If a driver leaves at ${fmt.format(atHour(h))}`;
   $("capSmall").textContent = `${n.cut} route${n.cut === 1 ? "" : "s"} cut by flooding · ${n.later} closing later · ${n.open} with no forecast flooding. ` +
     `Red roads are forecast underwater by then. Drag the time bar to see the day unfold.`;
+  if (mode === "city" && streetsBy.length) {
+    const n = streetsBy[h].size, n0 = streetsBy[0].size;
+    $("capBig").textContent = h === 0 ? `Forecast issued ${fmt.format(atHour(0))}` : `At ${fmt.format(atHour(h))}`;
+    $("capSmall").textContent = `${n} street${n === 1 ? "" : "s"} forecast underwater or uncertain by then` +
+      (h ? ` · ${n - n0} more than at ${fmtHour.format(atHour(0))}` : "") + `. Drag the time bar to watch the network change.`;
+  }
+  document.querySelectorAll("#timeline rect.bar").forEach((r, k) => { r.classList.toggle("on", k === h); r.classList.toggle("past", k < h); });
+}
+
+// City operations: how many streets are forecast cut by each hour (underwater or uncertain), drawn as clickable bars.
+function cityStats(features) {
+  streetsBy = Array.from({ length: 19 }, (_, h) => new Set(features.filter((f) => f.properties.t_uncertain <= h && f.properties.name)
+    .map((f) => f.properties.name)));  // named streets (unnamed ramps/driveways stay on the map, not in the count)
+  const at = (h) => fmtHour.format(atHour(h));
+  $("cNow").textContent = streetsBy[0].size; $("cNowT").textContent = `streets cut at ${at(0)} (issue time)`;
+  $("cMid").textContent = streetsBy[6].size; $("cMidT").textContent = `by ${at(6)}`;
+  $("cEnd").textContent = streetsBy[18].size; $("cEndT").textContent = `by ${at(18)}`;
+  const max = Math.max(1, streetsBy[18].size), W = 340, H = 108, bw = 14, gap = (W - 19 * bw) / 18;
+  const NS = "http://www.w3.org/2000/svg", svg = document.createElementNS(NS, "svg");
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  streetsBy.forEach((set, h) => {
+    const bh = Math.max(2, (set.size / max) * 74), x = h * (bw + gap);
+    const r = document.createElementNS(NS, "rect");
+    Object.entries({ x, y: 80 - bh, width: bw, height: bh, rx: 3, class: "bar" }).forEach(([k, v]) => r.setAttribute(k, v));
+    const t = document.createElementNS(NS, "title"); t.textContent = `${fmt.format(atHour(h))}: ${set.size} streets`; r.append(t);
+    r.addEventListener("click", () => render(h));
+    svg.append(r);
+    if (h % 6 === 0) {
+      const lab = document.createElementNS(NS, "text");
+      Object.entries({ x: Math.min(x, W - 34), y: 98 }).forEach(([k, v]) => lab.setAttribute(k, v)); lab.textContent = at(h); svg.append(lab);
+    }
+  });
+  $("timeline").replaceChildren(svg);
+}
+
+function setMode(m) {
+  mode = m;
+  const fleet = m === "fleet";
+  $("tabStops").classList.toggle("on", fleet); $("tabBarr").classList.toggle("on", !fleet);
+  $("tabStops").setAttribute("aria-selected", fleet); $("tabBarr").setAttribute("aria-selected", !fleet);
+  $("paneStops").hidden = !fleet; $("paneBarr").hidden = fleet;
+  $("heroTitle").textContent = fleet ? "Deliver before the water does." : "Close the road before the water does.";
+  $("tKey").textContent = fleet ? "Driver leaves" : "Forecast time";
+  for (const id of ["routes-open", "routes-cut"]) if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", fleet ? "visible" : "none");
+  [depotMarker, ...pins, ...cuts.map((c) => c.marker)].forEach((mk) => mk && (mk.getElement().style.display = fleet ? "" : "none"));
+  if (data) render(+$("slider").value);
 }
 
 // Show a cut label only where it matters now (route cut, or stop selected), earliest first, never overlapping.
@@ -401,7 +474,9 @@ async function run() {
     if (!res.ok) throw new Error((d.detail || "The check failed") + ". Fix the depot or stops and try again.");
     await layersReady;
     data = d; highlighted = null;
-    map.getSource("flood").setData(await fetch(`data/flood_${d.cycle}.geojson`).then((r) => r.json()));
+    const floodGj = await fetch(`data/flood_${d.cycle}.geojson`).then((r) => r.json());
+    map.getSource("flood").setData(floodGj);
+    cityStats(floodGj.features);
     const live = liveCycles.has(d.cycle);
     $("eyebrow").textContent = `${live ? "Live NOAA forecast" : "Backup: Hurricane Helene 2024 forecast"} · issued ${fmtDay.format(new Date(d.issue_time))}`;
     $("eyebrowBox").classList.toggle("backup", !live);
@@ -431,10 +506,11 @@ async function run() {
     const pts = [[d.depot.lon, d.depot.lat], ...d.stops.filter((s) => s.state !== "out_of_coverage").map((s) => [s.lon, s.lat])];
     map.fitBounds(pts.reduce((bb, q) => bb.extend(q), new maplibregl.LngLatBounds(pts[0], pts[0])), { padding: framePad(), maxZoom: 14, duration: 0 });
     const firstCut = Math.min(...d.stops.filter((s) => s.state === "go_before").map((s) => s.cut_h));
+    setMode(mode);
     render(isFinite(firstCut) ? firstCut : 0);
     await loadBarricades(d.cycle);
   } catch (e) { showError(e.message); }
-  finally { $("run").disabled = false; $("run").textContent = "Check deliveries"; }
+  finally { $("run").disabled = false; $("run").textContent = "Run check"; }
 }
 
 async function loadBarricades(cycle) {
@@ -467,13 +543,8 @@ $("csv").onclick = () => {
   a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
   a.download = `noah_barricades_${$("cycle").value}.csv`; a.click();
 };
-for (const [btn, pane] of [["tabStops", "paneStops"], ["tabBarr", "paneBarr"]]) {
-  $(btn).onclick = () => {
-    for (const [b2, p2] of [["tabStops", "paneStops"], ["tabBarr", "paneBarr"]]) {
-      $(b2).classList.toggle("on", b2 === btn); $(b2).setAttribute("aria-selected", b2 === btn); $(p2).hidden = p2 !== pane;
-    }
-  };
-}
+$("tabStops").onclick = () => setMode("fleet");
+$("tabBarr").onclick = () => setMode("city");
 $("run").onclick = run;
 $("cycle").onchange = run;
 
@@ -495,6 +566,7 @@ $("cycle").onchange = run;
   $("business").textContent = sample.business + " · sample stops on public streets";
   $("depotLabel").value = sample.depot.label; $("depotLat").value = sample.depot.lat; $("depotLon").value = sample.depot.lon;
   $("stops").value = sample.stops.map((s) => `${s.label}, ${s.lat}, ${s.lon}`).join("\n");
+  setMode(mode);
   run();
 })();
 </script>
