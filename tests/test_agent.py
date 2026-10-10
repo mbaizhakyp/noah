@@ -71,3 +71,82 @@ def test_street_matching_handles_abbreviations_and_directions():
     assert not street_matches(
         "NW", "Northside Drive Northwest"
     )  # a direction alone is not a street
+
+
+def test_endpoint_flags_and_guarantee():
+    from noah.api.agent import endpoint_flags, needs_guarantee, template_reply
+
+    status = {
+        "segments": [
+            {
+                "name": "Woodward Way Northwest",
+                "state": "flooded",
+                "eta_utc": "2026-10-10T09:00:00Z",
+                "distance_m": 40,
+            },
+            {
+                "name": "Far Rd",
+                "state": "flooded",
+                "eta_utc": "2026-10-10T08:00:00Z",
+                "distance_m": 900,
+            },
+        ]
+    }
+    ends = endpoint_flags(status)
+    assert [e["name"] for e in ends] == ["Woodward Way Northwest"]
+    res = {"state": "endpoint_flooded", "flagged_roads": [], "destination_street_flooding": ends}
+    assert template_reply(res).startswith("Do not cross Woodward Way Northwest")
+    assert needs_guarantee(
+        {"state": "route_found", "flagged_roads": []}, "No flooded roads on your route."
+    )
+    assert not needs_guarantee(
+        {"state": "route_found", "flagged_roads": []},
+        "No flooding. This is not a safety guarantee.",
+    )
+    assert not needs_guarantee(res, "Do not cross Woodward Way.")
+
+
+def test_at_place_separates_the_asked_street_from_nearby_roads():
+    from noah.api.agent import at_place
+
+    status = {
+        "segments": [
+            {
+                "name": "Valley Road Northwest",
+                "state": "flooded",
+                "eta_utc": "2026-10-10T09:00:00Z",
+                "distance_m": 2100,
+            },
+            {
+                "name": "Woodward Way Northwest",
+                "state": "uncertain",
+                "eta_utc": "2026-10-10T10:00:00Z",
+                "distance_m": 900,
+            },
+            {
+                "name": "Unnamed",
+                "state": "flooded",
+                "eta_utc": "2026-10-10T09:00:00Z",
+                "distance_m": 120,
+            },
+        ]
+    }
+    names = [r["name"] for r in at_place(status, "Woodward Way NW, Atlanta")]
+    assert names == ["Unnamed", "Woodward Way Northwest"]  # 120 m away + same street within 2 km
+    assert (
+        at_place({"segments": status["segments"][:1]}, "Woodward Way NW") == []
+    )  # Valley Rd is only nearby
+
+
+def test_guarantee_for_calm_place_with_flooded_neighbours():
+    from noah.api.agent import needs_guarantee
+
+    area = {
+        "state": "flooded",
+        "flooding_at_this_place": [],
+        "nearby_flagged_roads": [{"name": "Valley Rd"}],
+    }
+    assert needs_guarantee(area, "Woodward Way itself is not forecast to flood.")
+    assert not needs_guarantee(
+        {**area, "flooding_at_this_place": [{"name": "Woodward Way"}]}, "Do not cross."
+    )

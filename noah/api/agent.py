@@ -29,6 +29,8 @@ router = APIRouter()
 ET = "America/New_York"
 MAX_CHARS = 480
 ENGINE_BUDGET_S = 12
+ENDPOINT_M = 200  # a flagged street this close to the start/destination is "your street"
+WET = ("curb", "half_tire", "door_sill_or_above")
 GEORGIA_VIEWBOX = "-85.61,35.00,-80.84,30.36"  # left,top,right,bottom
 BANNED = re.compile(r"\b(safe|safely|clear|passable|you're fine|no risk)\b", re.IGNORECASE)
 ERROR_REPLY = (
@@ -59,6 +61,12 @@ How to answer:
 - NEVER call a road or route safe, clear or passable, and never say "no risk". When describing danger,
   add: never drive into water; call 911 in an emergency.
 - Use only numbers and times that appear in tool results. Name the main flooded roads and when.
+- If start_street_flooding or destination_street_flooding is present, lead with it: that street itself
+  is forecast flooded, so do not drive it from that time; say by when they'd need to have made the trip.
+- Mention camera water ONLY from cameras_seeing_water, naming the camera and saying it was AI-checked twice.
+- check_area: only say the asked street/place itself floods if flooding_at_this_place lists it. Roads in
+  nearby_flagged_roads are other roads: say how far away they are (km_away). If flooding_at_this_place
+  is empty, say no flooding is forecast at that spot (not a safety guarantee), then the nearby roads.
 - If a tool returns an error, say so plainly and ask for a street address. Never claim a place was
   saved or checked unless the tool result says so.
 - If a route result has a map_url, include it. Plain text, no markdown, at most 480 characters."""
@@ -143,13 +151,57 @@ def is_banned(text: str) -> bool:
     return bool(BANNED.search(text or ""))
 
 
+def endpoint_flags(status: dict, within_m: int = ENDPOINT_M) -> list[dict]:
+    """Flagged streets right at a trip's start/end (routing snaps to intersections and can miss them)."""
+    return flagged(
+        [r for r in status.get("segments", []) if r.get("distance_m", 1e9) <= within_m], 3
+    )
+
+
+def at_place(status: dict, place_text: str) -> list[dict]:
+    """Flagged streets AT the asked place: within ENDPOINT_M, or the same street by name within 2 km."""
+    street = re.split(
+        r",|\s+(?:near|by|at|close to)\s+", place_text, maxsplit=1, flags=re.IGNORECASE
+    )[0]
+    rows = [
+        r
+        for r in status.get("segments", [])
+        if r.get("distance_m", 1e9) <= ENDPOINT_M
+        or (
+            r.get("distance_m", 1e9) <= 2000 and r.get("name") and street_matches(street, r["name"])
+        )
+    ]
+    return flagged(rows, 3)
+
+
+def needs_guarantee(result: dict | None, reply: str) -> bool:
+    """§5: any 'no flooding' statement must say it is not a safety guarantee
+    (a calm route, or a place whose own street isn't flagged even if nearby roads are)."""
+    if not result or "guarantee" in reply.lower():
+        return False
+    if "flooding_at_this_place" in result:
+        return not result["flooding_at_this_place"]
+    return result.get("state") in ("no_forecast_flooding", "route_found") and not result.get(
+        "flagged_roads"
+    )
+
+
 def template_reply(result: dict | None) -> str:
     """Deterministic §5 reply from the last tool result (used if the model keeps using banned words)."""
     if not result or "state" not in result:
         return ERROR_REPLY
-    st, roads = result["state"], result.get("flagged_roads") or []
+    st = result["state"]
+    roads = result.get("flooding_at_this_place") or result.get("flagged_roads") or []
     if st in ("out_of_coverage", "no_road_forecast"):
         return "That's outside Noah's road-by-road coverage (metro Atlanta). Check local official warnings."
+    ends = (result.get("destination_street_flooding") or []) + (
+        result.get("start_street_flooding") or []
+    )
+    if ends:
+        r = ends[0]
+        return finalize(
+            f"Do not cross {r['name']}: forecast flooded from ~{r['from']}. Never drive into water; call 911 in an emergency."
+        )
     if st == "beyond_forecast_window":
         return "That's more than 18 hours out, past Noah's forecast window. Ask again closer to the time."
     if roads:
@@ -170,7 +222,10 @@ def flagged(rows: list[dict], limit: int = 5) -> list[dict]:
         if r.get("state") not in rank or name in seen:
             continue
         seen.add(name)
-        out.append({"name": name, "state": r["state"], "from": local(r.get("eta_utc"))})
+        row = {"name": name, "state": r["state"], "from": local(r.get("eta_utc"))}
+        if r.get("distance_m") is not None:
+            row["km_away"] = round(r["distance_m"] / 1000, 1)
+        out.append(row)
         if len(out) == limit:
             break
     return out
@@ -334,6 +389,15 @@ def engine_extra(fn, *args) -> dict | None:
         "live_hazards_avoided": (res.get("road_forecast") or {})
         .get("route", {})
         .get("avoided_segments"),
+        "cameras_seeing_water": [  # bucket is a depth only when both AI looks agreed (sources/more.py)
+            {
+                "camera": c.get("name"),
+                "level": c["bucket"].replace("_", " "),
+                "checked": local(c.get("checked_utc")),
+            }
+            for c in res.get("cameras") or []
+            if c.get("bucket") in WET
+        ],
     }
 
 
@@ -354,7 +418,8 @@ def run_tool(name: str, args: dict, session: dict, ctx: dict) -> dict:
         out = {
             "place": geo["name"],
             "state": st["state"],
-            "flagged_roads": flagged(st.get("segments", [])),
+            "flooding_at_this_place": at_place(st, args["place"]),
+            "nearby_flagged_roads": flagged(st.get("segments", [])),
         }
         if st["state"] not in ("out_of_coverage",):
             out["live"] = engine_extra("area", geo["lat"], geo["lon"], ctx["cycle"])
@@ -375,6 +440,13 @@ def run_tool(name: str, args: dict, session: dict, ctx: dict) -> dict:
             "flagged_roads": flagged(rt.get("corridor", [])),
             "avoided_flooded_segments": len(rt.get("avoided", [])),
         }
+        limit = min(h + config.ROUTE_BUFFER_H, config.MAX_LEAD_H)
+        for label, geo in (("start", a), ("destination", b)):
+            near = endpoint_flags(routing.status(geo["lat"], geo["lon"], limit, ctx["cycle"]))
+            if near:
+                out[f"{label}_street_flooding"] = near
+                if rt["state"] == "route_found":
+                    out["state"] = "endpoint_flooded"
         if rt.get("map_url") and config.WEB_BASE:
             out["map_url"] = rt["map_url"]
         if rt["state"] == "route_found":
@@ -459,6 +531,8 @@ def answer(sender: str, text: str) -> str:
         reply = finalize(llm(messages, tools=False).get("content") or "")
         if not reply or is_banned(reply):
             reply = template_reply(last_result)
+    if needs_guarantee(last_result, reply):
+        reply = finalize(reply[: MAX_CHARS - 40].rstrip() + " This is not a safety guarantee.")
     session["history"].extend(
         [{"role": "user", "content": text}, {"role": "assistant", "content": reply}]
     )
