@@ -78,3 +78,16 @@ def test_texts_use_the_name_people_say():
         road_alias("cut from ~7 AM at Horace E Tate Freeway")
         == "cut from ~7 AM at Downtown Connector"
     )
+
+
+def test_resend_picks_the_latest_real_new_alert():
+    from noah.pipeline.route_watch import pick_resend
+
+    items = [
+        {"text": "Noah route watch … Graves Rd (new)", "image": None},
+        {"text": "Camera on the Smyrna route shows water", "image": "x.png"},
+        {"text": "Noah route watch … moved", "image": None},
+        {"text": "TEST (not a real alert)", "image": "y.png"},
+    ]
+    assert pick_resend(items)["text"].endswith("(new)")
+    assert pick_resend([]) is None

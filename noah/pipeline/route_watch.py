@@ -253,6 +253,24 @@ def run_once() -> None:
     HISTORY.write_text(json.dumps(hist, indent=1))
 
 
+def pick_resend(items: list[dict]) -> dict | None:
+    """Photon demo: the latest real forecast alert, preferring one that announced a new cut. Never a test, a re-send
+    or a camera alert (Saturday's camera alerts were false alarms)."""
+    real = [
+        i for i in items if not i["text"].startswith(("TEST", "Re-sent")) and not i.get("image")
+    ]
+    return next((i for i in reversed(real) if "(new)" in i["text"]), real[-1] if real else None)
+
+
+def resend() -> None:
+    items = [json.loads(x) for x in OUTBOX.read_text().splitlines()] if OUTBOX.exists() else []
+    item = pick_resend(items)
+    if item is None:
+        raise SystemExit("no alert to re-send yet")
+    queue(f"Re-sent from {et(item['ts'])}: {item['text']}")
+    print("queued:", item["text"].splitlines()[0])
+
+
 def report() -> None:
     routes = json.loads(ROUTES.read_text())["routes"]
     hist = json.loads(HISTORY.read_text())
@@ -434,11 +452,19 @@ def main() -> None:
     g.add_argument("--once", action="store_true")
     g.add_argument("--every", type=int, help="seconds between checks (e.g. 300)")
     g.add_argument("--report", action="store_true")
+    g.add_argument(
+        "--resend", action="store_true", help="re-send the latest real alert (Photon demo)"
+    )
     a = p.parse_args()
     if a.pick:
         return pick()
     if a.report:
         return report()
+    if a.resend:
+        from dotenv import load_dotenv
+
+        load_dotenv(config.ROOT / ".env")
+        return resend()
     from dotenv import load_dotenv
 
     load_dotenv(config.ROOT / ".env")  # NTFY_TOPIC
