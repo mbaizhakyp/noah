@@ -86,7 +86,7 @@ Every point where the two lanes must connect. Tick each item and note the commit
 | I10 | **Replit (J6/BL-9):** run command + data loading (I1) + secrets; Margulan does the account/import/billing steps in the browser (Claude can't). | M (browser), P (config) | ☐ |
 | I12 | **Same visual language on both maps:** creeks in blue, plain-language caption over the time slider ("Roads forecast underwater by …"), numbered pins matching the list, routes drawn with a ✕ where they get cut. Built first in `dispatch.html` (Fri 23:30); reuse in `index.html` (009). | P (009) | ☐ |
 | I13 | **C7 for HUC8 coverage:** `routing.coverage()` reads features with a `huc8` property from `web/data/aoi.geojson`. Margulan's HUC8 expansion writes them (CC6). | M | ✅ Fri 23:50: 4 HUC10 features, each with `huc8: "03130001"` and `huc10` |
-| I14 | **Relay ↔ agent:** Margulan's relay (`bot/`, 008) calls Priyanshu's `POST /chat` `{"sender", "text", "image_b64": null}` → `{"reply"}` (C9). Until 007 exists, the relay runs in echo mode. Agree the `API_BASE` (laptop tunnel or Replit URL) before the 14:00 E2E. | M (relay) + P (agent) | ✅ Sat 03:30: `/chat` exists (agent.py); relay auto mode now relays |
+| I14 | **Relay ↔ agent:** Margulan's relay (`bot/`, 008) calls Priyanshu's `POST /chat` `{"sender", "text", "image_b64": null}` → `{"reply"}` (C9). Until 007 exists, the relay runs in echo mode. Agree the `API_BASE` (laptop tunnel or Replit URL) before the 14:00 E2E. | M (relay) + P (agent) | ✅ Sat 02:08: `/chat` exists (agent.py); relay auto mode now relays |
 | I15 | **`app.py` touched by Margulan:** `from noah.api import agent`, `app.include_router(agent.router)`, `agent.warm()` in `warm()`. Priyanshu: keep these when editing app.py. | P (ack) | ☐ |
 | I11 | **Wording:** agent replies, map labels and dispatch badges all use the §5 vocabulary; run the banned-word check over everything user-facing. | Both | ☐ |
 
@@ -112,8 +112,8 @@ Every point where the two lanes must connect. Tick each item and note the commit
 ## Resolved
 | # | Resolved | How |
 |---|---|---|
-| J15 | Sat 03:00 | **007 chat agent moved to Margulan** (Margulan's call; Priyanshu please ack). Built on Priyanshu's routing + engine; `app.py` gains `include_router(agent.router)` + `agent.warm()` (two lines in Priyanshu's file, I15). |
-| B3 | Sat 02:50 | Photon Spectrum Cloud project + iMessage line work: real echo round trip from Margulan's iPhone (spec 008 Phase 0). |
+| J15 | Sat ~02:00 | **007 chat agent moved to Margulan** (Margulan's call; Priyanshu please ack). Built on Priyanshu's routing + engine; `app.py` gains `include_router(agent.router)` + `agent.warm()` (two lines in Priyanshu's file, I15). |
+| B3 | Sat 01:53 | Photon Spectrum Cloud project + iMessage line work: real echo round trip from Margulan's iPhone (spec 008 Phase 0). |
 | J14 | Sat 01:20 | **008 (iMessage relay + Photon) moved to Margulan** (Margulan's call; Priyanshu: please ack in PROGRESS). Priyanshu keeps 007 (agent behind `POST /chat`). Contract between them = C9 `/chat` (see I14). |
 | J11 | Sat 01:05 | **Accepted with a condition (Margulan: "sounds good" to Claude's recommendation):** side challenges = Tiger Data + Photon + Replit; AI on Azure OpenAI (Gemini dropped). **Condition:** Tiger Data stays small (store live forecast runs per segment + 1 dashboard query) and starts **after** the 007 agent + 008 iMessage relay work end to end (Sat 14:00 E2E). |
 | J10 | Sat 00:45 | **Agreed with two conditions (Margulan):** (1) the demo needs proof, so Isaias forecasts are validated against USGS gauges + reported closures Sat night / Sun early; (2) Helene is kept as backup (Devpost, Q&A, fallback demo), not in the main UI/pitch. Product = live by default (spec 015 live loop, Margulan). Spec 011 retired into 015 + the Sat-night validation. Demo-event final call Sat 14:00 (J13). First data point: the 9 PM Fri run already forecasts 62 metro segments flooded / 205 uncertain by 5–7 AM Sat. |
