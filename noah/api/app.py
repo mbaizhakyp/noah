@@ -4,12 +4,20 @@ Also mounts spec 014's dispatch router (I3) and serves web/ from the same origin
 """
 
 import logging
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+load_dotenv(Path(__file__).resolve().parents[2] / ".env")  # keys before anything reads os.environ
 
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from noah import config
+from noah import (
+    config,
+    engine,
+)
 from noah.api import dispatch, routing
 
 log = logging.getLogger("api")
@@ -63,6 +71,27 @@ def route(
         return routing.route(a_lat, a_lon, b_lat, b_lon, depart_h, cycle)
     except Exception:  # noqa: BLE001 (spec 006: any failure -> conservative reply, never a crash)
         return failed("route")
+
+
+@app.get("/assess")
+def assess_area(lat: float, lon: float, cycle: str | None = None) -> dict:
+    """Spec 015: every source for the 5 km area + AI assessment (now / next 18 h / next days)."""
+    try:
+        return engine.area(lat, lon, cycle)
+    except Exception:  # noqa: BLE001 (spec 006/015: any failure -> conservative reply, never a crash)
+        return failed("assess")
+
+
+@app.get("/assess/route")
+def assess_route(
+    from_: str = Query(alias="from"), to: str = Query(), depart_h: int = 0, cycle: str | None = None
+) -> dict:
+    """Spec 015: route around forecast flooding + every source along the 1 km corridor + AI assessment."""
+    try:
+        (a_lat, a_lon), (b_lat, b_lon) = parse_latlon(from_), parse_latlon(to)
+        return engine.route(a_lat, a_lon, b_lat, b_lon, depart_h, cycle)
+    except Exception:  # noqa: BLE001
+        return failed("assess/route")
 
 
 @app.on_event("startup")

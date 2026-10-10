@@ -147,7 +147,7 @@ def coverage():
     ga = shape(json.loads(config.GEORGIA_GEOJSON.read_text())["features"][0]["geometry"])
     c7 = json.loads((config.WEB_DATA / "aoi.geojson").read_text())["features"]
     hucs = [shape(f["geometry"]) for f in c7 if "huc8" in f["properties"]]
-    processed = shapely.union_all(hucs) if hucs else shape(c7[0]["geometry"])
+    processed = shapely.union_all(hucs or [shape(f["geometry"]) for f in c7])  # all basins in C7
     return ga, processed
 
 

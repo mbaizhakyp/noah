@@ -1,0 +1,42 @@
+from noah.engine import banned, numbers_ok, raise_to_floor, rules
+
+
+def test_number_guard_accepts_bundle_numbers_and_911_rejects_invented():
+    bundle = '{"detail": "2.85 in of rain in 24 h, 98% chance"}'
+    assert numbers_ok("About 2.85 inches of rain, 98% chance. Call 911 in an emergency.", bundle)
+    assert numbers_ok("About 2.9 in of rain.", bundle)  # rounding
+    assert not numbers_ok("About 6 inches of rain expected.", bundle)
+
+
+def test_banned_words_whole_word_only():
+    assert banned("The route is safe") and banned("Roads are CLEAR") and banned("passable.")
+    assert not banned("This is not a safety guarantee") and not banned("conditions are unclear")
+
+
+def test_rules_only_raise_never_lower():
+    r = rules(
+        {"state": "flooded", "segments": []},
+        [{"source": "NWS alerts", "severity": "danger", "title": "Flash Flood Warning"}],
+    )
+    assert r["min_now"] == "severe" and r["min_next_18h"] == "severe"
+    a = raise_to_floor({"now": {"level": "low"}, "next_18h": {"level": "severe"}}, r)
+    assert a["now"]["level"] == "severe"
+    calm = rules({"state": "no_forecast_flooding", "segments": []}, [])
+    assert raise_to_floor({"now": {"level": "high"}}, calm)["now"]["level"] == "high"
+
+
+def test_source_errors_are_isolated(monkeypatch):
+    import noah.sources as src
+    import noah.sources.adapters  # noqa: F401  (register real adapters first, then swap the list)
+
+    def boom(ctx):
+        raise RuntimeError("down")
+
+    monkeypatch.setattr(
+        src,
+        "ADAPTERS",
+        [("ok", 0, lambda c: [src.signal("ok", "context", "fine")]), ("bad", 0, boom)],
+    )
+    out = src.run(src.Ctx("area", 33.8, -84.4), budget_s=5)
+    assert [s["source"] for s in out["signals"]] == ["ok"]
+    assert out["sources_failed"][0]["source"] == "bad"

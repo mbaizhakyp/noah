@@ -125,3 +125,11 @@ _Append-only. Format: `HH:MM Name — what was done — how verified (command)`.
   - Time slider 0–18 h with Play. Google/Apple Maps hand-off (3 waypoints from Noah's route). Validation panel (13.2 h). Camera markers render if `/status` / `/route` return `cameras`.
   - Verified in Chrome on real Helene data: Peachtree Battle → Northside at +16 h goes around 3 flooded segments; Bobby Jones Golf Club 5 km check = 140 streets; 390 px phone width has no sideways scroll and 44 px tap targets. No banned words in visible text.
   - UI polish deferred (map-first layout on phones is in the CSS but not re-checked).
+
+- 02:45 — **Spec 015 engine + live loop working on live data.**
+  - `noah/pipeline/live.py` (reuses 001/004 code) published NWM `20261010T01Z`: 602 reaches, 205 segments flagged (62 flooded), 17 s. It runs `--every 900`.
+  - Pipeline inputs rebuilt locally (002/003): 68,533 nodes, 154,988 edges, 135,289 threshold rows.
+  - `noah/sources/` has 14 adapters: NWS alerts, LSR 24 h, NWS QPF, NWPS gauges, NWPS reach blend, USGS, Synoptic, WPC ERO, TomTom, FEMA zone, LSR history, CDC SVI, SeeClickFix, NHC.
+  - `noah/engine.py`: rules + Azure OpenAI assessment, number guard + banned-word filter + rules fallback.
+  - `/assess` (Peachtree Creek) returned 14/14 sources, 48 signals, AI assessment, ~8 s. `/assess/route` and Albany (`no_road_forecast` + statewide signals) were verified too.
+  — `uv run pytest -q` (23 passed), `ruff` clean.
