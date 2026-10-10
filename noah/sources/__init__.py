@@ -109,6 +109,7 @@ def signal(
     lat=None,
     lon=None,
     url=None,
+    extra: dict | None = None,
 ) -> dict:
     """One standard signal. kind: forecast | observation | report | context."""
     return {
@@ -128,7 +129,7 @@ def signal(
             "url": url,
         }.items()
         if v not in (None, "")
-    }
+    } | (extra or {})
 
 
 def adapter(name: str, ttl: int = 600):
@@ -153,7 +154,7 @@ def _call(name: str, ttl: int, fn, ctx: Ctx):
 
 def run(ctx: Ctx, budget_s: float = 12, only: set[str] | None = None) -> dict:
     """Run every adapter in parallel. Returns signals plus which sources answered or failed."""
-    from noah.sources import adapters  # noqa: F401  (registers adapters)
+    from noah.sources import adapters, more  # noqa: F401  (registers adapters)
 
     todo = [a for a in ADAPTERS if only is None or a[0] in only]
     ok, failed, signals = [], [], []

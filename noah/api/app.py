@@ -101,6 +101,14 @@ def warm() -> None:
         dispatch.graph_state()
         routing.flood_index(routing.current_cycle())
         routing.coverage()
+        # 21 years of Georgia flood reports is a large download: fetch it once in the background
+        import threading
+
+        from noah.sources.adapters import _ga_lsr_floods, now_utc
+
+        threading.Thread(
+            target=_ga_lsr_floods, args=(now_utc().strftime("%Y-%m-%d"),), daemon=True
+        ).start()
     except Exception:
         log.exception("warm-up failed; endpoints will retry on first request")
 

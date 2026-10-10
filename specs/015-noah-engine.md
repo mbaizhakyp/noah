@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | Owner | Priyanshu |
-| Status | Approved (Priyanshu, Sat Oct 10 ~02:00 ET: "build the fully functional backend… use all the sourced data and have the AI work as the engine") |
+| Status | **Done** (Priyanshu, Sat Oct 10 ~03:45 ET): 33 adapters live, cameras (010/013) with two-step verification, live-hazard re-routing, exact-number guard |
 | Priority | P0 |
 | Time box | 6 h (adapters in tiers; ship tier by tier) |
 | Depends on | 006 (routing), `docs/07-DATA_SOURCES.md` (verified endpoints), keys in `.env` (Windy, TomTom, Synoptic, Census, Azure OpenAI) |
@@ -59,12 +59,28 @@ Training ML models. Statewide browsing (CC6: area or route only). Storing images
 - `GET /assess/route?from=&to=&depart_h=&cycle=`: route (006) + corridor bundle + assessment, in the same shape plus `route`.
 - `/status` and `/route` stay fast and AI-free.
 
+## Discovered (Sat 03:45)
+- **33 adapters, all answering live (warm `/assess` ~6.5 s; sources ~1.5 s, the AI is the rest).** Tier 1 + 2 + 3 as listed, plus:
+  - NWM rapid-onset flooding (18 h), NWM high-water probability (12 h), NWM high-flow magnitude, NWM 10-day rapid-onset flooding
+  - Flash Flood Guidance (grid values are mm), WPC QPF days 1–3, Open-Meteo, Atlas 14, CoCoRaHS
+  - Dams, NFIP claims, critical facilities, Atlanta storm inlets
+  - EPA CSO facilities (ECHO needs `qcolumns=1,3,26,27,53` for coordinates), GA EPD sewage spills (county match)
+  - FHWA road roughness (pothole proxy), Google News, Bluesky
+- **Gotchas:**
+  - Synoptic precipitation totals are not on the free tier, so we use `stations/latest` 1 h/24 h fields.
+  - The IEM LSR GeoJSON caps at 10,000 features, so history uses the statewide CSV, pre-loaded at startup.
+  - NWS needs `Accept: application/geo+json`.
+  - NWPS uses `0001-01-01` as "no forecast".
+- **Number guard is exact** (no rounding; 911 whitelisted). The prompt also forbids inferring causes a signal doesn't state.
+- **Camera water must be seen twice** (`photo.verified`: low-detail check, then a skeptical high-detail check). One sighting only → `possible_water` (watch, no road blocking). The first live test had a night snapshot at Northside Dr/Peachtree Battle read as "curb"; the second look said wet pavement/reflections → unconfirmed.
+- **Live re-routing:** TomTom flooding/closure (30 m) and confirmed camera water (100 m) block segments from now (`routing.route(extra_blocked=…)`). `/assess/route` re-routes and reports `live_blocked` + `live_hazards_considered`.
+
 ## Acceptance criteria
-- [ ] `uv run python -m noah.pipeline.live --once` writes a C5 for the newest NWM cycle and a C6 entry with `event: "live"`. `/health` shows that cycle.
-- [ ] `/assess` for a metro-Atlanta point returns signals from ≥ 10 distinct sources, with the failing ones listed, in < 15 s cold and < 3 s warm.
-- [ ] The assessment cites only sources present in `signals`. The number guard passes, or the fallback is used (logged).
-- [ ] A Georgia point outside metro Atlanta still gets statewide signals (alerts, gauges, rain, ERO) + `no_road_forecast` for road timing.
-- [ ] Unit tests: the adapter error isolation, the rules (upgrade only), the number guard, the banned-word filter.
+- [x] `uv run python -m noah.pipeline.live --once` writes a C5 for the newest NWM cycle and a C6 entry with `event: "live"`. `/health` shows that cycle.
+- [x] `/assess` for a metro-Atlanta point returns signals from ≥ 10 distinct sources, with the failing ones listed, in < 15 s cold and < 3 s warm.
+- [x] The assessment cites only sources present in `signals`. The number guard passes, or the fallback is used (logged).
+- [x] A Georgia point outside metro Atlanta still gets statewide signals (alerts, gauges, rain, ERO) + `no_road_forecast` for road timing.
+- [x] Unit tests: the adapter error isolation, the rules (upgrade only), the number guard, the banned-word filter.
 
 ## Fallback
 - AI unavailable → a rules-only template assessment (labeled).

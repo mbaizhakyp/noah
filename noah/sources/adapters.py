@@ -4,8 +4,11 @@ Every adapter: fetch(ctx) -> list[signal]. Times in `detail` are written in Amer
 the AI engine can quote them without converting.
 """
 
+import csv
+import io
 import os
 from datetime import UTC, datetime, timedelta
+from functools import lru_cache
 from zoneinfo import ZoneInfo
 
 from noah.sources import Ctx, adapter, haversine_m, http, signal
@@ -452,30 +455,47 @@ def fema_zone(ctx: Ctx) -> list[dict]:
     return out
 
 
-@adapter("NWS flood reports here before (2005-2026)", ttl=86400)  # docs/07 #27 archive
-def lsr_history(ctx: Ctx) -> list[dict]:
-    x0, y0, x1, y1 = ctx.bbox
+@lru_cache(maxsize=1)
+def _ga_lsr_floods(day: str) -> list[dict]:
+    """All Georgia flood-related Local Storm Reports since 2005 (CSV, so nothing is truncated). One fetch per day."""
     r = http.get(
-        "https://mesonet.agron.iastate.edu/geojson/lsr.php",
-        params={"sts": "200501010000", "ets": now_utc().strftime("%Y%m%d%H%M"), "wfos": "FFC"},
-        timeout=20,
+        "https://mesonet.agron.iastate.edu/cgi-bin/request/gis/lsr.py",
+        timeout=60,
+        params={"state": "GA", "sts": "2005-01-01T00:00Z", "ets": f"{day}T00:00Z", "fmt": "csv"},
     )
     r.raise_for_status()
-    hits = []
-    for f in r.json()["features"]:
-        p = f["properties"]
-        if (
-            "FLOOD" not in str(p.get("typetext", "")).upper()
-            and "flood" not in str(p.get("remark", "")).lower()
-        ):
-            continue
-        if x0 <= p["lon"] <= x1 and y0 <= p["lat"] <= y1 and ctx.contains(p["lat"], p["lon"]):
-            hits.append(p)
+    rows = []
+    for row in csv.DictReader(io.StringIO(r.text)):
+        kind, remark = row.get("TYPETEXT", ""), row.get("REMARK", "")
+        if "FLOOD" in kind.upper() or "flood" in remark.lower():
+            try:
+                rows.append(
+                    {
+                        "lat": float(row["LAT"]),
+                        "lon": float(row["LON"]),
+                        "valid": row.get("VALID", ""),
+                        "type": kind,
+                        "remark": remark,
+                        "city": row.get("CITY", ""),
+                    }
+                )
+            except (KeyError, ValueError):
+                continue
+    return rows
+
+
+@adapter("NWS flood reports here before (2005-2026)", ttl=86400)  # docs/07 #27 archive
+def lsr_history(ctx: Ctx) -> list[dict]:
+    hits = [
+        p
+        for p in _ga_lsr_floods(now_utc().strftime("%Y-%m-%d"))
+        if ctx.contains(p["lat"], p["lon"])
+    ]
     if not hits:
         return []
-    hits.sort(key=lambda p: p.get("valid", ""), reverse=True)
+    hits.sort(key=lambda p: p["valid"], reverse=True)
     eg = "; ".join(
-        f"{(p.get('remark') or p.get('typetext'))[:90]} ({str(p.get('valid'))[:10]})"
+        f"{(p['remark'] or p['type'])[:90]} ({p['valid'][:4]}-{p['valid'][4:6]}-{p['valid'][6:8]})"
         for p in hits[:3]
     )
     return [
@@ -515,9 +535,14 @@ def svi(ctx: Ctx) -> list[dict]:
         signal(
             "CDC Social Vulnerability Index",
             "context",
-            f"Social vulnerability: {pct}th percentile"
-            if pct is not None
-            else "Social vulnerability",
+            "Social vulnerability: "
+            + (
+                "lower than 99% of US census tracts"
+                if pct == 0
+                else f"higher than {pct}% of US census tracts"
+                if pct is not None
+                else "unknown"
+            ),
             detail=f"{a.get('LOCATION')}: {a.get('E_NOVEH')} of {a.get('E_HH')} households have no vehicle.",
             value=pct,
             units="percentile",

@@ -4,7 +4,8 @@ from noah.engine import banned, numbers_ok, raise_to_floor, rules
 def test_number_guard_accepts_bundle_numbers_and_911_rejects_invented():
     bundle = '{"detail": "2.85 in of rain in 24 h, 98% chance"}'
     assert numbers_ok("About 2.85 inches of rain, 98% chance. Call 911 in an emergency.", bundle)
-    assert numbers_ok("About 2.9 in of rain.", bundle)  # rounding
+    assert not numbers_ok("About 2.9 in of rain.", bundle)  # no rounding allowed
+    assert not numbers_ok("About 3.0 inches of rain.", bundle)
     assert not numbers_ok("About 6 inches of rain expected.", bundle)
 
 
@@ -27,7 +28,8 @@ def test_rules_only_raise_never_lower():
 
 def test_source_errors_are_isolated(monkeypatch):
     import noah.sources as src
-    import noah.sources.adapters  # noqa: F401  (register real adapters first, then swap the list)
+    import noah.sources.adapters
+    import noah.sources.more  # noqa: F401
 
     def boom(ctx):
         raise RuntimeError("down")
@@ -40,3 +42,27 @@ def test_source_errors_are_isolated(monkeypatch):
     out = src.run(src.Ctx("area", 33.8, -84.4), budget_s=5)
     assert [s["source"] for s in out["signals"]] == ["ok"]
     assert out["sources_failed"][0]["source"] == "bad"
+
+
+def test_camera_water_needs_two_agreeing_checks(monkeypatch):
+    from noah.api import photo
+
+    answers = iter(
+        [{"bucket": "curb", "confidence": "high"}, {"bucket": "none", "confidence": "high"}]
+    )
+    monkeypatch.setattr(
+        photo, "classify_url", lambda url, detail="low", skeptic=False: next(answers)
+    )
+    r = photo.verified("http://x")
+    assert (
+        r["verified"] is False and r["bucket"] == "curb"
+    )  # adapter downgrades this to possible_water
+
+    answers = iter(
+        [{"bucket": "half_tire", "confidence": "med"}, {"bucket": "curb", "confidence": "high"}]
+    )
+    monkeypatch.setattr(
+        photo, "classify_url", lambda url, detail="low", skeptic=False: next(answers)
+    )
+    r = photo.verified("http://x")
+    assert r["verified"] is True and r["bucket"] == "curb"  # agree on the lower depth

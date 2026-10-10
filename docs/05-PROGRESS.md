@@ -139,4 +139,9 @@ _Append-only. Format: `HH:MM Name — what was done — how verified (command)`.
   - `noah/sources/` has 14 adapters: NWS alerts, LSR 24 h, NWS QPF, NWPS gauges, NWPS reach blend, USGS, Synoptic, WPC ERO, TomTom, FEMA zone, LSR history, CDC SVI, SeeClickFix, NHC.
   - `noah/engine.py`: rules + Azure OpenAI assessment, number guard + banned-word filter + rules fallback.
   - `/assess` (Peachtree Creek) returned 14/14 sources, 48 signals, AI assessment, ~8 s. `/assess/route` and Albany (`no_road_forecast` + statewide signals) were verified too.
-  — `uv run pytest -q` (23 passed), `ruff` clean.
+  — `uv run pytest -q` (23 passed), `ruff` clean
+- 03:45 — **Backend complete for flood hazards (spec 015 done).**
+  - 33 sources live per area/route: warnings, gauges, creek flows, rapid-onset flooding, high-water probability, rain now/forecast/guidance/rarity, outlooks, storms, TomTom, cameras (AI, two-step verified), flood zones, past floods, insurance claims, dams, storm drains, CSO + sewage spills, road roughness/potholes, vulnerability, facilities, news, Bluesky.
+  - Live hazards re-route (a camera at Northside/Peachtree Battle + a Rockingham Dr closure blocked 4 segments in a test).
+  - Exact-number guard.
+  — `uv run pytest -q` (25 passed), `ruff` clean, live `/assess` 33/33 sources..

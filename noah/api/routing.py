@@ -206,7 +206,16 @@ def map_url(cycle: str, depart_h: int, a: tuple, b: tuple) -> str:
     )
 
 
-def route(a_lat, a_lon, b_lat, b_lon, depart_h: int, cycle: str | None = None) -> dict:
+def route(
+    a_lat,
+    a_lon,
+    b_lat,
+    b_lon,
+    depart_h: int,
+    cycle: str | None = None,
+    extra_blocked: frozenset = frozenset(),
+) -> dict:
+    """extra_blocked: seg_ids blocked from now by live hazards (TomTom flooding/closure, camera water; spec 015)."""
     cycle = cycle or current_cycle()
     a, b = (a_lon, a_lat), (b_lon, b_lat)
     empty = {"geometry": None, "minutes": None, "avoided": [], "corridor": [], "cycle": cycle}
@@ -221,7 +230,8 @@ def route(a_lat, a_lon, b_lat, b_lon, depart_h: int, cycle: str | None = None) -
     G, ids, xy, *_ = graph_state()
     fl = flood_state(cycle)
     limit = depart_h + config.ROUTE_BUFFER_H
-    weight = blocked_weight(fl.t_uncertain, depart_h)
+    tu = {**fl.t_uncertain, **dict.fromkeys(extra_blocked, -1)}  # live hazards: blocked from now
+    weight = blocked_weight(tu, depart_h)
     src, dst = nearest_node(ids, xy, *a), nearest_node(ids, xy, *b)
     path = sub = None
     for margin in (config.TRIP_BOX_MARGIN_KM, config.TRIP_BOX_RETRY_KM):
@@ -233,14 +243,14 @@ def route(a_lat, a_lon, b_lat, b_lon, depart_h: int, cycle: str | None = None) -
     if not path:
         return {"state": "no_route", **empty, "map_url": url}
 
-    edges = path_edges(sub, path, fl.t_uncertain, limit)
+    edges = path_edges(sub, path, tu, limit)
     line = path_line(sub, path, edges)
     free = shortest(sub, src, dst, "travel_time") or []
     avoided = sorted(
         {
             d["seg_id"]
             for d in path_edges(sub, free)
-            if (t := fl.t_uncertain.get(d.get("seg_id"))) is not None and t <= limit
+            if (t := tu.get(d.get("seg_id"))) is not None and t <= limit
         }
     )
     fi = flood_index(cycle)
@@ -250,7 +260,9 @@ def route(a_lat, a_lon, b_lat, b_lon, depart_h: int, cycle: str | None = None) -
         (segment_row(fi, fi.props[i], depart_h) for i in near),
         key=lambda r: (-SEVERITY[r["state"]], r["eta_utc"] or ""),
     )
+    live = sorted(set(avoided) & set(extra_blocked))
     return {
+        "live_blocked": live,
         "state": "route_found",
         "geometry": shapely.geometry.mapping(line),
         "minutes": round(sum(float(d.get("travel_time", 0)) for d in edges) / 60, 1),

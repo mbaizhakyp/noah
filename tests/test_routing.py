@@ -60,3 +60,10 @@ def test_latest_live_cycle_ignores_historic_runs():
     ]
     assert latest_live(cycles) == "20261010T03Z"
     assert latest_live(cycles[:1]) is None
+
+
+def test_live_hazard_blocks_road_from_now():
+    """extra_blocked (TomTom flooding / camera water) blocks a segment even with no forecast flag."""
+    G = _graph()
+    tu = dict.fromkeys({"1-4-0"}, -1)
+    assert shortest(G, 0, 4, blocked_weight(tu, depart_h=0, buffer_h=1)) == [0, 2, 3, 4]

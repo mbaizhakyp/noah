@@ -11,7 +11,7 @@ import os
 import re
 
 import httpx
-from shapely.geometry import LineString, shape
+from shapely.geometry import LineString, Point, shape
 
 from noah import sources
 from noah.api import routing
@@ -44,7 +44,7 @@ Write a short assessment as JSON with exactly these keys:
  "confidence": "low|medium|high"}
 
 Rules you must follow:
-1. Use ONLY facts in the bundle. Every number you write must appear in the bundle. Quote times exactly as given (they are already Atlanta local time).
+1. Use ONLY facts in the bundle. Copy every number exactly as written in the bundle: never round, convert or add up numbers. Quote times exactly as given (they are already Atlanta local time).
 2. Cite sources by the exact "source" names in the bundle. Give 2-5 reasons, most important first.
 3. Never say a road or route is "safe", "clear" or "passable", or "no risk". Say "no flooding is forecast" and add "this is not a safety guarantee" when relevant.
 4. Be conservative: if sources disagree, use the more cautious level. A rule result can never be lowered.
@@ -58,14 +58,11 @@ Rules you must follow:
 
 
 def numbers_ok(text: str, bundle_text: str) -> bool:
-    """Every number written with a unit must exist in the bundle (rounding allowed)."""
-    have = [float(x) for x in ANY_NUM.findall(bundle_text)] + [
+    """Every number written with a unit must appear in the bundle exactly (no rounding, no new numbers)."""
+    have = {float(x) for x in ANY_NUM.findall(bundle_text)} | {
         911.0
-    ]  # "call 911 in an emergency" is not 911 inches
-    for n in (float(x) for x in UNIT_NUM.findall(text)):
-        if not any(abs(n - h) < 0.051 or round(h) == n for h in have):
-            return False
-    return True
+    }  # "call 911 in ..." is not 911 inches
+    return all(float(n) in have for n in UNIT_NUM.findall(text))
 
 
 def banned(text: str) -> bool:
@@ -281,11 +278,42 @@ def area(lat: float, lon: float, cycle: str | None = None) -> dict:
     road = road_summary(st, cycle)
     return {
         "state": st["state"],
+        "cameras": cams(bundle["signals"]),
         "cycle": cycle,
         "assessment": assess(road, bundle["signals"]),
         "road_forecast": road,
         **bundle,
     }
+
+
+def cams(signals: list[dict]) -> list[dict]:
+    """Camera checks for the map/agent (013): snapshot link, result, time. Images are never stored."""
+    return [s["camera"] for s in signals if "camera" in s]
+
+
+def hazard_segments(signals: list[dict]) -> dict[str, str]:
+    """Live hazards -> road segments to block from now: TomTom flooding/closure (30 m), camera water (100 m)."""
+    from noah.api.dispatch import graph_state
+
+    *_, edges, tree = graph_state()
+    out = {}
+    for s in signals:
+        if "lat" not in s:
+            continue
+        if s["source"] == "TomTom traffic incidents" and s.get("value") in (8, 11):
+            radius_m = 30
+        elif s["source"] == "Traffic cameras" and s.get("camera", {}).get("bucket") in (
+            "curb",
+            "half_tire",
+            "door_sill_or_above",
+        ):
+            radius_m = 100
+        else:
+            continue
+        pt = Point(s["lon"], s["lat"])
+        for i in tree.query(pt, predicate="dwithin", distance=radius_m / 111_000):
+            out[edges.seg_id.iat[i]] = s["title"]
+    return out
 
 
 def route(a_lat, a_lon, b_lat, b_lon, depart_h: int = 0, cycle: str | None = None) -> dict:
@@ -301,6 +329,11 @@ def route(a_lat, a_lon, b_lat, b_lon, depart_h: int = 0, cycle: str | None = Non
     fids = list(dict.fromkeys(p["feature_id"] for p in fi.props if p["seg_id"] in ids))
     ctx = sources.Ctx("route", mid.y, mid.x, line=line, extra={"feature_ids": fids})
     bundle = sources.run(ctx)
+    blocked = hazard_segments(bundle["signals"]) if rt.get("state") == "route_found" else {}
+    if blocked:  # re-route around live closures / flooding / camera water
+        rt2 = routing.route(a_lat, a_lon, b_lat, b_lon, depart_h, cycle, frozenset(blocked))
+        rt2["live_hazards_considered"] = sorted(set(blocked.values()))
+        rt = rt2
     road = road_summary(rt, cycle)
     road["route"] = {
         "state": rt["state"],
@@ -309,6 +342,7 @@ def route(a_lat, a_lon, b_lat, b_lon, depart_h: int = 0, cycle: str | None = Non
     }
     return {
         "state": rt["state"],
+        "cameras": cams(bundle["signals"]),
         "cycle": cycle,
         "route": rt,
         "assessment": assess(road, bundle["signals"]),
