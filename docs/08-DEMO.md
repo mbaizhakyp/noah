@@ -11,6 +11,8 @@ Three pillars, in this order:
 2. **It's proven.** Helene backtest: NOAA's 8 AM forecast gave **13.2 h** of warning before Peachtree Creek hit flood stage; Noah had Windsor Pkwy flooding at **10 PM**, and Sandy Springs closed it at **~10:15 PM**. Isaias, live this weekend: **[N] of [M]** flood closures were roads Noah had flagged, **~[X] h** ahead.
 3. **It reaches people where they are.** A text message (iMessage, no app), a dispatch board for small businesses, a barricade list for cities.
 
+**Social Good hero (J18, Sat 03:50): Maya, a delivery driver** (an overlooked worker who can't stay home in a storm; residents covered in passing). City story pinned.
+
 Personas below are **examples** (not real people): Jordan, a nurse who works at Emory and lives near Peachtree Creek; Peachtree Corner Pharmacy (sample business); a city public-works crew lead.
 
 ## What we demo on Sunday (assets)
