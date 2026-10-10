@@ -51,12 +51,13 @@
 
   /* ---------- trip planner ---------- */
   .trip { margin: 14px 16px 0; border: 1.5px solid var(--line-2); border-radius: 10px; position: relative; background: #fff; }
-  .trip::before { content: ""; position: absolute; left: 19px; top: 30px; bottom: 30px; border-left: 2px dotted var(--line-2); }
+  .trip::before { content: ""; position: absolute; left: 20px; top: 30px; bottom: 30px; border-left: 2px dotted var(--line-2); }
   .field { position: relative; display: flex; align-items: center; gap: 10px; padding: 0 6px 0 12px; min-height: 48px; }
   .field + .field, #stops .field { border-top: 1px solid var(--line); }
-  .pin { width: 10px; height: 10px; border-radius: 50%; border: 2.5px solid var(--blue); flex: none; position: relative; z-index: 1; background: #fff; }
-  .pin.b { border-radius: 2px; border-color: var(--ink); }
-  .pin.s { border-color: var(--ink-3); width: 9px; height: 9px; }
+  /* lettered pins: A = start, B… = stops, last letter = destination; the same letters sit on the map */
+  .pin { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--blue); background: #fff; color: var(--blue-ink); font: 800 10px/1 "Overpass", sans-serif; display: grid; place-items: center; flex: none; position: relative; z-index: 1; }
+  .pin.b { border-color: var(--ink); background: var(--ink); color: #fff; }
+  .pin.s { border-color: var(--ink-2); color: var(--ink-2); }
   .places { display: flex; gap: 6px; padding: 10px 16px 0; }
   .place { display: inline-flex; align-items: center; gap: 6px; border: 1.5px solid var(--line-2); background: #fff; color: var(--ink); border-radius: 999px; padding: 0 12px 0 10px; min-height: 34px; font-weight: 700; font-size: 13px; cursor: pointer; }
   .place:hover { border-color: var(--blue); color: var(--blue-ink); }
@@ -246,6 +247,12 @@
   .you { width: 18px; height: 18px; border-radius: 50%; background: var(--blue); border: 3px solid #fff; box-shadow: 0 0 0 1.5px var(--blue), 0 2px 6px rgba(20,20,20,.35); }
   .dest { width: 16px; height: 16px; border-radius: 3px; background: var(--ink); border: 3px solid #fff; box-shadow: 0 0 0 1.5px var(--ink), 0 2px 6px rgba(20,20,20,.35); }
   .stop { width: 14px; height: 14px; border-radius: 50%; background: #fff; border: 3px solid var(--ink-2); box-shadow: 0 2px 6px rgba(20,20,20,.35); }
+  .pm { width: 28px; height: 28px; border-radius: 50%; background: #fff; border: 2.5px solid var(--ink-2); color: var(--ink); font: 800 13px/1 "Overpass", sans-serif; display: grid; place-items: center; box-shadow: 0 2px 8px rgba(20,20,20,.3); cursor: pointer; }
+  .pm.start { background: var(--blue); border-color: #fff; color: #fff; box-shadow: 0 0 0 1.5px var(--blue), 0 2px 8px rgba(20,20,20,.3); }
+  .pm.end { background: var(--ink); border-color: #fff; color: #fff; box-shadow: 0 0 0 1.5px var(--ink), 0 2px 8px rgba(20,20,20,.3); }
+  .cutmark { width: 22px; height: 22px; border-radius: 50%; background: var(--flood); color: #fff; border: 2px solid #fff; display: grid; place-items: center; box-shadow: 0 2px 8px rgba(20,20,20,.35); cursor: pointer; }
+  .cutmark .lucide { width: 14px; height: 14px; stroke-width: 3; }
+  .legend .cutkey { width: 14px; height: 14px; border-radius: 50%; background: var(--flood); color: #fff; font: 800 10px/14px "Overpass", sans-serif; text-align: center; display: inline-block; }
 
   @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 
@@ -269,11 +276,12 @@
     <div id="map" role="region" aria-label="Map of roads forecast to flood"></div>
     <div class="caption" id="caption" aria-live="polite" hidden></div>
     <div class="legend">
+      <span><i class="sw" style="background:var(--blue)"></i>Noah's route</span>
+      <span id="legUsual" hidden><i class="sw" style="background:repeating-linear-gradient(90deg,#5f6368 0 4px,transparent 4px 7px)"></i>Fastest way, cut by flooding</span>
+      <span id="legCut" hidden><i class="cutkey">×</i>Where it is cut, and from when</span>
       <span><i class="sw" style="background:var(--flood)"></i>Do not cross (forecast flooded)</span>
       <span><i class="sw" style="background:repeating-linear-gradient(90deg,var(--amber) 0 5px,transparent 5px 8px)"></i>Uncertain: treat as impassable</span>
-      <span><i class="sw" style="background:var(--blue)"></i>Noah's route</span>
-      <span><i class="sw" style="background:repeating-linear-gradient(90deg,#9aa0a6 0 4px,transparent 4px 7px)"></i>Usual route (crosses forecast flooding)</span>
-      <span><i class="sw" style="background:repeating-linear-gradient(90deg,var(--flood) 0 2px,transparent 2px 5px)"></i>Past hours: NOAA estimate (dotted)</span>
+      <span id="legPast" hidden><i class="sw" style="background:repeating-linear-gradient(90deg,var(--flood) 0 2px,transparent 2px 5px)"></i>Past hours: NOAA estimate (dotted)</span>
     </div>
   </div>
 
@@ -291,14 +299,14 @@
 
     <div class="trip">
       <div class="field search">
-        <span class="pin"></span>
+        <span class="pin" id="pinFrom">A</span>
         <input id="fromQ" autocomplete="off" placeholder="Start: address or place in Georgia" aria-label="Start: address or place in Georgia">
         <button id="locate" class="ib" type="button" aria-label="Use my location" title="Use my location"><i data-lucide="locate-fixed"></i></button>
         <div id="fromList" class="suggest" hidden></div>
       </div>
       <div id="stops"></div>
       <div class="field search">
-        <span class="pin b"></span>
+        <span class="pin b" id="pinTo">B</span>
         <input id="toQ" autocomplete="off" placeholder="Destination (optional)" aria-label="Destination">
         <button id="toClear" class="ib" type="button" aria-label="Remove destination" title="Remove destination" hidden><i data-lucide="x"></i></button>
         <div id="toList" class="suggest" hidden></div>
@@ -535,7 +543,8 @@ function setTimeUI(h, countTxt) { // h = forecast hour drawn on the map; the lab
   const cap = $("caption");
   cap.hidden = !countTxt && m <= nowMin();
   cap.className = "caption";
-  cap.textContent = (m <= nowMin() ? "Now" : `Leaving ${fmtMin.format(minTime(m))} · roads as forecast for ${fmtClock.format(hourTime(h))}`) + (countTxt ? `  —  ${countTxt}` : "");
+  const win = mode === "route" && h > depH() ? `roads forecast to go under by ${fmtClock.format(hourTime(h))}, during this trip` : `roads as forecast for ${fmtClock.format(hourTime(h))}`;
+  cap.textContent = (m <= nowMin() && h === depH() ? "Now" : m <= nowMin() ? `Leaving now · ${win}` : `Leaving ${fmtMin.format(minTime(m))} · ${win}`) + (countTxt ? `  —  ${countTxt}` : "");
 }
 $("leave").onclick = () => {
   const open = $("timePop").hidden; $("timePop").hidden = !open; $("leave").setAttribute("aria-expanded", open);
@@ -549,10 +558,17 @@ function pastMode(on) {
   if (!map.getLayer("flooded")) return;
   for (const id of ["flooded", "flooded-casing", "uncertain"]) map.setLayoutProperty(id, "visibility", on ? "none" : "visible");
   for (const id of ["past-flooded", "past-uncertain"]) map.setLayoutProperty(id, "visibility", on ? "visible" : "none");
+  $("legPast").hidden = !on;
 }
+// On a trip the map shows what the router saw: every road forecast to go under during the drive
+// (departure hour + the routing buffer + the trip's own length), not only the roads already under at departure.
+const tripH = () => {
+  const h = depH();
+  return mode === "route" && lastRoute?.minutes ? Math.min(18, h + 1 + Math.ceil(lastRoute.minutes / 60)) : h;
+};
 function applyHour() {
   if (!map.getLayer("flooded") || !issue) return;
-  const h = depH();
+  const h = tripH();
   pastMode(false);
   const tf = ["coalesce", ["to-number", ["get", "t_flood"]], 99];
   map.setFilter("flooded", ["<=", tf, h]); map.setFilter("flooded-casing", ["<=", tf, h]);
@@ -560,7 +576,7 @@ function applyHour() {
   let count = "";
   if (mode) {
     const n = new Set(shown.filter((f) => stateAt(f.properties, h) !== "no_forecast_flooding").map((f) => f.properties.name || f.properties.seg_id)).size;
-    count = `${n} road${n === 1 ? "" : "s"} forecast underwater or uncertain`;
+    count = mode === "route" ? `${n} road${n === 1 ? "" : "s"} forecast underwater or uncertain during this trip` : `${n} road${n === 1 ? "" : "s"} forecast underwater or uncertain`;
   }
   setTimeUI(h, count);
 }
@@ -688,11 +704,38 @@ function circle(lat, lon, km, n = 72) {
 }
 
 function clearMarkers() { markers.forEach((m) => m.remove()); markers = []; }
-function addMarker(lon, lat, kind, text) {
-  const el = document.createElement("div"); el.className = kind;
+const letterOf = (i) => String.fromCharCode(65 + i); // A, B, C…
+function addMarker(lon, lat, kind, text, letter) {
+  const el = document.createElement("div");
+  if (letter) { el.className = "pm" + (kind === "you" ? " start" : kind === "dest" ? " end" : ""); el.textContent = letter; }
+  else el.className = kind;
   const m = new maplibregl.Marker({ element: el }).setLngLat([lon, lat]);
-  if (text) m.setPopup(new maplibregl.Popup({ offset: 12 }).setText(text));
+  if (text) m.setPopup(new maplibregl.Popup({ offset: 16 }).setText(text));
   markers.push(m.addTo(map));
+}
+// × markers where the fastest way is cut: one per street among the avoided segments, with the hour it goes under
+function markCuts(avoided, h) {
+  const byName = new Map();
+  for (const id of avoided || []) {
+    const f = flood.get(id); if (!f) continue;
+    const key = f.properties.name || id;
+    const t = f.properties.t_flood != null ? +f.properties.t_flood : +f.properties.t_uncertain;
+    if (!byName.has(key) || t < byName.get(key).t) byName.set(key, { f, t });
+  }
+  for (const { f, t } of [...byName.values()].slice(0, 8)) {
+    const c = f.geometry.coordinates, [lon, lat] = c[Math.floor(c.length / 2)];
+    const el = document.createElement("div"); el.className = "cutmark"; el.innerHTML = '<i data-lucide="x"></i>';
+    const m = new maplibregl.Marker({ element: el }).setLngLat([lon, lat]);
+    m.setPopup(new maplibregl.Popup({ offset: 14 }).setText(`Fastest way cut here: ${roadSentence(f.properties, Math.max(h, t))}`));
+    markers.push(m.addTo(map));
+  }
+  icons();
+  $("legCut").hidden = !byName.size; $("legUsual").hidden = !byName.size;
+}
+function relabelPins() { // A start, B… stops, last letter destination; the plan rows and map pins use the same letters
+  $("pinFrom").textContent = "A";
+  document.querySelectorAll("#stops .pin").forEach((p, i) => (p.textContent = letterOf(i + 1)));
+  $("pinTo").textContent = letterOf(stops.length + 1);
 }
 
 // ---------- cameras + sources (spec 013/015: from /assess, run in the background) ----------
@@ -998,7 +1041,7 @@ function renderPlan() {
   $("hour").style.setProperty("--cutpct", leaveBy === null ? "100%" : `${Math.max(0, Math.min(100, ((leaveBy - n) / Math.max(1, MAX_MIN - n)) * 100))}%`);
   $("planRows").replaceChildren(...rows.map((s, i) => {
     const row = document.createElement("div"); row.className = "prow";
-    const num = document.createElement("span"); num.className = "pnum"; num.textContent = i + 1;
+    const num = document.createElement("span"); num.className = "pnum"; num.textContent = letterOf(i + 1);
     const name = document.createElement("span"); name.className = "pname"; name.textContent = s.place.label.split(",")[0];
     const sm = document.createElement("small"); sm.textContent = s.arrive != null ? `arrive ~${Math.round(s.arrive)} min after leaving` : ""; name.append(sm);
     const v = document.createElement("span"); v.className = "pv " + s.state;
@@ -1153,9 +1196,10 @@ async function findRoute(full = true) {
     await mapReady; clearMarkers();
     map.getSource("area").setData(empty);
     if (full) { map.getSource("route").setData(empty); map.getSource("usual").setData(empty); setHazard([]); }
-    addMarker(origin.lon, origin.lat, "you", "Start: " + origin.label);
-    stopPlaces().forEach((s, i) => addMarker(s.lon, s.lat, "stop", `Stop ${i + 1}: ${s.label}`));
-    addMarker(dest.lon, dest.lat, "dest", "Destination: " + dest.label);
+    addMarker(origin.lon, origin.lat, "you", "A · Start: " + origin.label, "A");
+    stopPlaces().forEach((s, i) => addMarker(s.lon, s.lat, "stop", `${letterOf(i + 1)} · Stop: ${s.label}`, letterOf(i + 1)));
+    addMarker(dest.lon, dest.lat, "dest", `${letterOf(stopPlaces().length + 1)} · Destination: ${dest.label}`, letterOf(stopPlaces().length + 1));
+    $("legUsual").hidden = $("legCut").hidden = true;
     const fit = (coords) => full && map.fitBounds([[Math.min(...coords.map((x) => x[0])), Math.min(...coords.map((x) => x[1]))], [Math.max(...coords.map((x) => x[0])), Math.max(...coords.map((x) => x[1]))]], { padding: pad(60), maxZoom: 15 });
     $("directions").hidden = true;
     if (r.state === "error") { routeEmpty(); banner(r.message, "danger"); return; }
@@ -1193,7 +1237,7 @@ async function findRoute(full = true) {
       if (full) { showTabs(true); runPlan(); const checks = runAssess("route"); runPast("route"); await Promise.race([checks, sleep(CHECK_WAIT_MS)]); if (seq !== searchSeq) return; await revealHazard(feats); } else setHazard((r.corridor || []).map((c) => c.seg_id));
       banner(`No route avoids forecast flooding if you leave ${leave}.${why} Try an earlier departure time, or stay where you are. Never drive into water. Emergency: 911.`, "danger");
       $("summary").textContent = feats.length ? `Flood-forecast roads within ${CORRIDOR_M / 1000} km of the usual way:` : "";
-      cards(r.corridor || [], h);
+      cards(r.corridor || [], tripH());
       return;
     }
     const feats = r.corridor.map((c) => flood.get(c.seg_id)).filter(Boolean);
@@ -1207,12 +1251,14 @@ async function findRoute(full = true) {
       if (seq !== searchSeq) return; // a newer search took over while we waited
       map.getSource("usual").setData(usual);
       await drawLine("route", r.geometry.coordinates);
+      markCuts(r.avoided, h);
       applyHour();
       await revealHazard(feats);
     } else { // departure-time change: redraw at once
       map.getSource("usual").setData(usual);
       map.getSource("route").setData({ type: "Feature", geometry: r.geometry, properties: {} });
       setHazard(r.corridor.map((c) => c.seg_id));
+      markCuts(r.avoided, h);
     }
     const hit = r.corridor.filter((c) => c.state !== "no_forecast_flooding").length;
     const leave = h === 0 ? "now" : "at " + local(hourTime(h));
@@ -1226,7 +1272,7 @@ async function findRoute(full = true) {
       banner(`No flooding is forecast on this route through ${END()}. About ${Math.round(r.minutes)} min. This is not a safety guarantee. Conditions change fast; never drive into water. Turn Around Don't Drown.`, "info");
     }
     $("summary").textContent = feats.length ? `Flood-forecast roads within ${CORRIDOR_M / 1000} km of your route:` : "";
-    cards(r.corridor, h);
+    cards(r.corridor, tripH()); // the list and the map agree: everything forecast under during the drive
     setDirections(r.geometry.coordinates);
     applyHour();
     if (full || !lastPlan) runPlan(); else renderPlan();
@@ -1344,14 +1390,14 @@ let stops = [], stopSeq = 0; // { id, place|null, text }
 function renderStops() {
   $("stops").replaceChildren(...stops.map((s, i) => {
     const row = document.createElement("div"); row.className = "field search";
-    const pin = document.createElement("span"); pin.className = "pin s";
+    const pin = document.createElement("span"); pin.className = "pin s"; pin.textContent = letterOf(i + 1);
     const inp = document.createElement("input"); inp.id = s.id + "Q"; inp.autocomplete = "off"; inp.placeholder = `Stop ${i + 1}`; inp.setAttribute("aria-label", `Stop ${i + 1}`); inp.value = s.text || "";
     const rm = document.createElement("button"); rm.className = "ib"; rm.type = "button"; rm.title = rm.ariaLabel = "Remove stop"; rm.innerHTML = '<i data-lucide="x"></i>';
     rm.onclick = () => { stops = stops.filter((x) => x !== s); renderStops(); if (origin && dest) findRoute(); };
     const list = document.createElement("div"); list.id = s.id + "List"; list.className = "suggest"; list.hidden = true;
     row.append(pin, inp, rm, list); return row;
   }));
-  icons();
+  icons(); relabelPins();
   for (const s of stops) wireSearch(s.id + "Q", s.id + "List", (p) => { s.place = p; s.text = p.label.split(",")[0]; if (origin && dest) findRoute(); });
   $("addStop").disabled = stops.length >= MAX_STOPS;
 }
