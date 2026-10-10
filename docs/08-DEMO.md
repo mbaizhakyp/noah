@@ -17,13 +17,13 @@ Two storms, one honest frame:
 | 1 | Laptop on the charger. Free memory: stop the camera monitor and closures logger tabs (keep the live loop, route watch and relay). | Ctrl-C in those two tabs |
 | 2 | Demo server on Helene (iPad + console + demo chat answers) | `caffeinate -i scripts/demo_mode.sh` → `:8100` |
 | 3 | iMessage answers from the same storm: restart the relay against the demo server | `cd bot && API_BASE=http://localhost:8100 npm start` |
-| 4 | Tunnel for the iPad, then reopen the home-screen icon (re-add it if the address changed) | `ssh -R 80:localhost:8100 nokey@localhost.run` → `https://….lhr.life/ipad/` |
+| 4 | **iPad over your iPhone's hotspot (no tunnel):** turn on Personal Hotspot; join it from the laptop **and** the iPad; on the iPad open `http://Margulans-MacBook-Air.local:8100/ipad/` → Add to Home Screen (the name never changes, so the icon keeps working). Backup: the localhost.run tunnel (its address rotates on its own every so often; current one: `grep -o 'https://[a-z0-9]*\.lhr\.life' data/interim/tunnel.log \| tail -1`). Cloudflare's tunnel is blocked on the venue network. | `scripts/demo_mode.sh` listens on all interfaces |
 | 5 | Laptop: open `localhost:8100/dispatch.html` (City, Helene), click **Deliveries** once and back to **City** so both are loaded (switches are then instant); slides in another tab | — |
 | 6 | Phone: Noah thread open, scrolled to Saturday's alerts (don't delete them); "alerts on" already set | — |
 | 7 | Check the iPad works on **cellular** (venue Wi-Fi isolates devices) | — |
 | 8 | "Text Noah" card printed and its QR tested once with an iPhone camera (opens Messages to Noah with a question typed in) | `docs/text-noah-card.html` → print at 100% |
 
-The tunnel reconnects by itself and is pinged every 2 min; a reconnect changes its address (`grep -o 'https://[a-z0-9]*\.lhr\.life' data/interim/tunnel.log | tail -1`). Fallbacks: tunnel down → show `localhost:8100/ipad/` on the laptop. Wi-Fi down → phone hotspot. Bot slow → read the reply already in the thread. Anything else → backup video.
+Fallbacks: hotspot address not loading → the tunnel address above, or show `localhost:8100/ipad/` on the laptop. Wi-Fi down → phone hotspot. Bot slow → read the reply already in the thread. Anything else → backup video.
 
 ## 1. Social Good (main track): 3 min pitch + 2 min Q&A
 They score: people and places that get overlooked (access, safety, mobility), polish, presentation, use case. Track sponsor: **Cox Automotive** (cars: more than half of flood drownings happen in a vehicle).

@@ -22,4 +22,4 @@ Noah demo mode: forecast ${CYCLE}, API on http://localhost:8100 (live API stays 
   iPad app (users, recorded snapshot):     http://localhost:8100/ipad/
   iMessage from the demo forecast:         cd bot && API_BASE=http://localhost:8100 npm start
 EOF
-NOAH_CYCLE="$CYCLE" exec uv run uvicorn noah.api.app:app --port 8100
+NOAH_CYCLE="$CYCLE" exec uv run uvicorn noah.api.app:app --host 0.0.0.0 --port 8100  # 0.0.0.0: the iPad can reach it over a shared hotspot
