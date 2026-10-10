@@ -265,6 +265,7 @@
   .cutlab { display: flex; align-items: center; gap: 6px; cursor: pointer; }
   .cutlab i { width: 14px; height: 14px; border-radius: 50%; background: var(--flood); border: 2.5px solid #fff; box-shadow: 0 1px 4px rgba(20,20,20,.4); flex: none; }
   .cutlab span { font: 700 12.5px/1.2 "Overpass", sans-serif; color: var(--flood-ink); white-space: nowrap; background: rgba(255,255,255,.92); border-radius: 6px; padding: 2px 7px; box-shadow: 0 1px 4px rgba(20,20,20,.2); }
+  .cutlab.s-uncertain i { background: var(--amber); } .cutlab.s-uncertain span { color: var(--amber-ink); } /* same colour as the dashed amber line it labels */
   /* cameras recede unless they show water */
   .camdot { width: 11px; height: 11px; border-radius: 50%; background: #fff; border: 2.5px solid #8a9096; box-shadow: 0 1px 3px rgba(20,20,20,.3); cursor: pointer; }
   .camdot.maybe { width: 16px; height: 16px; border-color: var(--amber); background: var(--amber-soft); }
@@ -299,7 +300,7 @@
       <span><i class="sw" style="background:var(--blue)"></i>Noah's route</span>
       <span><i class="sw" style="background:var(--flood)"></i>Do not cross</span>
       <span><i class="sw" style="background:repeating-linear-gradient(90deg,var(--amber) 0 5px,transparent 5px 8px)"></i>Uncertain</span>
-      <span id="legUsual" hidden><i class="sw" style="background:repeating-linear-gradient(90deg,#4b4f58 0 4px,transparent 4px 7px)"></i>Stretch it skips</span>
+      <span id="legUsual" hidden><i class="sw" style="background:repeating-linear-gradient(90deg,#4b4f58 0 4px,transparent 4px 7px)"></i>Usual route</span>
       <span id="legPast" hidden><i class="sw" style="background:repeating-linear-gradient(90deg,var(--flood) 0 2px,transparent 2px 5px)"></i>Past estimate</span>
     </div>
   </div>
@@ -796,7 +797,7 @@ function markCuts(avoided, h) {
     const g = c.f.geometry.coordinates, [lon, lat] = g[Math.floor(g.length / 2)];
     // a stop on the cut street already carries its name on the map; the Why list has the hour
     if (nearLines([lon, lat], [pinPts], 250) || pinStems.has(stem(c.name))) continue;
-    const el = document.createElement("div"); el.className = "cutlab";
+    const el = document.createElement("div"); el.className = "cutlab " + (c.flooded ? "s-flooded" : "s-uncertain");
     const dot = document.createElement("i"); const txt = document.createElement("span"); txt.textContent = cutText(c);
     el.append(dot, txt);
     const m = new maplibregl.Marker({ element: el, className: "mk-cut", anchor: "left", offset: [-7, 0] }).setLngLat([lon, lat]);
@@ -1349,7 +1350,7 @@ async function findRoute(full = true) {
     if (full) showTabs(true);
     routeSummary(r);
     if (r.avoided.length) {
-      banner(`Route found, leaving ${leave}: about ${Math.round(r.minutes)} min. It goes around ${r.avoided.length} road segment${r.avoided.length === 1 ? "" : "s"} forecast to flood; the grey dashes show the stretch it skips. Not a safety guarantee. Never drive into water.`, "warn");
+      banner(`Route found, leaving ${leave}: about ${Math.round(r.minutes)} min. It goes around ${r.avoided.length} road segment${r.avoided.length === 1 ? "" : "s"} forecast to flood; the grey dashes show the usual route. Not a safety guarantee. Never drive into water.`, "warn");
     } else if (hit || feats.length) {
       banner(`Route found, leaving ${leave}: about ${Math.round(r.minutes)} min. Flooding is forecast near this route (red and amber roads), but not on it. Not a safety guarantee. Never drive into water.`, "warn");
     } else {
