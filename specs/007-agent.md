@@ -1,4 +1,6 @@
-# 007 — Gemini agent + safety filter
+# 007 — AI agent (Azure OpenAI) + safety filter
+
+> **Provider changed (Priyanshu, Sat 01:50, J11):** Azure OpenAI deployment `gpt-4.1-mini`, not Gemini. Env: `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_DEPLOYMENT`; API version `2024-10-21`. Tool calling verified. Wherever this spec says Gemini, read Azure OpenAI; tools, prompt and safety filter are unchanged.
 
 | | |
 |---|---|

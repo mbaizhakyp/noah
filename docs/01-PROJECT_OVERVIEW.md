@@ -13,7 +13,7 @@
 ## What Noah does
 1. **Forecasts road flooding.** For every drivable road segment in the coverage area: will it flood in the next 18 h, and from roughly which hour.
 2. **Routes around it.** Shortest path with flooded and uncertain segments removed.
-3. **Answers by text.** A Gemini agent in iMessage (via Photon Spectrum) handles "can I get home tonight?", "is Northside Dr flooding?" and "route me from X to Y".
+3. **Answers by text.** An AI agent (Azure OpenAI `gpt-4.1-mini`) in iMessage (via Photon Spectrum) handles "can I get home tonight?", "is Northside Dr flooding?" and "route me from X to Y".
 4. **Shows it.** A web map with a time slider where roads turn amber, then red, as the forecast hours pass.
 
 ## Who it's for
@@ -69,7 +69,7 @@ Noah grows from creek flooding into a wider road-hazard layer for rain events:
 | Satellite flooding | Sentinel-1 SAR (free, Copernicus), NASA OPERA surface-water products, Landsat/Sentinel-2 optical | Resolution is roughly 10–30 m and revisits are every few days, so it mostly confirms past flooding at area level rather than single streets in real time. Clouds block optical. |
 | Traffic / CCTV cameras | Windy Webcams (verified: 2,467 in Georgia). ~~GDOT 511GA~~ dropped (key under manual review) | Terms of use vary by state. Many forbid scraping or redistribution. Need a flood/pothole image classifier. |
 | Known potholes | City 311 / Open311 open-data portals (many cities publish pothole requests), SeeClickFix | No national dataset; patchy city by city. |
-| Pothole detection | Street-level imagery (e.g., Mapillary), traffic-camera frames + a vision model (Gemini) | Detection accuracy needs to be shown, not claimed. |
+| Pothole detection | Street-level imagery (e.g., Mapillary), traffic-camera frames + a vision model (Azure OpenAI) | Detection accuracy needs to be shown, not claimed. |
 | Sewage overflow | EPA data on combined sewer systems, utility/state overflow notification feeds, rainfall thresholds | Real-time public overflow data exists only for some utilities. "Prediction" will likely start as a rain-threshold heuristic, and we have to label it that way. |
 | Routing, Georgia-wide | OpenStreetMap + a routing engine (OSRM / Valhalla / GraphHopper) | Our current plan loads one watershed graph into memory (D7). That won't scale to the whole state. |
 | Hand-off to navigation | Google Maps and Apple Maps URL links with waypoints | We need to check how many detour waypoints each one accepts. The external app may re-route through a flooded road; say this to users. |
@@ -89,7 +89,7 @@ About 36 hours remain before the 7:00 AM Sunday internal deadline. Proposed spli
 ## Hackathon frame
 - **Event:** Hacklanta 2026, GSU Atlanta. Hacking runs Fri Oct 9, 8:30 PM to **Sun Oct 11, 9:00 AM ET (hard)**.
 - **Main track:** Social Good (Cox). The prompt, "people and places that get overlooked: access, safety, mobility", maps to safety (flood deaths), mobility (routing), and overlooked places (ungauged small creeks).
-- **Side challenges (3, FINAL Oct 9):** Photon: Agents in iMessage (must use Spectrum SDK). MLH: Best Use of Gemini API. Replit: Small Business ("Build the best small business app with Replit"; judges favor working, creative apps over technical complexity).
+- **Side challenges (CHANGED Sat Oct 10, Priyanshu; Margulan to confirm, J11):** **MLH Best Use of Tiger Data (main side challenge)**, Photon: Agents in iMessage (Spectrum SDK), Replit: Small Business. MLH Gemini dropped: the AI runs on Azure OpenAI.
 - **Judging:** 3-min pitch + 2-min Q&A with 2 judges. Criteria: fits the prompt, polish, presentation, compelling use case.
 - **Submission:** Devpost write-up, public GitHub repo with a useful README, 2–3 min public demo video, demo link or run instructions.
 
@@ -105,12 +105,12 @@ Both build with Claude Code. No lab code is reused; everything is built fresh du
 | # | Decision | Value |
 |---|---|---|
 | D1 | Team | Margulan + Priyanshu |
-| D2 | Track + side challenges | **FINAL (Oct 9, Margulan):** main track **Social Good**. Side challenges (max 3): **Photon iMessage + MLH Gemini + Replit Small Business**. Mercedes CV, Tiger Data, Domain Name and Zero Data are out. |
+| D2 | Track + side challenges | **CHANGED (Priyanshu, Sat Oct 10 ~01:50 ET; Margulan to confirm, J11):** main track **Social Good**. Side challenges (max 3): **MLH Tiger Data (main) + Photon iMessage + Replit Small Business.** Gemini dropped (AI = Azure OpenAI `gpt-4.1-mini`). Tiger Data replaces Gemini in the max-3. |
 | D3 | Name / domain | Noah; no domain purchase |
 | D4 | Coverage | **DECIDED (Margulan, Fri Oct 9 23:25; CC6 narrowed).** Road-level flood timing (NWM + HAND) covers **HUC8 03130001, Upper Chattahoochee** (metro Atlanta, incl. Big Creek at Alpharetta). Elsewhere in Georgia: `no_road_forecast` + official warnings (statewide warning layer = Priyanshu, after the Sat 14:00 E2E). All of Georgia, basin by basin, is the roadmap (13 GB of HAND + a statewide graph won't fit this weekend). Checks only within 5 km of the user / 1 km of a searched route (CC6 #2). |
 | D5 | Forecast clock | **CHANGED (Priyanshu, Sat Oct 10 ~01:30 ET): no replay demo. Noah is an everyday app for all days and conditions.** "Now" is always the **newest live NWM cycle** (C6 cycles tagged `"event": "live"`), refreshed hourly. Historic event replays are not part of the product, UI or demo. |
 | D6 | Output wording | Four frozen states: **Do not cross / Uncertain: treat as impassable / No forecast flooding (not a safety guarantee) / Outside coverage** (now = outside Georgia; CC6 proposes adding **No road-level forecast here yet**). Exact text in `02-ARCHITECTURE.md` §5. |
-| D7 | Data store | No database. Parquet + GeoJSON files, loaded into memory by the API. |
+| D7 | Data store | **CHANGING with J11:** routing still runs from files held in memory (fast, no DB in the request path). **Tiger Data (hosted time-series Postgres)** stores the time series: every live forecast run per road segment, the present-conditions observations (rain, gauges, incidents, warnings, camera checks), and the history behind county dashboards and trends. ~~No database.~~ |
 | D10 | Forecast vs real-time | **Forecast first (Margulan, Oct 9).** The product predicts which roads flood in the next 18 h. "Now" is hour 0 of the same map, from NWM's current-conditions analysis: same pipeline, one extra file per cycle. Observed real-time data (gauge, team photos, cameras) is a **confirmation layer**, never the core. Runs on the newest live cycle every hour (D5, Sat 01:30); no event replays in the product. |
 | D8 | Hosting | Static map on GitHub Pages (`/web`). API + iMessage relay run on a laptop, exposed with a `cloudflared` quick tunnel during judging. |
 

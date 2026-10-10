@@ -5,7 +5,7 @@
 | Owner | Priyanshu |
 | Status | Draft (P2: start after the Sat 14:00 E2E milestone; unblocks 013 step 2) |
 | Time box | 1.5 h |
-| Depends on | Gemini key (`GEMINI_API_KEY`, `GEMINI_MODEL`) |
+| Depends on | Azure OpenAI (`AZURE_OPENAI_*` in `.env`, deployment `gpt-4.1-mini`; image input verified on a live Windy snapshot Sat 01:45). Replaces Gemini (J11). |
 | Produces | `noah/api/photo.py` (`classify()`, `apply_override()`) |
 
 > **Scope change (Priyanshu, Fri Oct 9 ~21:45 ET): user-submitted photos are removed.** We can't expect people to take photos in the rain, so there is no `check_photo` agent tool and no photo intake over iMessage. This spec now builds only the classifier, which spec 013 runs on traffic-camera frames. The file name stays `010-photo-check.md` so existing links keep working.

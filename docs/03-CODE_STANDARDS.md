@@ -35,7 +35,7 @@ Guiding rule: **least code that works, and boring code over clever code.** It's 
   - `test_flood_times.py`: the threshold, band, persistence, and channel-pixel filter.
   - `test_routing.py`: a blocked edge is avoided, `no_route` is returned when the destination is cut off, and out-of-coverage is detected.
   - `test_agent.py`: the banned-word filter catches "safe", "clear", "passable", case-insensitively and as whole words.
-- Run with `uv run pytest -q`. No mocks of Gemini or Photon in tests. Test the pure functions around them.
+- Run with `uv run pytest -q`. No mocks of the LLM (Azure OpenAI) or Photon in tests. Test the pure functions around them.
 
 ## Git
 - **Sync rule (mandatory, humans and AIs).** Two people commit to `main`, so never work on a stale copy:
@@ -49,5 +49,5 @@ Guiding rule: **least code that works, and boring code over clever code.** It's 
 - Shared files (`noah/config.py`, `docs/02-ARCHITECTURE.md`, `pyproject.toml`): tell the other person before pushing a change.
 
 ## Secrets
-- `.env` holds the actual values and is gitignored. `.env.example` lists the names: `GEMINI_API_KEY`, `GEMINI_MODEL`, `PHOTON_*` (per Photon docs), `WINDY_API_KEY`, `CENSUS_API_KEY`, `MAPILLARY_TOKEN`, `SYNOPTIC_TOKEN`, `TOMTOM_API_KEY`, `API_BASE`, `WEB_BASE`.
+- `.env` holds the actual values and is gitignored. `.env.example` lists the names: `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_DEPLOYMENT`, `TIGER_DATABASE_URL`, `PHOTON_*` (per Photon docs), `WINDY_API_KEY`, `CENSUS_API_KEY`, `MAPILLARY_TOKEN`, `SYNOPTIC_TOKEN`, `TOMTOM_API_KEY`, `API_BASE`, `WEB_BASE`.
 - Never print secrets. Never put them in URLs, logs or commit messages.
