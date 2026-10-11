@@ -43,7 +43,7 @@ cd bot && npm install && npm start                           # iMessage relay
 scripts/demo_mode.sh                                         # Helene replay on :8100
 uv run pytest && (cd bot && npm test)                        # tests
 ```
-Pages: `/` opens Noah Operations (`/dispatch.html`); `/ipad/` is the iPad app (needs the snapshot from release `demo-snapshot-20240926T12Z`, see `docs/10-IPAD_DEMO_SETUP.md`). One-time data build: `fetch_hand` → `build_segments` → `flood_times` → `validate` (`docs/05-PROGRESS.md`).
+Pages: `/` is the landing page; `/dispatch.html` is the app (People, City, Deliveries, Site check tabs); `/ipad/` is the People tab on its own (needs the snapshot from release `demo-snapshot-20240926T12Z`, see `docs/10-IPAD_DEMO_SETUP.md`). One-time data build: `fetch_hand` → `build_segments` → `flood_times` → `validate` (`docs/05-PROGRESS.md`).
 
 ## Team
 - **Margulan Baizhakyp:** forecast pipeline (NWM, HAND thresholds, residential roads, validation), live loop, route watch and alerts, iMessage agent and relay, Noah Operations console.

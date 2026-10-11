@@ -789,7 +789,7 @@ async function run() {
     const pts = [[d.depot.lon, d.depot.lat], ...d.stops.filter((s) => s.state !== "out_of_coverage").map((s) => [s.lon, s.lat])];
     map.fitBounds(pts.reduce((bb, q) => bb.extend(q), new maplibregl.LngLatBounds(pts[0], pts[0])), { padding: framePad(), maxZoom: 14, duration: 0 });
     setMode(mode);
-    render(0);  // every check opens at the forecast's first hour; play or drag the time bar from there
+    render(Math.min(18, Math.max(0, +Q.get("h") || 0)));  // opens at the first hour (?h= picks another, e.g. for screenshots)
     loadCity(d.cycle);
     await loadBarricades(d.cycle);
   } catch (e) { showError(e.message); }

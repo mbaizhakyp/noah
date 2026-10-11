@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Noah</title>
+<meta name="description" content="Noah analyzes, monitors and predicts street-level flooding: which roads will flood, and when, before the water gets there.">
+<meta name="theme-color" content="#2a7fd4">
+<script>
+  // J34: the iPad's home-screen icon goes straight to the app, not this landing page
+  if (navigator.standalone || matchMedia("(display-mode: standalone)").matches) location.replace("dispatch.html");
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Overpass:wght@400;600;700;800;900&display=swap">
+<style>
+  /* J34: landing page. Bright sky-to-flood hero (an ark that carries flood science), a live snapshot of the app, and
+     the three things Noah does. Same type and controls as the app: Overpass, ink on warm paper, orange buttons. */
+  :root {
+    --paper: #faf7f2; --card: #fffdf9; --line: #e7dfd2; --ink: #1c1a17; --ink-2: #4f4a42; --ink-3: #6b6356;
+    --accent: #c2410c; --accent-ink: #a3360a; --flood: #d92d20; --sky: #2a7fd4;
+    --shadow: 0 1px 2px rgba(28,26,23,.06), 0 30px 70px -28px rgba(16,44,82,.45);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--paper); color: var(--ink); font: 17px/1.5 "Overpass", system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased; }
+  a { color: inherit; }
+  .wrap { width: min(1180px, 100% - 32px); margin-inline: auto; }
+
+  /* ---------- hero ---------- */
+  .hero { position: relative; height: clamp(760px, 100vh, 1040px); overflow: hidden; color: #fff; }
+  .hero > svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .nav { position: relative; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-top: 22px; }
+  .brand { font-weight: 900; font-size: 30px; letter-spacing: -.03em; text-decoration: none; }
+  .nav nav { display: flex; align-items: center; gap: 22px; font-weight: 700; font-size: 15px; }
+  .nav nav a { text-decoration: none; opacity: .92; }
+  .nav nav a:hover { opacity: 1; text-decoration: underline; text-underline-offset: 4px; }
+  .btn { display: inline-flex; align-items: center; gap: 8px; min-height: 48px; padding: 0 22px; border-radius: 999px; font-weight: 800;
+    font-size: 16px; text-decoration: none; transition: transform .15s, background-color .15s; }
+  .btn:hover { transform: translateY(-1px); }
+  .btn.primary { background: var(--accent); color: #fff; box-shadow: 0 10px 24px -10px rgba(194,65,12,.8); }
+  .btn.primary:hover { background: var(--accent-ink); }
+  .btn.ghost { background: rgba(255,255,255,.16); color: #fff; border: 1.5px solid rgba(255,255,255,.55); backdrop-filter: blur(6px); }
+  .btn.small { min-height: 40px; padding: 0 16px; font-size: 14px; }
+  .copy { position: relative; z-index: 2; text-align: center; padding-top: clamp(24px, 4.5vh, 60px); display: grid; justify-items: center; gap: 18px; }
+  .chip { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px 6px 10px; border-radius: 999px; font-size: 14px; font-weight: 700;
+    background: rgba(255,255,255,.18); border: 1px solid rgba(255,255,255,.4); backdrop-filter: blur(6px); }
+  .chip i { width: 9px; height: 9px; border-radius: 50%; background: #ff6b5f; box-shadow: 0 0 0 3px rgba(255,107,95,.35); }
+  h1 { margin: 0; font-weight: 900; font-size: clamp(44px, 6.4vw, 92px); line-height: 1; letter-spacing: -.035em;
+    text-shadow: 0 2px 24px rgba(10,40,90,.25); }
+  h1 span { white-space: nowrap; }
+  h1 .a { color: #ffe08a; } h1 .m { color: #9ff0e6; } h1 .p { color: #ffb38a; }
+  .lede { margin: 0; max-width: 48ch; font-size: clamp(18px, 1.6vw, 21px); font-weight: 600; line-height: 1.45;
+    text-shadow: 0 1px 14px rgba(10,40,90,.3); }
+  .lede b { font-weight: 900; }
+  .ctas { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 4px; }
+
+  /* ---------- app snapshot (click = the live demo) ---------- */
+  .shot { position: relative; z-index: 3; display: block; margin: -150px auto 0; width: min(1180px, 100% - 32px); border-radius: 22px;
+    background: var(--card); box-shadow: var(--shadow); overflow: hidden; text-decoration: none; transition: transform .25s, box-shadow .25s; }
+  .shot:hover { transform: translateY(-4px); box-shadow: 0 1px 2px rgba(28,26,23,.06), 0 40px 90px -30px rgba(16,44,82,.55); }
+  .bar { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--line); background: var(--paper); }
+  .bar i { width: 11px; height: 11px; border-radius: 50%; background: #e2d8c8; }
+  .bar .url { margin-left: 10px; flex: 1; max-width: 420px; padding: 4px 12px; border-radius: 999px; background: var(--card); border: 1px solid var(--line);
+    font-size: 13px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bar .live { margin-left: auto; font-size: 13px; font-weight: 800; color: var(--accent); }
+  .shot img { display: block; width: 100%; height: auto; }
+  .shot .open { position: absolute; left: 50%; bottom: 26px; transform: translateX(-50%) translateY(8px); opacity: 0; transition: .2s;
+    background: var(--ink); color: #fff; font-weight: 800; padding: 12px 20px; border-radius: 999px; pointer-events: none; white-space: nowrap; }
+  .shot:hover .open, .shot:focus-visible .open { opacity: 1; transform: translateX(-50%); }
+  .shot:focus-visible { outline: 3px solid var(--accent); outline-offset: 4px; }
+
+  /* ---------- analyze / monitor / predict ---------- */
+  .why { padding: 80px 0 40px; }
+  .why h2 { margin: 0 0 8px; text-align: center; font-weight: 900; font-size: clamp(30px, 3.4vw, 44px); letter-spacing: -.025em; }
+  .why .sub { margin: 0 auto 36px; text-align: center; max-width: 56ch; color: var(--ink-2); }
+  .pillars { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+  .pillar { background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 26px 24px; display: grid; gap: 10px; align-content: start; }
+  .pillar .ic { width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center; color: #fff; }
+  .pillar .ic svg { width: 24px; height: 24px; }
+  .pillar h3 { margin: 6px 0 0; font-size: 28px; font-weight: 900; letter-spacing: -.02em; }
+  .pillar .what { margin: 0; font-weight: 700; font-size: 18px; line-height: 1.35; }
+  .pillar p { margin: 0; color: var(--ink-2); font-size: 15.5px; }
+  .pillar .stat { margin-top: 8px; padding-top: 14px; border-top: 1px solid var(--line); font-size: 14.5px; color: var(--ink-3); }
+  .pillar .stat b { display: block; font-size: 26px; font-weight: 900; color: var(--ink); letter-spacing: -.02em; }
+  .i-a { background: linear-gradient(135deg, #f2a100, #e07b00); } .i-m { background: linear-gradient(135deg, #18a999, #0f7f8c); }
+  .i-p { background: linear-gradient(135deg, #f0702f, #c2410c); }
+
+  footer { padding: 30px 0 48px; color: var(--ink-3); font-size: 14px; display: grid; gap: 6px; }
+  footer .safe { color: var(--ink-2); font-weight: 700; }
+  @media (max-width: 860px) {
+    .nav nav a.hide-sm { display: none; }
+    .pillars { grid-template-columns: 1fr; }
+    .shot { margin-top: -110px; border-radius: 16px; }
+    .bar .url { display: none; }
+  }
+</style>
+</head>
+<body>
+<section class="hero">
+  <svg viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+    <defs>
+      <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#1f6fd1"/><stop offset=".34" stop-color="#3f9be8"/><stop offset=".6" stop-color="#9fd5f6"/>
+        <stop offset=".74" stop-color="#fbe6c6"/>
+      </linearGradient>
+      <radialGradient id="sun" cx=".7" cy=".7" r=".32"><stop offset="0" stop-color="#fff4d6" stop-opacity=".95"/><stop offset="1" stop-color="#fff4d6" stop-opacity="0"/></radialGradient>
+      <linearGradient id="sea" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a9bd2"/><stop offset="1" stop-color="#145a8f"/></linearGradient>
+      <linearGradient id="seaFront" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4fc1e2"/><stop offset=".55" stop-color="#2183bd"/><stop offset="1" stop-color="#155d92"/></linearGradient>
+      <linearGradient id="hull" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a86d38"/><stop offset="1" stop-color="#5b3518"/></linearGradient>
+      <linearGradient id="cabin" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c9925a"/><stop offset="1" stop-color="#a5713f"/></linearGradient>
+      <linearGradient id="fade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#faf7f2" stop-opacity="0"/><stop offset="1" stop-color="#faf7f2"/></linearGradient>
+      <clipPath id="hullClip"><path d="M425 712 Q440 735 470 738 L890 738 Q920 735 935 712 Q920 788 840 800 L520 800 Q440 788 425 712 Z"/></clipPath>
+      <clipPath id="aboveStage"><rect x="0" y="0" width="1600" height="770"/></clipPath>
+    </defs>
+
+    <rect width="1600" height="1000" fill="url(#sky)"/>
+    <circle cx="1180" cy="690" r="430" fill="url(#sun)"/>
+
+    <!-- the rainbow (the promise) drawn as Noah's 18-hour forecast window -->
+    <g fill="none" stroke-width="14" opacity=".42">
+      <path d="M350 740 A520 520 0 0 1 1250 740" stroke="#ff6b5f"/>
+      <path d="M364 740 A506 506 0 0 1 1236 740" stroke="#ffb547"/>
+      <path d="M378 740 A492 492 0 0 1 1222 740" stroke="#ffe066"/>
+      <path d="M392 740 A478 478 0 0 1 1208 740" stroke="#6fd3a3"/>
+      <path d="M406 740 A464 464 0 0 1 1194 740" stroke="#69b7ff"/>
+    </g>
+    <g fill="#fff" font-size="19" font-weight="900" opacity=".95" text-anchor="middle">
+      <text x="372" y="690">now</text><text x="1232" y="690">+18 h</text>
+    </g>
+
+    <!-- clouds, and rain falling as data points -->
+    <g fill="#fff">
+      <g opacity=".95"><ellipse cx="140" cy="380" rx="110" ry="40"/><ellipse cx="210" cy="356" rx="80" ry="50"/><ellipse cx="280" cy="386" rx="84" ry="34"/><ellipse cx="80" cy="396" rx="60" ry="26"/></g>
+      <g opacity=".9"><ellipse cx="1460" cy="370" rx="120" ry="40"/><ellipse cx="1380" cy="352" rx="76" ry="46"/><ellipse cx="1540" cy="384" rx="80" ry="30"/></g>
+    </g>
+    <g fill="#e7f4ff" opacity=".75">
+      <circle cx="80" cy="430" r="3"/><circle cx="70" cy="462" r="3"/><circle cx="60" cy="494" r="3"/><circle cx="50" cy="526" r="3"/>
+      <circle cx="130" cy="428" r="3"/><circle cx="120" cy="460" r="3"/><circle cx="110" cy="492" r="3"/><circle cx="100" cy="524" r="3"/><circle cx="90" cy="556" r="3"/>
+      <circle cx="180" cy="422" r="3"/><circle cx="170" cy="454" r="3"/><circle cx="160" cy="486" r="3"/><circle cx="150" cy="518" r="3"/>
+      <circle cx="230" cy="430" r="3"/><circle cx="220" cy="462" r="3"/><circle cx="210" cy="494" r="3"/><circle cx="200" cy="526" r="3"/><circle cx="190" cy="558" r="3"/>
+      <circle cx="280" cy="426" r="3"/><circle cx="270" cy="458" r="3"/><circle cx="260" cy="490" r="3"/>
+    </g>
+
+    <!-- horizon: hills and the Atlanta skyline -->
+    <path d="M0 722 Q200 690 420 716 T860 708 T1300 712 T1600 704 L1600 760 L0 760 Z" fill="#8fb6cf" opacity=".55"/>
+    <g fill="#6f95b8" opacity=".6">
+      <rect x="1330" y="640" width="22" height="80"/><rect x="1358" y="610" width="26" height="110"/><rect x="1390" y="588" width="18" height="132"/>
+      <polygon points="1390,588 1399,566 1408,588"/><rect x="1414" y="626" width="30" height="94"/><rect x="1450" y="650" width="20" height="70"/>
+      <rect x="1476" y="636" width="24" height="84"/><rect x="1506" y="668" width="34" height="52"/>
+    </g>
+
+    <!-- back water -->
+    <path d="M0 724 C200 714 380 732 560 722 S960 712 1160 724 S1450 716 1600 722 L1600 1000 L0 1000 Z" fill="url(#sea)"/>
+
+    <!-- the gauge staff (USGS-style) -->
+    <g transform="translate(1180 676)">
+      <rect width="20" height="170" fill="#fff"/>
+      <g fill="#d92d20"><rect y="0" width="20" height="14"/><rect y="28" width="20" height="14"/><rect y="56" width="20" height="14"/><rect y="84" width="20" height="14"/><rect y="112" width="20" height="14"/></g>
+      <rect x="-4" y="-6" width="28" height="8" rx="2" fill="#1c1a17" opacity=".7"/>
+    </g>
+
+    <!-- the ark, fitted for flood science -->
+    <g>
+      <rect x="530" y="650" width="300" height="90" rx="6" fill="url(#cabin)"/>
+      <polygon points="508,654 680,598 852,654" fill="#7a4a22"/>
+      <g fill="#ffe9a8">
+        <rect x="552" y="674" width="40" height="30" rx="4"/><rect x="606" y="674" width="40" height="30" rx="4"/><rect x="660" y="674" width="40" height="30" rx="4"/>
+        <rect x="714" y="674" width="40" height="30" rx="4"/><rect x="768" y="674" width="40" height="30" rx="4"/>
+      </g>
+      <g fill="#c2410c" opacity=".85">
+        <rect x="558" y="694" width="5" height="6"/><rect x="566" y="688" width="5" height="12"/><rect x="574" y="683" width="5" height="17"/><rect x="582" y="690" width="5" height="10"/>
+        <path d="M612 698 L622 690 L630 694 L640 682" stroke="#c2410c" stroke-width="2.5" fill="none"/>
+        <rect x="666" y="696" width="5" height="4"/><rect x="674" y="690" width="5" height="10"/><rect x="682" y="680" width="5" height="20"/><rect x="690" y="686" width="5" height="14"/>
+        <circle cx="734" cy="689" r="8" fill="none" stroke="#c2410c" stroke-width="2.5"/><path d="M734 689 L740 683" stroke="#c2410c" stroke-width="2.5"/>
+        <path d="M774 696 Q782 678 790 690 T804 684" stroke="#c2410c" stroke-width="2.5" fill="none"/>
+      </g>
+      <!-- radar dome with its sweep, a dish and an anemometer on the roof -->
+      <g fill="none" stroke="#fff" stroke-width="2.5" opacity=".7">
+        <path d="M600 574 A40 40 0 0 1 680 574"/><path d="M582 574 A58 58 0 0 1 698 574" opacity=".7"/><path d="M564 574 A76 76 0 0 1 716 574" opacity=".45"/>
+      </g>
+      <rect x="636" y="586" width="8" height="26" fill="#7a4a22"/><circle cx="640" cy="574" r="22" fill="#f4f8fb" stroke="#c9d6e0" stroke-width="2"/>
+      <path d="M626 574 H654" stroke="#c9d6e0" stroke-width="2"/>
+      <rect x="737" y="606" width="6" height="22" fill="#7a4a22"/><ellipse cx="748" cy="598" rx="16" ry="8" transform="rotate(-30 748 598)" fill="#f4f8fb" stroke="#c9d6e0" stroke-width="2"/>
+      <line x1="790" y1="628" x2="790" y2="560" stroke="#7a4a22" stroke-width="5"/>
+      <g fill="#f4f8fb" stroke="#c9d6e0" stroke-width="1.5"><circle cx="776" cy="556" r="6"/><circle cx="804" cy="556" r="6"/><circle cx="790" cy="544" r="6"/></g>
+      <path d="M776 556 L790 560 L804 556 M790 544 L790 560" stroke="#7a4a22" stroke-width="2"/>
+      <!-- hull -->
+      <path d="M425 712 Q440 735 470 738 L890 738 Q920 735 935 712 Q920 788 840 800 L520 800 Q440 788 425 712 Z" fill="url(#hull)"/>
+      <g clip-path="url(#hullClip)" stroke="#4a2a12" stroke-width="2" opacity=".55">
+        <line x1="400" y1="754" x2="960" y2="754"/><line x1="400" y1="770" x2="960" y2="770"/><line x1="400" y1="786" x2="960" y2="786"/>
+      </g>
+      <text x="680" y="767" text-anchor="middle" fill="#ffe9a8" font-size="18" font-weight="900" letter-spacing="6" opacity=".9">NOAH</text>
+    </g>
+
+    <!-- the dove, carrying an olive branch and a location pin: the first alert -->
+    <g transform="translate(400 520) rotate(-8)">
+      <g fill="none" stroke="#fff" stroke-width="2.5" opacity=".75"><path d="M-14 66 A22 22 0 0 1 30 66"/><path d="M-26 70 A36 36 0 0 1 42 70" opacity=".6"/></g>
+      <line x1="6" y1="10" x2="8" y2="44" stroke="#fff" stroke-width="1.5" opacity=".8"/>
+      <path d="M8 74 C-6 58 -6 44 8 44 C22 44 22 58 8 74 Z" fill="#d92d20"/><circle cx="8" cy="54" r="4.5" fill="#fff"/>
+      <polygon points="-24,-2 -48,-12 -46,8" fill="#fff"/>
+      <ellipse cx="0" cy="0" rx="28" ry="12" fill="#fff"/>
+      <circle cx="26" cy="-6" r="9" fill="#fff"/><polygon points="34,-7 44,-4 34,-2" fill="#f2a100"/><circle cx="28" cy="-8" r="1.6" fill="#1c1a17"/>
+      <path d="M-8 -4 C-26 -46 8 -56 18 -8 Z" fill="#fff"/><path d="M-2 -4 C2 -34 22 -38 20 -6 Z" fill="#e6f1fb"/>
+      <path d="M42 -3 C52 0 58 6 62 12" stroke="#3f8a3a" stroke-width="2" fill="none"/>
+      <ellipse cx="52" cy="2" rx="5" ry="2.4" transform="rotate(30 52 2)" fill="#5aa84f"/><ellipse cx="59" cy="9" rx="5" ry="2.4" transform="rotate(50 59 9)" fill="#5aa84f"/>
+    </g>
+
+    <!-- front water: its crest is the creek's forecast hydrograph; red above the dashed flood stage -->
+    <path id="crest" d="M0 822 C300 822 520 820 760 808 C880 800 960 744 1060 742 C1160 740 1220 792 1330 800 C1440 808 1520 806 1600 806 L1600 1000 L0 1000 Z" fill="url(#seaFront)"/>
+    <path d="M0 822 C300 822 520 820 760 808 C880 800 960 744 1060 742 C1160 740 1220 792 1330 800 C1440 808 1520 806 1600 806 L1600 1000 L0 1000 Z" fill="#ff6b5f" opacity=".5" clip-path="url(#aboveStage)"/>
+    <path d="M940 790 C980 756 1010 742 1060 742 C1160 740 1220 792 1330 800 C1440 808 1520 806 1600 806" fill="none" stroke="#fff" stroke-width="3" stroke-dasharray="2 9" stroke-linecap="round" opacity=".9"/>
+    <line x1="960" y1="770" x2="1600" y2="770" stroke="#d92d20" stroke-width="3" stroke-dasharray="12 8"/>
+    <g transform="translate(1320 744)"><rect width="128" height="28" rx="14" fill="#d92d20"/><text x="64" y="19" text-anchor="middle" fill="#fff" font-size="15" font-weight="800">flood stage</text></g>
+    <g stroke="#fff" stroke-width="3" fill="none" opacity=".35"><path d="M60 870 q30 -12 60 0 t60 0"/><path d="M380 900 q30 -12 60 0 t60 0"/><path d="M1180 880 q30 -12 60 0 t60 0"/></g>
+    <rect y="860" width="1600" height="140" fill="url(#fade)"/>
+  </svg>
+
+  <div class="wrap nav">
+    <a class="brand" href="./">Noah</a>
+    <nav aria-label="Main">
+      <a class="hide-sm" href="#how">How it works</a>
+      <a class="hide-sm" href="sms:+17739371532?&body=alerts%20on">Text Noah</a>
+      <a class="btn ghost small" href="dispatch.html">Open the app</a>
+    </nav>
+  </div>
+
+  <div class="wrap copy">
+    <span class="chip"><i></i>Live · NOAA forecasts, refreshed every 15 minutes</span>
+    <h1><span class="a">Analyze.</span> <span class="m">Monitor.</span> <span class="p">Predict.</span></h1>
+    <p class="lede">Noah tells you <b>which streets will flood, and when</b>, before the water gets there. For people, cities and businesses, by app or by text.</p>
+    <div class="ctas">
+      <a class="btn primary" href="dispatch.html">Open the live demo</a>
+      <a class="btn ghost" href="sms:+17739371532?&body=alerts%20on">Text Noah · +1 (773) 937-1532</a>
+    </div>
+  </div>
+</section>
+
+<a class="shot" href="dispatch.html?mode=city" aria-label="Open the live demo of Noah Operations">
+  <div class="bar"><i></i><i></i><i></i><span class="url">noah · Operations · Hurricane Helene, 8 PM</span><span class="live">Open the live demo →</span></div>
+  <img src="landing/app-city.jpg" width="2400" height="1500" alt="Noah Operations at 8 PM during Hurricane Helene: 189 streets forecast cut, 10 schools, clinics and responders with a flooded road at the door, red and amber roads along Atlanta's creeks.">
+  <span class="open">Open the live demo →</span>
+</a>
+
+<section class="wrap why" id="how">
+  <h2>Analyze. Monitor. Predict.</h2>
+  <p class="sub">One engine on NOAA's National Water Model, turned into street-by-street answers for the people who have to drive through a storm.</p>
+  <div class="pillars">
+    <article class="pillar">
+      <span class="ic i-a"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/><path d="M8 13v-2M11 13V9M14 13v-3"/></svg></span>
+      <h3>Analyze</h3>
+      <p class="what">Why a road floods, who gets cut off, where to build.</p>
+      <p>Every red road explains itself: which creek overtops it, how high it sits, how often it flooded before. Cities see schools and hospitals cut off; businesses check a site.</p>
+      <div class="stat"><b>62,202</b>residential street segments added to NOAA's 15,289 major roads</div>
+    </article>
+    <article class="pillar">
+      <span class="ic i-m"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></span>
+      <h3>Monitor</h3>
+      <p class="what">Creeks, cameras, warnings and your routes, live.</p>
+      <p>Gauges, NWS warnings, rain and public reports every 15 minutes, live traffic cameras checked by AI for water, and a text the moment your route's forecast changes.</p>
+      <div class="stat"><b>9 of 11</b>watched routes warned ahead during Hurricane Isaias</div>
+    </article>
+    <article class="pillar">
+      <span class="ic i-p"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
+      <h3>Predict</h3>
+      <p class="what">Which streets flood, and when, 18 hours ahead.</p>
+      <p>NOAA's creek forecast meets each road's height above the creek: the hour it turns risky, the hour it goes under, a route around it and the time to leave by.</p>
+      <div class="stat"><b>13.2 h</b>of warning before Peachtree Creek flooded in Hurricane Helene</div>
+    </article>
+  </div>
+</section>
+
+<footer class="wrap">
+  <span class="safe">Not a safety guarantee. Never drive into water. In an emergency, call 911.</span>
+  <span>Noah · Hacklanta 2026 · Data: NOAA National Water Model and flood maps, USGS, National Weather Service, OpenStreetMap, Windy webcams.</span>
+</footer>
+</body>
+</html>

@@ -15,7 +15,7 @@ load_dotenv(Path(__file__).resolve().parents[2] / ".env")  # keys before anythin
 
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from noah import (
@@ -225,12 +225,6 @@ async def pages_revalidate(request, call_next):
     if request.url.path.endswith((".html", "/")):
         resp.headers["Cache-Control"] = "no-cache"
     return resp
-
-
-@app.get("/", include_in_schema=False)
-def home() -> RedirectResponse:
-    """The web map was retired Sat Oct 10 (J25); the site opens on Noah Operations."""
-    return RedirectResponse("/dispatch.html")
 
 
 app.mount("/", StaticFiles(directory=config.ROOT / "web", html=True), name="web")
