@@ -69,6 +69,7 @@ They score: people and places that get overlooked (access, safety, mobility), po
 | Windsor Pkwy: Noah 10 PM, closed ~10:15 PM | Helene 8 AM run; Appen Media / 11Alive |
 | Helene 8 AM run: 2,423 road segments flagged by 2 AM; 10 schools, a hospital, an urgent care, a police station cut off (8 PM–2 AM); 21 more with a flooded road at the door (5 fire stations) | `/ops/city?cycle=20240926T12Z` |
 | Saturday: 9 of 11 watched routes warned ahead by the run Noah had at 11:50 PM Friday | `web/data/route_watch.json` |
+| Isaias street level: **no street-level confirmation.** TomTom logged 0 flood-related closures in our area Sat 12:33 AM–11:49 PM; 83 new closures gave no cause (1 within 150 m of a flagged road, on a different street). Don't claim a confirmed street. | `data/interim/incidents/` (TomTom, 82 snapshots) |
 | Friday 10 PM forecast saved to GitHub 11:51 PM Fri (commit `eff4481`); Peachtree Creek peaked 10:45 AM Sat | git log; `isaias_validation.json` |
 | Helene 8 AM run: 16% of segments cut by 8 PM (11% by 2 AM) are in high-vulnerability tracts (CDC SVI ≥ 0.75), vs 9% of all roads; 59,739 people in affected high-SVI tracts by 8 PM, 88,467 by 2 AM | `/ops/city?cycle=20240926T12Z` → `vulnerability` |
 | NOAA road thresholds 15,289 segments; Noah's own 62,202 residential | `seg_thresholds.parquet` |
