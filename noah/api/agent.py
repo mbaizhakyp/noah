@@ -76,13 +76,11 @@ How to answer:
 - check_area: only say the asked street/place itself floods if flooding_at_this_place lists it. Roads in
   nearby_flagged_roads are other roads: say how far away they are (km_away). If flooding_at_this_place
   is empty, say no flooding is forecast at that spot (not a safety guarantee), then the nearby roads.
-- Cameras, CCTV, photos or "what does it look like": call camera_check (radius_miles default 5). Begin the reply
-  with its say_first sentence word for word, then add the rest. Its photos are sent
-  right after your text with a numbered key, so refer to cameras by name, never by number. Say how many cameras are
-  in the radius and how many photos you're sending (AI-checked), and whether any photo shows water (water counts
-  only when confirmed twice; "no water seen" is one look, don't call it confirmed); then official_warnings; then noah_forecast; then one line on
-  what those facts mean for risk, as facts (e.g. no camera shows water and no warning is in effect). Never say safe,
-  low risk or no risk; finish with "not a safety guarantee".
+- Cameras, CCTV, photos, "evaluate the risks" or "is my area OK": call camera_check (radius_miles default 5).
+  A 4-item risk checklist (photos, official warnings, rain and water levels, public reports) is placed above
+  your text automatically and the photos follow it. Write ONLY a 1-2 sentence bottom line that weighs those
+  four items, using only facts in the result. Never say safe, low risk or no risk; finish with
+  "not a safety guarantee".
 - If a tool returns an error, say so plainly and ask for a street address. Never claim a place was
   saved or checked unless the tool result says so.
 - Plain text, no markdown, at most 480 characters."""
@@ -270,20 +268,163 @@ def spread(items: list, k: int) -> list:
     return [items[round(i * (len(items) - 1) / (k - 1))] for i in range(k)]
 
 
-def camera_lead(n_radius: int, miles: float, checks: list[dict]) -> str:
-    """The reply's first sentence, from the real counts (the model kept merging 'found' and 'checked')."""
+CHECK_SOURCES = {  # J33: the live sources behind each checklist item (noah.sources adapters)
+    "official": {"NWS alerts", "WPC Excessive Rainfall Outlook", "NHC tropical storms"},
+    "water": {
+        "Synoptic rain gauges",
+        "NWS gridpoint rain forecast",
+        "NWPS river gauges",
+        "USGS water data",
+    },
+    "public": {
+        "NWS Local Storm Reports (last 24 h)",
+        "TomTom traffic incidents",
+        "Local news",
+        "Bluesky posts",
+    },
+}
+SQUARE = {"red": "🟥", "yellow": "🟨", "green": "🟩", "none": "⬜"}
+
+
+def _level(sevs: set) -> str:
+    return "red" if sevs & {"danger", "warning"} else "yellow" if "watch" in sevs else "green"
+
+
+def _photos_line(n_cams: int, checks: list[dict]) -> str:
     if not checks:
-        return f"I couldn't get any live camera images within {miles:g} miles right now."
+        return f"{SQUARE['none']} Photos: no live camera images right now"
     wet = [c["title"] for c in checks if c["wet"]]
-    seen = (
-        f"water on the road is confirmed at {', '.join(wet)}"
-        if wet
-        else f"none of the {len(checks)} shows water on the road"
+    maybe = [c for c in checks if "possible water" in c["ai"]]
+    if wet:
+        lv, txt = "red", f"water confirmed at {', '.join(wet)}"
+    elif maybe:
+        lv, txt = "yellow", f"possible water at {len(maybe)}, not confirmed"
+    else:
+        lv, txt = "green", "none shows water on the road"
+    return f"{SQUARE[lv]} Photos: {len(checks)} of {n_cams} cameras · {txt}"
+
+
+def _official_line(sig: list[dict]) -> str:
+    sevs = {  # a tropical system 200+ km off is something to watch, not a local warning
+        "watch"
+        if x["source"] == "NHC tropical storms" and x.get("severity") in ("warning", "danger")
+        else x.get("severity")
+        for x in sig
+    }
+    alerts = [x["title"] for x in sig if x["source"] == "NWS alerts"]
+    extra = [f"NHC: {x['title']}" for x in sig if x["source"] == "NHC tropical storms"]
+    extra += [
+        f"WPC: {x['title']}"
+        for x in sig
+        if x["source"] == "WPC Excessive Rainfall Outlook" and x.get("severity") != "info"
+    ]
+    head = "; ".join(alerts[:2]) if alerts else "no NWS warnings in effect"
+    return f"{SQUARE[_level(sevs)]} Official warnings: {'; '.join([head, *extra[:1]])}"
+
+
+def _water_line(sig: list[dict], noah: dict) -> str:
+    gauges = [
+        x
+        for x in sig
+        if x["source"] == "NWPS river gauges"
+        and "-999" not in str(x.get("detail"))
+        and "out of service" not in str(x.get("detail"))
+    ]
+    rain = [x for x in sig if x["source"] == "Synoptic rain gauges"]
+    sevs = {x.get("severity") for x in gauges + rain}
+    sevs |= {"warning"} if noah.get("flooded") else {"watch"} if noah.get("uncertain") else set()
+    parts = []
+    for x in rain:
+        hr = re.search(r"last hour: ([\d.]+) in", str(x.get("detail")))
+        day = re.search(r"last 24 h[^:]*: ([\d.]+) in", str(x.get("detail")))
+        bits = ([f"{hr.group(1)} in last hour"] if hr else []) + (
+            [f"{day.group(1)} in last 24 h"] if day else []
+        )
+        if bits:
+            parts.append("rain " + ", ".join(bits))
+    fc = next((x["title"] for x in sig if x["source"] == "NWS gridpoint rain forecast"), None)
+    if fc:
+        parts.append(fc.replace(" of rain forecast in the next 24 h", " forecast next 24 h"))
+    if gauges:
+        high = [x["title"].split(" (")[0] for x in gauges if x.get("severity") != "info"]
+        parts.append(
+            f"creek gauges high: {', '.join(high[:2])}"
+            if high
+            else f"{len(gauges)} creek gauges below flood stage"
+        )
+    if noah.get("flooded"):
+        parts.append(f"Noah: {noah['flooded'][0]} forecast under water")
+    elif noah.get("uncertain"):
+        parts.append(f"Noah: {noah['uncertain'][0]} at risk")
+    else:
+        parts.append(
+            f"Noah: no road within 5 km forecast to reach the creek through {noah.get('until', 'the forecast window')}"
+        )
+    return f"{SQUARE[_level(sevs)]} Rain and water levels: {'; '.join(parts)}"
+
+
+def _public_line(sig: list[dict]) -> str:
+    tt = [
+        x for x in sig if x["source"] == "TomTom traffic incidents" and x.get("value") == 11
+    ]  # 11 = flooding; 8 is any closure
+    lsr = [
+        x
+        for x in sig
+        if x["source"] == "NWS Local Storm Reports (last 24 h)" and "FLOOD" in x["title"].upper()
+    ]
+    news = [x for x in sig if x["source"] == "Local news" and "flood" in x["title"].lower()]
+    posts = next((x["title"] for x in sig if x["source"] == "Bluesky posts"), None)
+    if tt:
+        lv, txt = "red", f"{len(tt)} flooded-road report(s) right now (TomTom)"
+    elif lsr:
+        lv, txt = "yellow", f"{len(lsr)} NWS flood report(s) in the last 24 h"
+    else:
+        lv, txt = "green", "no flooded roads reported (TomTom, NWS storm reports)"
+    ctx = [f"{len(news)} news stories mention flooding"] if news else []
+    if posts:
+        ctx.append(posts.replace(" about flooding nearby in the last 24 h", "") + " (unverified)")
+    return f"{SQUARE[lv]} Public flood reports: {txt}" + (f"; {', '.join(ctx)}" if ctx else "")
+
+
+def bottom_line(checklist: str) -> str:
+    """One sentence from the four squares (J33): red items first, then yellow, never 'safe'."""
+    level = {v: k for k, v in SQUARE.items()}
+    items = [(ln[2:].split(":")[0], level.get(ln[0], "none")) for ln in checklist.split("\n")[1:]]
+    red = [n.lower() for n, lv in items if lv == "red"]
+    yellow = [n.lower() for n, lv in items if lv == "yellow"]
+    unknown = [n.lower() for n, lv in items if lv == "none"]
+    if red:
+        return (
+            f"Bottom line: {' and '.join(red)} point to flooding here now. Avoid low roads near creeks; "
+            "never drive into water, and call 911 in an emergency."
+        )
+    out = "Bottom line: no flooding is seen or forecast here right now"
+    out += f", but {' and '.join(yellow)} need watching (🟨 above)." if yellow else "."
+    if unknown:
+        out += f" Couldn't check {' and '.join(unknown)}."
+    return out + " This is not a safety guarantee."
+
+
+def risk_checklist(
+    place: str, miles: float, n_cams: int, checks: list[dict], bundle: dict, noah: dict
+) -> str:
+    """The 4-item risk checklist (J33), built from data so every fact is exact; the model only adds a bottom line."""
+    sig = bundle.get("signals", [])
+    answered = {o["source"] for o in bundle.get("sources_ok", [])}
+    pick = lambda group: [x for x in sig if x["source"] in CHECK_SOURCES[group]]
+    lines = [f"Risk checklist · {place} · {miles:g} mi", _photos_line(n_cams, checks)]
+    lines.append(
+        _official_line(pick("official"))
+        if answered & CHECK_SOURCES["official"]
+        else f"{SQUARE['none']} Official warnings: couldn't reach NWS right now"
     )
-    return (
-        f"{n_radius} traffic cameras are within {miles:g} miles; here are {len(checks)} live photos "
-        f"spread across the area, AI-checked: {seen}."
+    lines.append(_water_line(pick("water"), noah))
+    lines.append(
+        _public_line(pick("public"))
+        if answered & CHECK_SOURCES["public"]
+        else f"{SQUARE['none']} Public flood reports: couldn't check right now"
     )
+    return "\n".join(lines)
 
 
 def cam_verdict(res: dict) -> str:
@@ -401,6 +542,13 @@ def camera_check(geo: dict, miles: float, session: dict) -> dict:
         log.exception("windy nearby failed")
         cams = []
     pick = spread(cams, CAM_BUNDLE)
+    from noah import sources
+
+    names = set().union(*CHECK_SOURCES.values())
+    ctx_src = sources.Ctx("area", geo["lat"], geo["lon"], radius_km=miles * 1.609)
+    src_fut = _pool.submit(
+        sources.run, ctx_src, 10, names
+    )  # the checklist's live sources, alongside the photos
     futs = [_cam_pool.submit(photo.verified, c["image_url"]) for c in pick]
     checks = []
     for c, f in zip(pick, futs):
@@ -423,6 +571,18 @@ def camera_check(geo: dict, miles: float, session: dict) -> dict:
         warnings = "couldn't reach the National Weather Service"
     cycle = live_cycle()
     st = routing.status(geo["lat"], geo["lon"], config.MAX_LEAD_H, cycle)
+    try:
+        bundle = src_fut.result(timeout=15)
+    except Exception:
+        log.exception("checklist sources failed")
+        bundle = {}
+    rows = flagged(st.get("segments", []), limit=20)
+    issue = pd.Timestamp(config.parse_cycle(cycle))
+    noah = {
+        "flooded": [f"{r['name']} (~{r['from']})" for r in rows if r["state"] == "flooded"],
+        "uncertain": [f"{r['name']} (~{r['from']})" for r in rows if r["state"] == "uncertain"],
+        "until": local(issue + pd.Timedelta(hours=config.MAX_LEAD_H)),
+    }
     session["photos_out"] = [
         {"url": c["image_url"], "caption": f"{c['title']} · {c['km']} km {c['dir']} · {c['ai']}"}
         for c in checks
@@ -431,7 +591,9 @@ def camera_check(geo: dict, miles: float, session: dict) -> dict:
         "place": geo["name"],
         "radius_miles": miles,
         "state": st["state"],
-        "say_first": camera_lead(len(cams), miles, checks),
+        "checklist": risk_checklist(
+            geo["name"].split(",")[0], miles, len(cams), checks, bundle, noah
+        ),
         "cameras_in_radius": len(cams),
         "photos_sent_and_ai_checked": [
             {"name": c["title"], "km_away": c["km"], "direction": c["dir"], "ai_check": c["ai"]}
@@ -735,8 +897,18 @@ def answer(sender: str, text: str) -> str:
             messages.append(
                 {"role": "tool", "tool_call_id": c["id"], "content": json.dumps(res, default=str)}
             )
+        if last_result and last_result.get("checklist"):
+            break  # J33: checklist + rule-based bottom line, no free-text answer needed
     else:
         msg = llm(messages, tools=False)
+    if last_result and last_result.get("checklist"):
+        reply = config.road_alias(
+            f"{last_result['checklist']}\n\n{bottom_line(last_result['checklist'])}"
+        )
+        session["history"].extend(
+            [{"role": "user", "content": text}, {"role": "assistant", "content": reply}]
+        )
+        return reply
     reply = finalize(msg.get("content") or "")
     if not reply or is_banned(reply):  # one correction round, then the deterministic template
         messages += [
@@ -753,14 +925,6 @@ def answer(sender: str, text: str) -> str:
             reply = template_reply(last_result)
     if needs_guarantee(last_result, reply):
         reply = finalize(reply[: MAX_CHARS - 40].rstrip() + " This is not a safety guarantee.")
-    if (
-        last_result
-        and "say_first" in last_result
-        and not last_result.get("photos_with_water_confirmed_twice")
-    ):
-        reply = re.sub(
-            r"(AI[- ]checked)\s+twice", r"\1", reply, flags=re.IGNORECASE
-        )  # dry photos get one look, not two
     reply = config.road_alias(reply)  # never longer: aliases are shorter than the official names
     session["history"].extend(
         [{"role": "user", "content": text}, {"role": "assistant", "content": reply}]

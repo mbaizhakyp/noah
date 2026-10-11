@@ -2,14 +2,15 @@ import pandas as pd
 
 from noah.api.agent import (
     MAX_CHARS,
+    bottom_line,
     cam_verdict,
-    camera_lead,
     compass,
     depart_hour,
     finalize,
     flagged,
     is_banned,
     km_between,
+    risk_checklist,
     spread,
     template_reply,
 )
@@ -203,10 +204,91 @@ def test_compass_and_low_risk_wording():
     assert not is_banned("No camera shows water and no warning is in effect.")
 
 
-def test_camera_lead_counts_found_vs_sent():
-    checks = [{"title": "A", "wet": False}, {"title": "B", "wet": True}]
-    lead = camera_lead(149, 5, checks)
-    assert lead.startswith("149 traffic cameras are within 5 miles; here are 2 live photos")
-    assert "confirmed at B" in lead
-    assert "none of the 1 shows water" in camera_lead(3, 5, checks[:1])
-    assert "couldn't get any" in camera_lead(0, 5, [])
+def test_risk_checklist_four_items_from_data():
+    checks = [{"title": "Cam A", "wet": False, "ai": "no water on the road seen"}] * 6
+    bundle = {
+        "sources_ok": [
+            {"source": n} for n in ("NWS alerts", "NHC tropical storms", "TomTom traffic incidents")
+        ],
+        "signals": [
+            {
+                "source": "NHC tropical storms",
+                "severity": "warning",
+                "title": "PTC Isaias is 235 km away",
+            },
+            {
+                "source": "Synoptic rain gauges",
+                "severity": "watch",
+                "title": "Rain measured by 7 nearby gauges",
+                "detail": "Wettest last hour: 0.01 in (X). Wettest last 24 h / since midnight: 2.61 in (Y).",
+            },
+            {
+                "source": "NWPS river gauges",
+                "severity": "info",
+                "title": "Peachtree Creek at Atlanta (AANG1)",
+                "detail": "Now 4.9 ft (no flooding)",
+            },
+            {
+                "source": "NWPS river gauges",
+                "severity": "warning",
+                "title": "Proctor Creek Tributary (PCSG1)",
+                "detail": "Now -999  (out of service) at .",
+            },
+            {
+                "source": "TomTom traffic incidents",
+                "severity": "warning",
+                "value": 8,
+                "title": "Road closed: Peachtree St",
+            },
+            {
+                "source": "Bluesky posts",
+                "severity": "info",
+                "title": "7 public posts about flooding nearby in the last 24 h",
+            },
+        ],
+    }
+    text = risk_checklist(
+        "Georgia State University", 5, 149, checks, bundle, {"until": "Sun 11:00 AM"}
+    )
+    lines = text.split("\n")
+    assert lines[0] == "Risk checklist · Georgia State University · 5 mi" and len(lines) == 5
+    assert lines[1].startswith("🟩 Photos: 6 of 149 cameras")
+    assert lines[2].startswith(
+        "🟨 Official warnings: no NWS warnings in effect; NHC: PTC Isaias"
+    )  # distant storm = watch
+    assert lines[3].startswith(
+        "🟨 Rain and water levels: rain 0.01 in last hour, 2.61 in last 24 h"
+    )
+    assert "1 creek gauges below flood stage" in lines[3]  # the out-of-service gauge is ignored
+    assert lines[4].startswith(
+        "🟩 Public flood reports: no flooded roads reported"
+    )  # a closure (8) is not a flood (11)
+    assert "7 public posts (unverified)" in lines[4]
+    assert not is_banned(text)
+    wet = [{"title": "Cam B", "wet": True, "ai": "water on the road"}]
+    flooded = {"flooded": ["Peachtree Rd (~9 PM)"], "until": "x"}
+    red = risk_checklist("X", 5, 3, wet, {"sources_ok": [], "signals": []}, flooded)
+    assert (
+        "🟥 Photos" in red and "🟥 Rain and water levels" in red and "⬜ Official warnings" in red
+    )
+
+
+def test_bottom_line_follows_the_squares():
+    head = "Risk checklist · X · 5 mi\n"
+    calm = (
+        head
+        + "🟩 Photos: a\n🟩 Official warnings: b\n🟩 Rain and water levels: c\n🟩 Public flood reports: d"
+    )
+    assert bottom_line(calm).startswith(
+        "Bottom line: no flooding is seen or forecast here right now."
+    )
+    watch = calm.replace("🟩 Official", "🟨 Official").replace("🟩 Rain", "🟨 Rain")
+    assert "official warnings and rain and water levels need watching" in bottom_line(watch)
+    flood = calm.replace("🟩 Photos", "🟥 Photos")
+    assert bottom_line(flood).startswith(
+        "Bottom line: photos point to flooding here now"
+    ) and "911" in bottom_line(flood)
+    assert "Couldn't check public flood reports" in bottom_line(
+        calm.replace("🟩 Public", "⬜ Public")
+    )
+    assert not any(is_banned(bottom_line(t)) for t in (calm, watch, flood))
