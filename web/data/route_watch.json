@@ -2343,6 +2343,158 @@
      "streets": []
     }
    }
+  },
+  {
+   "cycle": "20261011T00Z",
+   "issued_utc": "2026-10-11T00:00:00Z",
+   "had_utc": "2026-10-11T01:51:49Z",
+   "routes": {
+    "r01": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r02": {
+     "state": "uncertain",
+     "from_utc": "2026-10-11T02:00:00Z",
+     "now": false,
+     "street": "Graves Road",
+     "streets": [
+      {
+       "name": "Graves Road",
+       "from_utc": "2026-10-11T02:00:00Z"
+      }
+     ]
+    },
+    "r03": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r04": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r05": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r06": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r07": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r08": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r09": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r10": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r11": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    }
+   }
+  },
+  {
+   "cycle": "20261011T01Z",
+   "issued_utc": "2026-10-11T01:00:00Z",
+   "had_utc": "2026-10-11T02:52:43Z",
+   "routes": {
+    "r01": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r02": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r03": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r04": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r05": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r06": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r07": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r08": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r09": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r10": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r11": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    }
+   }
   }
  ],
  "camera_alerts": [
