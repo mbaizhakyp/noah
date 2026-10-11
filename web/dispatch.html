@@ -41,9 +41,8 @@
   /* ---------- map stage ---------- */
   .stage { position: fixed; inset: 0; }
   #map { position: absolute; inset: 0; }
-  .veil { position: absolute; inset: 0 0 auto 0; height: 270px; pointer-events: none;
-    background: linear-gradient(180deg, rgba(250, 247, 242, .97) 0%, rgba(250, 247, 242, .88) 50%, rgba(250, 247, 242, 0) 100%); }
-  .hero { position: absolute; top: 22px; left: 432px; right: 240px; pointer-events: none; display: grid; gap: 10px; color: var(--ink); }
+  .hero { position: absolute; top: 22px; left: 432px; right: 240px; pointer-events: none; display: grid; gap: 10px; color: var(--ink);
+    text-shadow: 0 0 1px var(--paper), 0 0 2px var(--paper), 0 0 3px var(--paper), 0 0 3px var(--paper), 0 0 8px var(--paper), 0 0 14px var(--paper); }  /* legible over map labels, no band */
   body:has(#why:not([hidden])) .hero { right: 372px; }  /* keep the caption clear of the Why card */
   .eyebrow { justify-self: start; display: inline-flex; align-items: center; gap: 8px; padding: 5px 12px 5px 9px;
     background: var(--surface); border: 1.5px solid var(--line); border-radius: 999px; font-size: 13px; font-weight: 700; color: var(--dark); }
@@ -206,7 +205,6 @@
   @media (max-width: 1100px) { .hero { right: 16px; } .legend { display: none; } }
   @media (max-width: 820px) {
     .stage { position: relative; height: 64vh; }
-    .veil { height: 200px; }
     .hero { left: 16px; right: 16px; top: 14px; } h1 { font-size: 26px; } .caption .small { display: none; }
     .timebar { left: 12px; right: 12px; bottom: 76px; gap: 10px; padding-right: 14px; }
     .peoplenav { left: 50%; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); }
@@ -220,7 +218,6 @@
 <body>
 <div class="stage">
   <div id="map" role="region" aria-label="Roads forecast to flood, routes and facilities"></div>
-  <div class="veil" aria-hidden="true"></div>
   <header class="hero">
     <div class="eyebrow" id="eyebrowBox"><span class="dot" aria-hidden="true"></span><span id="eyebrow">Loading forecast…</span></div>
     <h1 id="heroTitle">Close the road before the water does.</h1>
