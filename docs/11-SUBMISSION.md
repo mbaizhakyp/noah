@@ -50,17 +50,40 @@ python, fastapi, typescript, node.js, maplibre, osmnx, networkx, geopandas, rast
 ### Team and credits
 Margulan Baizhakyp built Noah's forecast pipeline, live loop, route watch, iMessage agent and Noah Operations. **Priyanshu Sethi** built, during Hacklanta, the web map, the trip planner and routing API, the live-checks engine and the iPad app, and competes separately in the Fintech track.
 
-## Backup video (2:30, record by 04:00)
-Record each screen separately (QuickTime screen recording on the laptop; iPhone and iPad screen recording), then cut in order. Voiceover is the pitch, slightly slower.
+## Demo video (2:45, record by 04:00)
+One person, one forecast, three scales: Maya (a driver) → her pharmacy → her city. Live Isaias opens and frames it; recorded Helene shows a full storm day. Voiceover ≈ 410 words, ~150 per minute.
 
-| Time | Picture | Voiceover |
-|---|---|---|
-| 0:00–0:15 | Slide 1 (hook) | "This weekend Hurricane Isaias hit Atlanta. Peachtree Creek went from 19 to 3,750 cubic feet per second overnight. More than half of flood drownings happen in a car." |
-| 0:15–0:30 | Slide 2 (gap) | "Warnings cover whole counties. Map apps react after a road is closed. NOAA's road data skips the side streets where people live. Noah fills that gap." |
-| 0:30–1:15 | iPad, People tab: Work, slide to 7 PM; Home; Deliveries | "This is Hurricane Helene, recorded. At 9 AM the roads are open. Leave work at 7 PM and Noah routes around 12 flooded roads, and warns that your own street floods by then. Going home: leave by 7:55 PM. A pharmacy driver: leave by 7:30 PM to reach all 6 stops; a better order saves 7 minutes." |
-| 1:15–1:30 | iPhone: the 5:59 AM Saturday alert in the Noah thread (Graves Rd cut from ~4 AM, Northcrest Way from ~1 PM) | "Noah ran live all weekend. At 6 AM Saturday, before anyone asked, it texted me which routes would be cut and when. No app: it's a text." |
-| 1:30–1:45 | iPad: Deliveries tab on Isaias, Saturday 4 AM | "Same forecast, for a pharmacy with 8 stops: two already cut, hold them; Northcrest Way before noon; the other five show no forecast flooding." |
-| 1:45–2:05 | iPad: City tab on Helene, slide to 2 AM, tap a red road (Why card) | "For a city: by 2 AM, 10 schools, a hospital, an urgent care and a police station are cut off from every open road. Why this road? The creek overtops it, and it floods in every storm we recorded: fix it first." |
-| 2:05–2:30 | Slide 4 (proof), then slide 5 (close) | "Helene: 13.2 hours of warning; Noah said Windsor Parkway at 10 PM, the city closed it at 10:15. Isaias, live: Friday night's forecast called Saturday's creek peaks within about 10%, 11 to 13 hours ahead. Noah. Know before the water does." |
+**1 · Cold open (0:00–0:12)**
+Screen: iPhone, Noah thread: the real 5:59 AM Saturday alert slides in; zoom on the two streets and times.
+VO: "Saturday, 5:59 AM. Hurricane Isaias is soaking Atlanta. Nobody asked, but Noah texts first: Graves Road is cut from about 4 AM. Northcrest Way, from about 1 PM."
 
-Rules for the cut: say "recorded" for Helene; show no API keys, `.env` or terminal tokens; no Windy camera frames in the video (they can't be published).
+**2 · The gap (0:12–0:36)**
+Screen: landing page storm hero (rain, waves, "Noah" breaking through the clouds); stats appear as on-screen text.
+VO: "Overnight, Peachtree Creek rose from 19 to 3,750 cubic feet per second. More than half of flood drownings happen in a vehicle. But warnings cover whole counties, map apps reroute only after a road is closed, and NOAA's flood thresholds skip the side streets where people live. Noah tells you which streets will flood, and when, up to 18 hours ahead."
+
+**3 · Maya's day (0:36–1:14)** · lower third: *Recorded: Hurricane Helene, Sep 26, 2024*
+Screen: iPad, People tab at 9 AM (roads open). Work → drag Leaving to 7 PM (route bends around red roads). Home → "Leave by 7:55 PM". Deliveries → "Leave by 7:30 PM" and the better-order pop-up.
+VO: "Meet Maya. She delivers for a neighborhood pharmacy, so she can't stay home in a storm. To show a full storm day, we replay Hurricane Helene, recorded. It's 9 AM and her roads are open. Driving to work at 7 PM? Noah routes her around 12 flooded roads, and warns that the street she's heading to floods by then: stop at the nearest open corner. Getting home: leave by 7:55 PM. Her six deliveries: leave by 7:30 PM to reach every stop, and a better order saves 7 minutes."
+
+**4 · No app needed (1:14–1:42)**
+Screen: iPhone Messages. Type "alerts on" → Noah confirms. Then "Check the traffic cameras around Georgia State and evaluate the risks" → typing dots → photo album (**blurred**) → the 4-line checklist and bottom line.
+VO: "She doesn't even need the app. Text 'alerts on', and Noah texts first when a road she uses is about to flood, like that 5:59 AM message. Ask for the cameras near Georgia State, and in seconds Noah sends six live traffic-camera photos, each AI-checked for water, plus a four-point checklist: the photos, official warnings, rain and creek levels, and public flood reports. It never says 'safe'."
+
+**5 · Her pharmacy (1:42–1:58)** · lower third: *Live: Hurricane Isaias, Sat Oct 10, 4 AM forecast*
+Screen: iPad, Deliveries tab: two stops held, Northcrest Way flagged before noon.
+VO: "Same forecast for Maya's pharmacy, live this weekend at 4 AM Saturday: of 8 stops, two are already cut, so hold them. Northcrest Way has to go before noon. The other five show no forecast flooding."
+
+**6 · Her city (1:58–2:20)** · lower third: *Recorded: Hurricane Helene*
+Screen: iPad, City tab: drag the time bar to 2 AM (facilities turn red); tap a red road → the Why card.
+VO: "And for her city, back to Helene. By 2 AM, 10 schools, a hospital, an urgent care and a police station are cut off from every open road. Tap any red road to see why: which creek overtops it, when to barricade, and whether it floods every storm, so the city knows what to fix first."
+
+**7 · Proof and close (2:20–2:45)**
+Screen: proof slide (three numbers), then the landing hero as the end card: "Noah · Know before the water does".
+VO: "Does it work? In Helene, NOAA's forecast gave 13.2 hours of warning before Peachtree Creek hit flood stage, and Noah flagged Windsor Parkway for 10 PM; the city closed it at about 10:15. This weekend, live, Friday night's forecast called Saturday's creek peaks within about 10%, 11 to 13 hours ahead, and Noah warned 9 of 11 watched routes ahead of time. Noah. Know before the water does."
+
+**Recording rules**
+- Record each screen on its own (iPad and iPhone screen recording, QuickTime on the laptop), then cut in order and lay the voiceover over it.
+- Label every storm on screen: "Recorded: Helene" or "Live: Isaias". Say "recorded" for Helene.
+- **Blur the camera photos** in scene 4: Windy frames can't be published. The checklist text is fine.
+- Show no API keys, `.env` or terminals.
+- iPad: demo server on Helene (`scripts/demo_mode.sh`); Deliveries opens on Isaias by itself. iMessage answers come from today's live forecast, so the checklist may be calm; that's fine and honest.
