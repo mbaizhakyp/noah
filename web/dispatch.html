@@ -44,6 +44,7 @@
   .hero { position: absolute; top: 22px; left: 432px; right: 240px; pointer-events: none; display: grid; gap: 10px; color: var(--ink);
     text-shadow: 0 0 1px var(--paper), 0 0 2px var(--paper), 0 0 3px var(--paper), 0 0 3px var(--paper), 0 0 8px var(--paper), 0 0 14px var(--paper); }  /* legible over map labels, no band */
   body:has(#why:not([hidden])) .hero { right: 372px; }  /* keep the caption clear of the Why card */
+  body:has(#why:not([hidden])) .hero .caption { display: none; }  /* the card shows the hour instead */
   .eyebrow { justify-self: start; display: inline-flex; align-items: center; gap: 8px; padding: 5px 12px 5px 9px;
     background: var(--surface); border: 1.5px solid var(--line); border-radius: 999px; font-size: 13px; font-weight: 700; color: var(--dark); }
   .eyebrow .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--red); box-shadow: 0 0 0 3px rgba(217, 45, 32, .2); }
@@ -80,6 +81,7 @@
   .why h3 { margin: -4px 40px 0 0; font: 800 20px/1.15 var(--display); text-wrap: balance; }
   .why .when { font-size: 14px; color: var(--red-ink); font-weight: 600; }
   .why .cause { font-size: 14.5px; }
+  .why .at { font-size: 13px; font-weight: 700; color: var(--dark); }
   .why .cause b { color: var(--dark); }
   .why svg { display: block; width: 100%; height: auto; }
   .why svg text { font: 10.5px var(--body); fill: var(--muted); }
@@ -239,6 +241,7 @@
     <h3 id="whyName"></h3>
     <div class="when" id="whyWhen"></div>
     <div class="cause" id="whyCause"></div>
+    <div class="at" id="whyAt"></div>
     <div id="whyChart"></div>
     <div class="stats" id="whyStats"></div>
     <div class="facts" id="whyFacts"></div>
@@ -599,6 +602,7 @@ async function openWhy(segId, fly) {
   }
 }
 function drawWhyChart(d, h) {
+  $("whyAt").textContent = h === 0 ? `Forecast issued ${fmt.format(atHour(0))}` : `At ${fmt.format(atHour(h))}`;
   if (!d.forecast.length) { $("whyChart").replaceChildren(); return; }
   const W = 308, H = 128, top = 10, bot = 100, n = d.forecast.length, thr = d.water_reaches_road_cfs || 0;
   const vmax = Math.max(thr, ...d.forecast.map((p) => p.cfs)) * 1.18 || 1;
