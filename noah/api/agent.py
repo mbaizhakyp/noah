@@ -892,8 +892,10 @@ def answer(sender: str, text: str) -> str:
             )
             outcome = "error" if "error" in res else res.get("state", "ok")
             log.info("tool %s -> %s %.1fs", c["function"]["name"], outcome, time.time() - t_tool)
-            if "state" in res:
-                last_result = res
+            if "state" in res and not (last_result and last_result.get("checklist")):
+                last_result = (
+                    res  # a camera checklist wins over other tools called in the same turn
+                )
             messages.append(
                 {"role": "tool", "tool_call_id": c["id"], "content": json.dumps(res, default=str)}
             )

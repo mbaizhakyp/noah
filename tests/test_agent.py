@@ -292,3 +292,33 @@ def test_bottom_line_follows_the_squares():
         calm.replace("🟩 Public", "⬜ Public")
     )
     assert not any(is_banned(bottom_line(t)) for t in (calm, watch, flood))
+
+
+def test_checklist_reply_survives_a_second_tool(monkeypatch):
+    from noah.api import agent
+
+    calls = [
+        {"id": "1", "function": {"name": "camera_check", "arguments": "{}"}},
+        {"id": "2", "function": {"name": "check_area", "arguments": "{}"}},
+    ]
+    monkeypatch.setattr(
+        agent, "llm", lambda messages, tools=True: {"content": None, "tool_calls": calls}
+    )
+    monkeypatch.setattr(
+        agent,
+        "context",
+        lambda: {
+            "now": pd.Timestamp("2026-10-11T10:00Z"),
+            "issue": pd.Timestamp("2026-10-11T08:00Z"),
+        },
+    )
+    checklist = "Risk checklist · Georgia State University · 5 mi\n🟩 Photos: none shows water"
+    results = {
+        "camera_check": {"state": "no_forecast_flooding", "checklist": checklist},
+        "check_area": {"state": "no_forecast_flooding"},
+    }
+    monkeypatch.setattr(agent, "run_tool", lambda name, args, session, ctx: results[name])
+    reply = agent.answer(
+        "test-two-tools", "Scan cameras within 5 miles and tell me the risk now and in 5 hours"
+    )
+    assert reply.startswith("Risk checklist") and "Bottom line" in reply
