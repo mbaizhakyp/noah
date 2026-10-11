@@ -1875,6 +1875,474 @@
      "streets": []
     }
    }
+  },
+  {
+   "cycle": "20261010T17Z",
+   "issued_utc": "2026-10-10T17:00:00Z",
+   "had_utc": "2026-10-10T19:15:45Z",
+   "routes": {
+    "r01": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r02": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r03": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r04": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r05": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r06": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r07": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r08": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r09": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r10": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r11": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    }
+   }
+  },
+  {
+   "cycle": "20261010T18Z",
+   "issued_utc": "2026-10-10T18:00:00Z",
+   "had_utc": "2026-10-10T19:46:33Z",
+   "routes": {
+    "r01": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r02": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r03": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r04": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r05": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r06": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r07": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r08": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r09": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r10": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r11": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    }
+   }
+  },
+  {
+   "cycle": "20261010T19Z",
+   "issued_utc": "2026-10-10T19:00:00Z",
+   "had_utc": "2026-10-10T21:02:27Z",
+   "routes": {
+    "r01": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r02": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r03": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r04": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r05": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r06": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r07": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r08": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r09": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r10": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r11": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    }
+   }
+  },
+  {
+   "cycle": "20261010T20Z",
+   "issued_utc": "2026-10-10T20:00:00Z",
+   "had_utc": "2026-10-10T22:04:47Z",
+   "routes": {
+    "r01": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r02": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r03": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r04": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r05": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r06": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r07": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r08": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r09": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r10": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r11": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    }
+   }
+  },
+  {
+   "cycle": "20261010T21Z",
+   "issued_utc": "2026-10-10T21:00:00Z",
+   "had_utc": "2026-10-10T22:50:16Z",
+   "routes": {
+    "r01": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r02": {
+     "state": "uncertain",
+     "from_utc": "2026-10-11T02:00:00Z",
+     "now": false,
+     "street": "Graves Road",
+     "streets": [
+      {
+       "name": "Graves Road",
+       "from_utc": "2026-10-11T02:00:00Z"
+      }
+     ]
+    },
+    "r03": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r04": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r05": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r06": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r07": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r08": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r09": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r10": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r11": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    }
+   }
+  },
+  {
+   "cycle": "20261010T22Z",
+   "issued_utc": "2026-10-10T22:00:00Z",
+   "had_utc": "2026-10-10T23:51:07Z",
+   "routes": {
+    "r01": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r02": {
+     "state": "uncertain",
+     "from_utc": "2026-10-11T02:00:00Z",
+     "now": false,
+     "street": "Graves Road",
+     "streets": [
+      {
+       "name": "Graves Road",
+       "from_utc": "2026-10-11T02:00:00Z"
+      }
+     ]
+    },
+    "r03": {
+     "state": "uncertain",
+     "from_utc": "2026-10-11T01:00:00Z",
+     "now": false,
+     "street": "Northcrest Way",
+     "streets": [
+      {
+       "name": "Northcrest Way",
+       "from_utc": "2026-10-11T01:00:00Z"
+      }
+     ]
+    },
+    "r04": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r05": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r06": {
+     "state": "uncertain",
+     "from_utc": "2026-10-11T08:00:00Z",
+     "now": false,
+     "street": "McLendon Drive",
+     "streets": [
+      {
+       "name": "McLendon Drive",
+       "from_utc": "2026-10-11T08:00:00Z"
+      }
+     ]
+    },
+    "r07": {
+     "state": "uncertain",
+     "from_utc": "2026-10-11T01:00:00Z",
+     "now": false,
+     "street": "North Peachtree Road",
+     "streets": [
+      {
+       "name": "North Peachtree Road",
+       "from_utc": "2026-10-11T01:00:00Z"
+      }
+     ]
+    },
+    "r08": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r09": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r10": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    },
+    "r11": {
+     "state": "no_forecast_flooding",
+     "from_utc": null,
+     "street": null,
+     "streets": []
+    }
+   }
   }
  ],
  "camera_alerts": [
