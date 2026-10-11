@@ -52,7 +52,7 @@ They score: people and places that get overlooked (access, safety, mobility), po
 - *Privacy?* No accounts; the relay logs a hashed sender, length and timing only.
 
 ## 2. Photon (Agents in iMessage, Spectrum): about 2 min
-1. Hand the judge the "Text Noah" card (+1 (773) 937-1532; the QR opens Messages to Noah with the first question typed in; iPhone/iMessage only). They text from **their own phone**: *"Can I drive home from Midtown at 6 PM?"* → typing dots → a plain answer with the street and the time.
+1. Hand the judge the "Text Noah" card (+1 (628) 289-4567; the QR opens Messages to Noah with the first question typed in; iPhone/iMessage only). They text from **their own phone**: *"Can I drive home from Midtown at 6 PM?"* → typing dots → a plain answer with the street and the time.
 2. *"alerts on"* → Noah confirms and sends the current status.
 3. Re-send Saturday's latest real alert to their thread, labeled "Re-sent from Sat …": `uv run python -m noah.pipeline.route_watch --resend` → their phone buzzes. (Text only: Saturday's two camera alerts were false alarms, so they are never re-sent.)
 4. **Live cameras (J32):** *"Give me CCTV images of a 5-mile radius from Georgia State University and evaluate risks."* → in ~10 s: an album of 6 live traffic-camera photos spread across the area, each AI-checked for water, a numbered key, and a **risk checklist** (J33): 🟩/🟨/🟥 photos · official warnings · rain and water levels · public flood reports, then a one-line bottom line (never "safe"; ends with "not a safety guarantee").
