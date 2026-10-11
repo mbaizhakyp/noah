@@ -292,3 +292,24 @@ def test_bottom_line_follows_the_squares():
         calm.replace("🟩 Public", "⬜ Public")
     )
     assert not any(is_banned(bottom_line(t)) for t in (calm, watch, flood))
+
+
+def test_my_location_defaults_to_gsu_until_saved(monkeypatch):
+    from noah.api import agent
+
+    monkeypatch.setattr(agent, "geocode", lambda q: {"name": q, "lat": 33.75, "lon": -84.39})
+    session = {"places": {}}
+    assert (
+        agent.resolve(session, "Near me")["name"] == "Georgia State University (default location)"
+    )
+    agent.run_tool("remember_place", {"name": "here", "place": "Piedmont Park"}, session, {})
+    assert agent.resolve(session, "my location")["name"] == "Piedmont Park"
+    assert agent.resolve(session, "Midtown")["name"] == "Midtown"
+    agent.note_here(session, "I’m at Atlantic Station, any flooding?")
+    assert agent.resolve(session, "here")["name"] == "Atlantic Station"
+    agent.note_here(session, "I'm in a hurry")  # not a place: unchanged
+    assert agent.resolve(session, "here")["name"] == "Atlantic Station"
+    out = agent.run_tool(
+        "remember_place", {"name": "my location", "place": "my location"}, {"places": {}}, {}
+    )
+    assert out["saved"] is False and "default location" in out["my_location"]["name"]

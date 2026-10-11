@@ -61,6 +61,9 @@ How to answer:
 - ALWAYS use tools for road conditions; never guess. One tool call per question is usually enough.
 - Places: pass the user's words (street, address, landmark, "home", "work"). If they ask about home/work
   and you don't know it, ask for the address once; when they give it, call remember_place.
+- Their own location ("my location", "here", "near me", "around me", "my area"): pass place="my location"
+  straight to the check tool (Georgia State University unless they've said where they are). Call
+  remember_place for it only when they name a specific place they are at.
 - Times: convert "tonight at 6", "in 2 hours" to leave_in_hours from the current time (0 = now).
   More than 18 hours out is beyond the forecast window: say so, don't guess.
 - Use only these meanings: "flooded" = Do not cross {{road}}, forecast underwater around {{time}};
@@ -736,8 +739,51 @@ def geocode(place: str) -> dict | None:
     return out
 
 
+# "my location" until the person says where they are. ponytail: fixed default; Photon's Find My location API
+# (locations.get / watch) can replace it once the relay holds direct iMessage credentials.
+DEFAULT_LOCATION = "Georgia State University"
+HERE = {
+    "me",
+    "here",
+    "my location",
+    "my current location",
+    "current location",
+    "where i am",
+    "near me",
+    "around me",
+    "my area",
+    "my spot",
+}
+
+
+def place_key(name: str) -> str:
+    key = name.strip().lower()
+    return "my location" if key in HERE else key
+
+
 def resolve(session: dict, place: str) -> dict | None:
-    return session["places"].get(place.strip().lower()) or geocode(place)
+    key = place_key(place)
+    if key in session["places"]:
+        return session["places"][key]
+    if key == "my location":
+        session["assumed_here"] = True
+        geo = geocode(f"{DEFAULT_LOCATION}, Atlanta, GA")
+        return geo and {**geo, "name": f"{DEFAULT_LOCATION} (default location)"}
+    return geocode(place)
+
+
+I_AM_AT = re.compile(r"\b(?:i['’]?m|i am)\s+(?:at|near)\s+([^.?!,;]+)", re.IGNORECASE)
+
+
+def note_here(session: dict, text: str) -> None:
+    """'I'm at Piedmont Park' -> that place becomes 'my location' for later questions."""
+    m = I_AM_AT.search(text)
+    if (
+        m
+        and place_key(m.group(1)) != "my location"
+        and (geo := resolve(session, m.group(1).strip()))
+    ):
+        session["places"]["my location"] = geo
 
 
 def engine_extra(fn, *args) -> dict | None:
@@ -777,10 +823,12 @@ def engine_extra(fn, *args) -> dict | None:
 
 def run_tool(name: str, args: dict, session: dict, ctx: dict) -> dict:
     if name == "remember_place":
+        if place_key(args["place"]) == "my location":  # the words themselves are not a place
+            return {"saved": False, "my_location": resolve(session, "my location")}
         geo = geocode(args["place"])
         if not geo:
             return {"error": f"couldn't find '{args['place']}' in Georgia"}
-        session["places"][args["name"].strip().lower()] = geo
+        session["places"][place_key(args["name"])] = geo
         return {"saved": args["name"], "as": geo["name"]}
     if name == "check_area":
         geo = resolve(session, args["place"])
@@ -867,6 +915,8 @@ def context() -> dict:
 def answer(sender: str, text: str) -> str:
     session = SESSIONS.setdefault(sender, {"history": deque(maxlen=12), "places": {}})
     session.pop("photos_out", None)
+    session.pop("assumed_here", None)
+    note_here(session, text)
     ctx = context()
     system = SYSTEM.format(
         now=local(ctx["now"]),
@@ -923,6 +973,10 @@ def answer(sender: str, text: str) -> str:
         reply = finalize(llm(messages, tools=False).get("content") or "")
         if not reply or is_banned(reply):
             reply = template_reply(last_result)
+    if session.get("assumed_here") and DEFAULT_LOCATION not in reply:
+        reply = finalize(
+            f"Using {DEFAULT_LOCATION} as your location (tell me where you are to change it). {reply}"
+        )
     if needs_guarantee(last_result, reply):
         reply = finalize(reply[: MAX_CHARS - 40].rstrip() + " This is not a safety guarantee.")
     reply = config.road_alias(reply)  # never longer: aliases are shorter than the official names

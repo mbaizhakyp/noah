@@ -56,6 +56,7 @@ They score: people and places that get overlooked (access, safety, mobility), po
 2. *"alerts on"* → Noah confirms and sends the current status.
 3. Re-send Saturday's latest real alert to their thread, labeled "Re-sent from Sat …": `uv run python -m noah.pipeline.route_watch --resend` → their phone buzzes. (Text only: Saturday's two camera alerts were false alarms, so they are never re-sent.)
 4. **Live cameras (J32):** *"Give me CCTV images of a 5-mile radius from Georgia State University and evaluate risks."* → in ~10 s: an album of 6 live traffic-camera photos spread across the area, each AI-checked for water, a numbered key, and a **risk checklist** (J33): 🟩/🟨/🟥 photos · official warnings · rain and water levels · public flood reports, then a one-line bottom line (never "safe"; ends with "not a safety guarantee").
+   - Shorter (J38): *"Any flooding around my location?"* → same checklist for **Georgia State University (default location)**; *"I'm at Piedmont Park"* switches it. Say it plainly: Noah can't see their location yet, GSU is the default; live location sharing (Photon's Find My API) is next.
 5. Guardrail: *"Is it safe to drive on Collier Road?"* → never "safe": the forecast, "never drive into water", 911.
 6. One slide: iPhone → Spectrum Cloud iMessage line → `spectrum-ts` relay (typing indicator, photos via `attachment()`, proactive sends via `space.send`) → Noah agent (Azure OpenAI tool calling) → NOAA forecast + live sources. Never silent: on failure it sends the safety message.
 
